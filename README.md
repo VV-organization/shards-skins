@@ -49,8 +49,8 @@ Steam profile lookup проверяет только публичный проф
 - DESIGN_DIRECTION.md — источники каждого визуального приёма.
 - REQUIREMENTS_AUDIT.md — реально выполненные проверки и ограничения.
 - reference-evidence/review.md — исследование и происхождение материалов.
-- output/imagegen/prism-chrome-hero.prompt.txt — точный промпт hero, built-in imagegen.
+- output/imagegen/prism-skins-hero.prompt.txt — точный промпт hero, built-in imagegen.
 
 ## Материалы
 
-Hero public/assets/prism-chrome-hero.webp — оригинальная генерация. Каталожные изображения не изменялись, provenance src/data/catalog.json. Onest распространяется по OFL, лицензия public/fonts/OFL.txt. Изображения Spectra в reference-evidence используются только для внутреннего анализа и не включаются в сайт.
+Hero public/assets/prism-skins-hero.webp — оригинальная генерация. Каталожные изображения не изменялись, provenance src/data/catalog.json. Onest распространяется по OFL, лицензия public/fonts/OFL.txt. Изображения Spectra в reference-evidence используются только для внутреннего анализа и не включаются в сайт.
