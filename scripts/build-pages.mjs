@@ -4,8 +4,8 @@ import path from "node:path";
 import {spawnSync} from "node:child_process";
 
 const project=process.cwd();
-const stage=await mkdtemp(path.join(tmpdir(),"prism-skins-pages-"));
-const basePath=process.env.PRISM_PAGES_BASE_PATH??"/prism-skins-site";
+const stage=await mkdtemp(path.join(tmpdir(),"shards-skins-pages-"));
+const basePath=process.env.SHARDS_PAGES_BASE_PATH??"/shards-skins-site";
 if(basePath && !/^\/[a-zA-Z0-9_-]+$/.test(basePath))throw new Error("Invalid Pages base path");
 try {
   for(const entry of ["src","public","next.config.ts","next-env.d.ts","tsconfig.json","package.json"]){

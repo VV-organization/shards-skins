@@ -3,7 +3,7 @@ import {useState} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type {Product} from "@/lib/types";
-import {prismToRub,formatMinor} from "@/lib/money";
+import {shardsToRub,formatMinor} from "@/lib/money";
 import {Price} from "./price";
 import {useShop} from "./shop-provider";
 
@@ -18,7 +18,7 @@ export function SkinCompare({products}:{products:Product[]}){
  if(!left||!right)return null;
  const pair=[left,right];
  const difference=Math.abs(left.priceMinor-right.priceMinor);
- const rubDifference=Math.abs(prismToRub(left.priceMinor)-prismToRub(right.priceMinor));
+ const rubDifference=Math.abs(shardsToRub(left.priceMinor)-shardsToRub(right.priceMinor));
  const cheaper=left.priceMinor<right.priceMinor?left:right;
  function select(index:number,id:string){
   const other=pair[1-index];
@@ -35,6 +35,6 @@ export function SkinCompare({products}:{products:Product[]}){
    <div className="compare-row" role="row"><span role="rowheader">StatTrak™</span>{pair.map(p=><span role="cell" key={p.id}>{p.stattrak?"Есть":"Нет"}</span>)}</div>
    <div className="compare-row compare-actions" role="row"><span role="rowheader">Подробнее</span>{pair.map(p=><div role="cell" key={p.id}><Link href={`/catalog/${p.id}`}>Открыть скин <span aria-hidden="true">↗</span></Link></div>)}</div>
   </div>
-  <div className="compare-verdict" role="status" aria-atomic="true">{difference>0?<><span>{cheaper.finish} дешевле на</span><strong>{formatMinor(difference)} PRISM <small>≈ {formatMinor(rubDifference)} ₽</small></strong></>:<strong>Оба предмета стоят одинаково</strong>}<span className="compare-note">Float описывает износ, но сам по себе не определяет стоимость скина.</span></div>
+  <div className="compare-verdict" role="status" aria-atomic="true">{difference>0?<><span>{cheaper.finish} дешевле на</span><strong>{formatMinor(difference)} Shards <small>≈ {formatMinor(rubDifference)} ₽</small></strong></>:<strong>Оба предмета стоят одинаково</strong>}<span className="compare-note">Float описывает износ, но сам по себе не определяет стоимость скина.</span></div>
  </section>;
 }

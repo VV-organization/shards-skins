@@ -1,5 +1,5 @@
 /** Minor units are hundredths; preview rounding is half-up, not a live payment contract. */
-export const RUBLES_PER_PRISM = 1.5;
+export const SHARDS_PER_RUBLE = 1.6;
 export const STEAM_FEE_PERCENT = 5;
 const MAX_MINOR = 999_999_999;
 
@@ -13,13 +13,13 @@ export function parseAmount(value: string): number | null {
 function validMinor(value: number) {
   if (!Number.isSafeInteger(value) || value < 0 || value > MAX_MINOR) throw new RangeError("Invalid money amount");
 }
-export function prismToRub(prismMinor: number) {
-  validMinor(prismMinor);
-  return Number((BigInt(prismMinor) * 3n + 1n) / 2n);
+export function shardsToRub(shardsMinor: number) {
+  validMinor(shardsMinor);
+  return Number((BigInt(shardsMinor) * 5n + 4n) / 8n);
 }
-export function rubToPrism(rubMinor: number) {
+export function rubToShards(rubMinor: number) {
   validMinor(rubMinor);
-  return Number((BigInt(rubMinor) * 2n + 1n) / 3n);
+  return Number((BigInt(rubMinor) * 8n + 2n) / 5n);
 }
 export function steamQuote(amount: number) {
   validMinor(amount);
@@ -27,9 +27,9 @@ export function steamQuote(amount: number) {
   return { amount, fee, total: amount + fee };
 }
 export function sumPrices(prices: readonly number[]) {
-  const prism=prices.reduce((sum,price)=>{validMinor(price);return sum+price;},0);
-  if(!Number.isSafeInteger(prism))throw new RangeError("Invalid total");
-  return {prism,rub:Number((BigInt(prism)*3n+1n)/2n)};
+  const shards=prices.reduce((sum,price)=>{validMinor(price);return sum+price;},0);
+  if(!Number.isSafeInteger(shards))throw new RangeError("Invalid total");
+  return {shards,rub:Number((BigInt(shards)*5n+4n)/8n)};
 }
 export function formatMinor(minor: number, digits = 2) {
   return (minor / 100).toLocaleString("ru-RU", { minimumFractionDigits:0, maximumFractionDigits:digits });

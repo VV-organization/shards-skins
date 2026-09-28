@@ -23,10 +23,10 @@ test("curated color groups use explicit catalog IDs", () => {
   for(const ids of Object.values(curatedColors)) for(const id of ids) assert.ok(catalogIds.has(id),`Missing catalog item: ${id}`);
 });
 
-test("RUB budget uses the existing PRISM conversion on minor units", () => {
+test("RUB budget uses the existing Shards conversion on minor units", () => {
   const result=filterDiscovery(products,"orange","3 000");
-  assert.deepEqual(result.items.map(p=>p.id),[products[0].id,products[1].id]);
-  assert.equal(result.count,2);
+  assert.deepEqual(result.items.map(p=>p.id),[products[0].id,products[1].id,products[2].id]);
+  assert.equal(result.count,3);
   assert.equal(result.invalidBudget,false);
 });
 

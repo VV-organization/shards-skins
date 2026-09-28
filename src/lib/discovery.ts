@@ -1,5 +1,5 @@
 import type {Product} from "./types.ts";
-import {prismToRub, parseAmount} from "./money.ts";
+import {shardsToRub, parseAmount} from "./money.ts";
 
 export const curatedColors = {
   orange: [
@@ -35,6 +35,6 @@ export function filterDiscovery(products:Product[], color:DiscoveryColor, budget
   const matching=curatedColors[color]
     .map(id=>available.get(id))
     .filter((product):product is Product=>Boolean(product))
-    .filter(product=>budget===null || prismToRub(product.priceMinor)<=budget);
+    .filter(product=>budget===null || shardsToRub(product.priceMinor)<=budget);
   return {count:matching.length,items:matching.slice(0,3),invalidBudget:false};
 }
