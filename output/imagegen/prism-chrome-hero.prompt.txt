@@ -1,0 +1,9 @@
+Use case: ads-marketing.
+Asset type: original premium website hero campaign illustration for PRISM, a CS2 skins storefront. This is atmospheric brand art, not a catalog product.
+Primary request: ONE landscape image, 1536x1024 or wider, no typography.
+Scene/backdrop: immersive surreal digital studio, saturated ultramarine fading to deep indigo and black-indigo shadows, restrained and cinematic.
+Subject: one sculptural futuristic faceless chrome helmet and bust, no visible human face, elegantly rounded reflective shell, iridescent violet and cobalt metal with precise hot pink rim light. Silky liquid-metal folds flow around its shoulders, fine realistic microtexture.
+Style/medium: expensive photorealistic 3D editorial fashion campaign image, glossy sculptural rendering, exceptional materials and lighting, bold but restrained composition.
+Composition/framing: wide landscape, bust centered and large in the upper-middle, fully contained helmet with breathing room above; sides retain empty indigo space. Reserve the bottom quarter as dark navy negative space for a large white title to be added later in HTML. Soft shoulder forms should fade into that darkness.
+Lighting/mood: rich cobalt key lighting, violet reflections and hot-pink edge highlights, crisp sculptural speculars, deep navy shadows, futuristic mysterious luxury.
+Constraints: no text, no UI, no logos, no letters, no watermarks, no weapons, no product renders, no orange dominant colors, no cartoon, no generic neon grids, no excessive extra objects. Create just one image.
