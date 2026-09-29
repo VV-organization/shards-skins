@@ -3,7 +3,7 @@
 - Выполнить семь этапов project-prompts.md, пользователь уже поручил реализацию после промптов.
 - Соседние проекты читать, не менять. Не копировать секреты, .git, .env и конфигурацию публикации.
 - Структура Flare; визуальные источники только Spectra Lab и Butter.
-- Новые GitHub-репозитории только private VV-organization/<name>.
+- Новые GitHub-репозитории — public VV-organization/<name>, если пользователь явно не просит private.
 - Любое добавление → видимое нижнее подтверждение со ссылкой на корзину и закрытием, внутри dialog при quick view, aria-live.
 - Добавленный товар имеет рабочую ссылку «Перейти в корзину» на карточке, в quick view, на товаре и в комплекте.
 - Проверять add → confirmation → cart → item, duplicate prevention, reload, mobile и keyboard.

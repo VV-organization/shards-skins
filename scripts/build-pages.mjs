@@ -1,4 +1,4 @@
-import {cp, mkdir, mkdtemp, rm, symlink, writeFile} from "node:fs/promises";
+import {access, cp, mkdir, mkdtemp, rm, symlink, writeFile} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import path from "node:path";
 import {spawnSync} from "node:child_process";
@@ -9,7 +9,14 @@ const basePath=process.env.SHARDS_PAGES_BASE_PATH??"/shards-skins-site";
 if(basePath && !/^\/[a-zA-Z0-9_-]+$/.test(basePath))throw new Error("Invalid Pages base path");
 try {
   for(const entry of ["src","public","next.config.ts","next-env.d.ts","tsconfig.json","package.json"]){
-    await cp(path.join(project,entry),path.join(stage,entry),{recursive:true});
+    const source=path.join(project,entry);
+    try {
+      await access(source);
+    } catch {
+      if(entry==="next-env.d.ts")continue;
+      throw new Error(`Required Pages build input is missing: ${entry}`);
+    }
+    await cp(source,path.join(stage,entry),{recursive:true});
   }
   // Only the isolated export copy excludes server routes. The Node app retains them.
   await rm(path.join(stage,"src/app/api"),{recursive:true});
