@@ -1,0 +1,49 @@
+name: Deploy Shards to GitHub Pages
+on:
+  push:
+    branches: [codex/prism-storefront]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - uses: actions/configure-pages@v5
+      - run: npm run build:pages
+        env:
+          SHARDS_PAGES_BASE_PATH: /shards-skins
+      - name: Verify static artifact
+        run: |
+          test -f out-pages/index.html
+          test -f out-pages/catalog/index.html
+          test -f out-pages/cart/index.html
+          test -f out-pages/favicon.svg
+          test -f out-pages/.nojekyll
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: out-pages
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
