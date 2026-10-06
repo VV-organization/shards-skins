@@ -1,4 +1,5 @@
 'use client';
+import {Icon} from "./icon";
 
 import {useState} from 'react';
 import type {Product} from '@/lib/types';
@@ -15,6 +16,6 @@ export function HeroSkinCarousel({products}:{products:Product[]}) {
       <div className="hero-skin-desktop-cards">{products.map(item=><ProductCard key={item.id} product={item}/>)}</div>
       <div className="hero-skin-mobile-card" aria-live="polite"><ProductCard key={product.id} product={product}/></div>
     </div>
-    <div className="hero-skin-controls"><button type="button" aria-label="Предыдущий скин" onClick={()=>move(-1)}>←</button><span>{product.name}</span><button type="button" aria-label="Следующий скин" onClick={()=>move(1)}>→</button></div>
+    <div className="hero-skin-controls"><button type="button" aria-label="Предыдущий скин" onClick={()=>move(-1)}><Icon name="arrow-left" size={18}/></button><span>{product.name}</span><button type="button" aria-label="Следующий скин" onClick={()=>move(1)}><Icon name="arrow" size={18}/></button></div>
   </div>;
 }

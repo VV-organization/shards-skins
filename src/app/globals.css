@@ -113,9 +113,83 @@
 .hero-skin-controls{margin-top:8px}
 }
 .hero-art{object-position:center 37%}
+/* Keep animated mobile cards and their controls in flow, clear of the headline. */
+@media(max-width:800px){.hero{height:auto;min-height:0;padding:160px 5% 36px}.hero-skin-strip{position:relative;inset:auto;width:min(100%,330px);margin-left:auto}.hero-copy{position:relative;inset:auto;margin-top:32px}.hero-topline{top:115px}}
+@media(max-width:520px){.hero{padding-top:139px}.hero-skin-strip{margin-left:0}.hero-topline{top:100px}}
 @media(min-width:801px){.hero-bottom{position:relative;justify-content:initial}.hero-actions{position:absolute;left:50%;bottom:0}.scroll-link{margin-left:auto}}
 @media(max-width:800px){.hero-bottom{position:static;justify-content:space-between}.hero-actions{position:static;margin-left:0}.scroll-link{margin-left:0}}
 
 /* Center the product artwork in the full-height quick-view image stage. */
 .quick-detail .detail-visual{align-self:stretch}
 .quick-detail .detail-visual img{flex:1 1 auto;width:100%;min-height:0;height:auto;object-fit:contain;object-position:center center;transform:translateY(-10%)}
+
+/* Entrance effects are real Web Animations, scoped to every painted object.
+   This initial gate prevents a visible -> hidden flash during hydration. */
+@media(prefers-reduced-motion:no-preference){
+  .motion-root[data-motion-boot]{opacity:0;animation:shards-boot-safety 1ms 2400ms forwards}
+}
+@keyframes shards-boot-safety{to{opacity:1}}
+
+@keyframes shards-idle-drift{0%,100%{transform:translateY(0) rotate(-7deg)}50%{transform:translateY(-4px) rotate(-4deg)}}
+@keyframes shards-modal-arrive{from{opacity:0;transform:translateY(22px) scale(.975);filter:blur(8px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+@keyframes shards-backdrop-arrive{from{opacity:0}to{opacity:1}}
+.topup-title>svg{animation:shards-idle-drift 7s ease-in-out infinite}
+.topup-panel:nth-child(2) .topup-title>svg{animation-delay:-3.5s}
+.topup-panel:hover .topup-title>svg{animation-play-state:paused}
+.hero-symbol,.footer-spark{display:inline-block;transform-origin:center;animation:shards-spark-turn 18s linear infinite}
+@keyframes shards-spark-turn{to{rotate:1turn}}
+.button,.icon-button,.add-button,.favorite-button,.hero-skin-controls button,.catalog-category-tabs button,.account-sidebar nav button,.account-sidebar nav a,.gift-nominals label,.payment-choice label,.subtle-button,.cart-link{transition-timing-function:cubic-bezier(.2,.8,.2,1);transition-duration:360ms}
+.button:active,.icon-button:active,.add-button:active,.favorite-button:active,.hero-skin-controls button:active,.catalog-category-tabs button:active,.account-sidebar nav button:active,.gift-nominals label:active,.payment-choice label:active{transform:scale(.965)}
+.site-header .nav-island,.site-header .header-actions{transition:background .55s cubic-bezier(.2,.8,.2,1),box-shadow .55s cubic-bezier(.2,.8,.2,1),transform .55s cubic-bezier(.2,.8,.2,1),border-color .55s ease}
+.scrolled .nav-island,.scrolled .header-actions{box-shadow:0 14px 45px #08051d44;border-color:#ffffff2a}
+.product-card{transform-style:preserve-3d;transition:background .45s,border-color .45s,box-shadow .55s,transform .6s cubic-bezier(.2,.8,.2,1)}
+.product-card:hover .product-image-button img{filter:drop-shadow(0 24px 26px #0b07207c)}
+.footer-sculpture .footer-echo,.footer-main-word{transition:transform .9s cubic-bezier(.2,.8,.2,1),filter .9s ease,color .9s ease}
+.footer-sculpture:hover .footer-echo{filter:saturate(1.3)}
+.modal[open]::backdrop{animation:shards-backdrop-arrive 480ms ease both}
+
+@media(max-width:800px){.topup-title>svg{animation-duration:9s}}
+
+/* Butter's soft control islands, in Spectra's violet light. */
+.shards-select{display:block;min-width:0;width:100%;text-align:left}
+.shards-select-trigger{display:flex;align-items:center;justify-content:space-between;gap:18px;width:100%;min-height:58px;padding:13px 16px;border:1px solid #c9b6ff45;border-radius:14px;background:linear-gradient(125deg,#ffffff0d,#17112d40);box-shadow:inset 0 1px #ffffff12;color:var(--ink);text-align:left;font:inherit;transition:border-color .25s,background .25s}
+.shards-select-trigger:hover,.shards-select-trigger[aria-expanded=true]{border-color:#d8b4f8a6;background:linear-gradient(125deg,#9c75dc30,#211637a6)}
+.shards-select-value{display:flex;flex-direction:column;min-width:0;gap:4px;font-size:14px;line-height:1.3;font-weight:400;letter-spacing:0}
+.shards-select-value>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shards-select-value small{font-size:11px;color:#bdb0d6;font-weight:400;line-height:1.35}
+.shards-select-arrow{display:grid;place-items:center;flex:0 0 28px;height:28px;border-radius:50%;background:#c3a5f11a;color:#ebd6ff;font-size:20px;transition:transform .3s}
+.shards-select-trigger[aria-expanded=true] .shards-select-arrow{transform:rotate(180deg)}
+.shards-select-menu{position:fixed;z-index:1100;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#a17cbe66 transparent;padding:8px;border:1px solid #c6a3ed66;border-radius:18px;background:radial-gradient(ellipse at 100% 0%,#6e40924d,transparent 70%),#201831f7;backdrop-filter:blur(28px);box-shadow:0 24px 70px #08021685,inset 0 1px #ffffff17;color:#faf7ff;animation:shards-select-open .32s cubic-bezier(.16,1,.3,1)}
+.shards-select-caption{display:flex;justify-content:space-between;gap:12px;padding:9px 12px 14px;font-size:9px;letter-spacing:.14em;color:#b7a1cb;border-bottom:1px solid #cfb0ed1a;margin-bottom:5px}
+.shards-select-option{display:flex;align-items:center;gap:12px;min-height:50px;padding:10px 12px;margin:3px 0;border-radius:11px;border:1px solid transparent;cursor:pointer;transition:background .2s,border-color .2s}
+.shards-select-option[data-active=true]{background:#d8b3f214;border-color:#d1b0e626}
+.shards-select-option[aria-selected=true]{background:linear-gradient(115deg,#9464c83d,#53488d26);border-color:#d1b0e640}
+.shards-select-number{font-size:10px;letter-spacing:.06em;color:#a592bf;min-width:20px;font-variant-numeric:tabular-nums}
+.shards-select-check{margin-left:auto;color:#d9b5f4;font-size:18px;flex:0 0 20px;text-align:center}
+.shards-select-option:not([aria-selected=true]) .shards-select-check{opacity:0}
+.shards-select-option[data-active=true] .shards-select-check{opacity:1}
+.shards-select-thumb{width:70px;height:46px;flex-shrink:0;display:grid;place-items:center;background:radial-gradient(ellipse,#9b67d329,transparent 70%)}
+.shards-select-thumb img{width:100%;height:100%;object-fit:contain}
+.compare-weapon{min-width:210px}.compare-selection .shards-select-trigger{min-height:66px}.sort-control .shards-select{min-width:190px}
+.duo-item>.shards-select,.gift-form>.shards-select{margin-top:9px}
+@keyframes shards-select-open{from{opacity:0;transform:translateY(10px) scale(.98);filter:blur(5px)}to{opacity:1;transform:none;filter:blur(0)}}
+@media(max-width:520px){.shards-select-trigger{padding:11px;gap:8px;min-height:54px}.shards-select-value{font-size:12px}.shards-select-value small{font-size:10px}.shards-select-arrow{flex-basis:22px;height:22px}.compare-selection .shards-select-value>span{white-space:normal}.compare-selection .shards-select-trigger{min-height:82px}.sort-control .shards-select{min-width:0}}
+@media(prefers-reduced-motion:reduce){.shards-select-menu{animation:none}.shards-select-trigger,.shards-select-arrow,.shards-select-option{transition:none}}
+.shards-select-option{animation:shards-option-open .4s both cubic-bezier(.16,1,.3,1)}
+@keyframes shards-option-open{from{opacity:0;translate:0 8px;filter:blur(3px)}to{opacity:1;translate:0 0;filter:blur(0)}}
+.catalog-filters .filter-option{padding:10px 12px;margin:3px -12px;border:1px solid transparent;border-radius:10px;transition:background .2s,border-color .2s}
+.catalog-filters .filter-option:has(input:checked){background:linear-gradient(110deg,#986dd52b,#6e549010);border-color:#c4a2e532}
+.catalog-filters .filter-option input{appearance:none;width:17px;height:17px;border:1px solid #bfa5dd70;background:#100a2826;display:grid;place-items:center;flex-shrink:0;margin:0}
+.catalog-filters input[type=radio]{border-radius:50%}.catalog-filters input[type=checkbox]{border-radius:5px}
+.catalog-filters .filter-option input:checked{background:#dfc6f7;border-color:#dfc6f7}
+.catalog-filters .filter-option input:checked:after{content:'';width:7px;height:7px;border-radius:50%;background:#3d285d}
+.catalog-filters .filter-option input[type=checkbox]:checked:after{width:8px;height:5px;border-radius:0;border-left:2px solid #3d285d;border-bottom:2px solid #3d285d;background:none;transform:rotate(-45deg) translateY(-1px)}
+@media(prefers-reduced-motion:reduce){.shards-select-option{animation:none}}
+
+/* Direction icons use square SVG geometry, never font glyph baselines. */
+.ui-arrow{display:block;flex-shrink:0;aspect-ratio:1;overflow:visible;vertical-align:middle}
+.arrow-slot,.shards-select-check{display:inline-flex;align-items:center;justify-content:center;line-height:0}
+.scroll-link,.back-top,.hero-skin-controls button{padding:0;line-height:0;flex-shrink:0;aspect-ratio:1;place-items:center}
+.shards-select-arrow{padding:0;line-height:0;aspect-ratio:1;flex-shrink:0}
+.footer-top nav a:has(>.ui-arrow){display:inline-flex;align-items:center;gap:10px}
+.hero-skin-controls>span{flex:1}
