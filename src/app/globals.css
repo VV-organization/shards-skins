@@ -191,3 +191,25 @@
 .shards-select-arrow{padding:0;line-height:0;aspect-ratio:1;flex-shrink:0}
 .footer-top nav a:has(>.ui-arrow){display:inline-flex;align-items:center;gap:10px}
 .hero-skin-controls>span{flex:1}
+
+/* Editorial storefront: three / five / three, mirrored final feature. */
+.focus-catalog{display:grid;gap:20px}
+.focus-row{display:grid;gap:16px;grid-template-columns:minmax(0,1.45fr) repeat(2,minmax(0,1fr))}
+.focus-row-2{grid-template-columns:repeat(5,minmax(0,1fr))}
+.focus-row-3{grid-template-columns:repeat(2,minmax(0,1fr)) minmax(0,1.45fr)}
+.focus-row .product-card{min-width:0;display:flex;flex-direction:column}
+.focus-row .product-info{flex:1;display:flex;flex-direction:column}
+.focus-row .product-bottom{margin-top:auto}
+.focus-row .product-image-button{height:280px;flex-shrink:0}
+.focus-row-1>.product-card:first-child,.focus-row-3>.product-card:last-child{background:radial-gradient(ellipse at 70% 24%,color-mix(in srgb,var(--skin-glow) 27%,transparent),transparent 50%),linear-gradient(142deg,#ffffff11,#ffffff03 46%),linear-gradient(140deg,#514499,#271a57 72%);border-color:#d9c4ff4a}
+.focus-row-2 .product-card{padding:16px}
+.focus-row-2 .product-image-button{height:190px}
+.focus-row-2 .product-info h3{font-size:clamp(17px,1.45vw,23px);overflow-wrap:anywhere}
+.focus-row-2 .price-main{font-size:clamp(14px,1.1vw,18px)}
+.focus-row-2 .price-main small{font-size:9px}
+.focus-row-2 .price-rub{font-size:11px}
+.focus-row-2 .product-bottom{gap:8px}
+.focus-row-2 .add-button{width:34px;min-width:34px;height:34px}
+@media(max-width:1200px){.focus-row-2{grid-template-columns:repeat(3,minmax(0,1fr))}.focus-row .product-image-button{height:220px}}
+@media(max-width:800px){.focus-row{grid-template-columns:repeat(2,minmax(0,1fr))}.focus-row-1>.product-card:first-child,.focus-row-3>.product-card:last-child{grid-column:1/-1}.focus-row-2>.product-card:last-child{grid-column:1/-1}.focus-row .product-image-button{height:190px}.focus-row-1>.product-card:first-child .product-image-button,.focus-row-3>.product-card:last-child .product-image-button{height:270px}}
+@media(max-width:520px){.focus-catalog{gap:12px}.focus-row{gap:12px;grid-template-columns:minmax(0,1fr)}.focus-row .product-image-button{height:230px}.focus-row .product-info h3{font-size:23px;min-height:0}.focus-row-2 .price-main{font-size:20px}.focus-row-2 .product-card{padding:20px}.focus-row-2 .add-button{width:40px;min-width:40px;height:40px}}
