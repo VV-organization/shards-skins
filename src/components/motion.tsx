@@ -22,8 +22,8 @@ function objectRole(element:Element):Role|null{
   if(element.matches(".hero,.hero-shade,.content-gradient"))return "backdrop";
   if(element.matches(".footer-echo,.footer-main-word"))return "layer";
   if(element.matches("h1,h2,h3,h4,h5,h6"))return "heading";
-  if(element.matches("img,video,canvas,iframe,.gift-card,.gift-card-back,.profile-avatar,.account-guest-art"))return "image";
-  if(element.matches("svg,.hero-symbol,.footer-spark,.gift-art-star,.duo-plus"))return "icon";
+  if(element.matches("img,video,canvas,iframe,.profile-avatar,.account-guest-art"))return "image";
+  if(element.matches("svg,.hero-symbol,.footer-spark,.duo-plus"))return "icon";
   if(element.matches("button,a,input,select,textarea,summary"))return "control";
   const ownText=Array.from(element.childNodes).some(n=>n.nodeType===Node.TEXT_NODE&&Boolean(n.textContent?.trim()));
   if(ownText)return "text";
