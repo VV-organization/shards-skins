@@ -1,42 +1,53 @@
 "use client";
-import {Icon} from "./icon";
-import {ShardsSelect} from "./shards-select";
 import {useState} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type {Product} from "@/lib/types";
-import {shardsToRub,formatMinor} from "@/lib/money";
+import {Icon} from "./icon";
+import {ShardsSelect} from "./shards-select";
 import {Price} from "./price";
 import {useShop} from "./shop-provider";
 
-export function SkinCompare({products}:{products:Product[]}){
- const shop=useShop();
- const weapons=[...new Set(products.map(p=>p.weapon))].filter(weapon=>products.filter(p=>p.weapon===weapon).length>1);
- const [weapon,setWeapon]=useState(weapons.includes("AK-47")?"AK-47":weapons[0]??"");
- const pool=products.filter(p=>p.weapon===weapon);
- const [ids,setIds]=useState<[string,string]>(["",""]);
- const left=pool.find(p=>p.id===ids[0])??pool[0];
- const right=pool.find(p=>p.id===ids[1]&&p.id!==left?.id)??pool.find(p=>p.id!==left?.id);
- if(!left||!right)return null;
- const pair=[left,right];
- const difference=Math.abs(left.priceMinor-right.priceMinor);
- const rubDifference=Math.abs(shardsToRub(left.priceMinor)-shardsToRub(right.priceMinor));
- const cheaper=left.priceMinor<right.priceMinor?left:right;
- function select(index:number,id:string){
-  const other=pair[1-index];
-  const alternate=other.id===id?pair[index].id:other.id;
-  setIds(index===0?[id,alternate]:[alternate,id]);
- }
- return <section className="skin-compare" id="compare" aria-labelledby="compare-title">
-  <header><div><span className="eyebrow">ДВА ВАРИАНТА РЯДОМ</span><h2 id="compare-title">Два скина. Один выбор.</h2><p>Выберите оружие и два покрытия. Сопоставьте цену, состояние и float.</p></div><label className="compare-weapon">Оружие<ShardsSelect aria-label="Оружие" value={weapon} onChange={event=>{setWeapon(event.target.value);setIds(["",""]);}}>{weapons.map(item=><option key={item}>{item}</option>)}</ShardsSelect></label></header>
-  <div className="compare-table" role="table" aria-label="Сравнение выбранных скинов">
-   <div className="compare-row compare-selection" role="row"><span role="columnheader">Предмет</span>{pair.map((p,i)=><div role="columnheader" key={i}><label className="sr-only" htmlFor={`compare-${i}`}>{i===0?"Первый скин":"Второй скин"}</label><ShardsSelect id={`compare-${i}`} value={p.id} onChange={event=>select(i,event.target.value)}>{pool.map(item=><option key={item.id} value={item.id} data-image={item.imageUrl}>{item.finish} · {item.condition}{item.stattrak?" · StatTrak":""}</option>)}</ShardsSelect><button className="compare-image" aria-label={`Рассмотреть для сравнения: ${p.name}`} onClick={()=>shop.setPreviewProduct(p)}><Image key={p.id} src={p.imageUrl} alt={p.name} width={600} height={350}/><span className="arrow-slot"><Icon name="diagonal" size={18}/></span></button><h3>{p.finish}</h3></div>)}</div>
-   <div className="compare-row" role="row"><span role="rowheader">Цена</span>{pair.map(p=><div role="cell" key={p.id}><Price minor={p.priceMinor}/></div>)}</div>
-   <div className="compare-row" role="row"><span role="rowheader">Состояние</span>{pair.map(p=><span role="cell" key={p.id}>{p.condition}</span>)}</div>
-   <div className="compare-row" role="row"><span role="rowheader">Float</span>{pair.map(p=><span role="cell" key={p.id}>{p.float===null?"Не указан":p.float.toFixed(6)}</span>)}</div>
-   <div className="compare-row" role="row"><span role="rowheader">StatTrak™</span>{pair.map(p=><span role="cell" key={p.id}>{p.stattrak?"Есть":"Нет"}</span>)}</div>
-   <div className="compare-row compare-actions" role="row"><span role="rowheader">Подробнее</span>{pair.map(p=><div role="cell" key={p.id}><Link href={`/catalog/${p.id}`}>Открыть скин <Icon name="diagonal" size={18}/></Link></div>)}</div>
-  </div>
-  <div className="compare-verdict" role="status" aria-atomic="true">{difference>0?<><span>{cheaper.finish} дешевле на</span><strong>{formatMinor(difference)} Shards <small>≈ {formatMinor(rubDifference)} ₽</small></strong></>:<strong>Оба предмета стоят одинаково</strong>}<span className="compare-note">Float описывает износ, но сам по себе не определяет стоимость скина.</span></div>
- </section>;
+export function SkinCompare({products}:{products:Product[]}) {
+  const shop=useShop();
+  const weapons=[...new Set(products.map(p=>p.weapon))];
+  const [weapon,setWeapon]=useState(weapons.includes("AK-47")?"AK-47":weapons[0]??"");
+  const [selectedId,setSelectedId]=useState("");
+  const [savedOnly,setSavedOnly]=useState(false);
+  const pool=products.filter(p=>savedOnly?shop.favorites.includes(p.id):p.weapon===weapon);
+  const selected=pool.find(p=>p.id===selectedId)??pool[0];
+  const index=selected?pool.indexOf(selected):0;
+  const saved=selected?shop.favorites.includes(selected.id):false;
+  const inCart=selected?shop.cart.some(p=>p.id===selected.id):false;
+  function step(direction:number) {
+    if(pool.length) setSelectedId(pool[(index+direction+pool.length)%pool.length].id);
+  }
+  return <section className="focus-selection section" id="compare" aria-labelledby="selection-title">
+    <header className="selection-heading">
+      <div><span className="eyebrow">ЛИЧНЫЙ ОТБОР / SHARDS</span><h2 id="selection-title">В твоём <em>фокусе</em></h2></div>
+      <p>Рассмотри. Отложи. Вернись к своему.<br/>Один скин — всё внимание ему.</p>
+    </header>
+    <div className="selection-toolbar">
+      <div className="selection-modes" role="group" aria-label="Режим выбора скинов">
+        <button aria-pressed={!savedOnly} onClick={()=>{setSavedOnly(false);setSelectedId("");}}>Все варианты</button>
+        <button aria-pressed={savedOnly} onClick={()=>{setSavedOnly(true);setSelectedId("");}}><Icon name="heart" size={16}/>Отложенные <span>{shop.favorites.length}</span></button>
+      </div>
+      {!savedOnly&&<div className="selection-weapon"><ShardsSelect aria-label="Оружие для личного отбора" value={weapon} onChange={e=>{setWeapon(e.target.value);setSelectedId("");}}>{weapons.map(w=><option key={w} value={w}>{w}</option>)}</ShardsSelect></div>}
+    </div>
+    {selected?<div className="selection-workspace">
+      <div className="selection-stage" role="region" aria-label="Сцена выбора скина" tabIndex={0} onKeyDown={e=>{if(e.target!==e.currentTarget)return;if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();step(e.key==='ArrowLeft'?-1:1);}}}>
+        <span className="selection-halo" aria-hidden="true"/>
+        <span className="selection-watermark" aria-hidden="true">{selected.weapon}</span>
+        <div className="selection-stage-top"><span>CS2 / {selected.stattrak?'STATTRAK™':'SKIN EDITION'}</span><span>{String(index+1).padStart(2,'0')} / {String(pool.length).padStart(2,'0')}</span></div>
+        <button className="selection-object" key={selected.id} onClick={()=>shop.setPreviewProduct(selected)} aria-label={`Рассмотреть: ${selected.name}`}><Image src={selected.imageUrl} alt={selected.name} width={1000} height={700} sizes="(max-width: 800px) 90vw, 60vw"/><span className="selection-enlarge"><Icon name="diagonal" size={18}/>Рассмотреть детали</span></button>
+        <div className="selection-stage-bottom"><span>Найди то, что цепляет.</span><div className="selection-arrows"><button className="icon-button" aria-label="Предыдущий скин" disabled={pool.length<2} onClick={()=>step(-1)}><Icon name="arrow-left"/></button><button className="icon-button" aria-label="Следующий скин" disabled={pool.length<2} onClick={()=>step(1)}><Icon name="arrow"/></button></div></div>
+      </div>
+      <div className="selection-details">
+        <div key={selected.id} className="selection-product"><span className="eyebrow">{selected.weapon}</span><h3>{selected.finish}</h3><dl className="selection-specs"><div><dt>Состояние</dt><dd>{selected.condition}</dd></div><div><dt>Float</dt><dd>{selected.float===null?'Не указан':selected.float.toFixed(6)}</dd></div><div><dt>StatTrak™</dt><dd>{selected.stattrak?'Есть':'Нет'}</dd></div></dl><Price minor={selected.priceMinor} large/></div>
+        <div className="selection-actions"><button className={`button secondary full ${saved?'is-saved':''}`} aria-pressed={saved} onClick={()=>shop.toggleFavorite(selected.id)}><Icon name={saved?'check':'heart'}/>{saved?'Убрать из отложенных':'Отложить скин'}</button>{inCart?<Link href="/cart" className="button primary full" onClick={shop.dismissNotice}>Перейти в корзину <Icon name="arrow"/></Link>:<button className="button primary full" onClick={()=>shop.add(selected)}>В корзину <Icon name="plus"/></button>}<Link className="selection-detail-link" href={`/catalog/${selected.id}`}>Подробнее о скине <Icon name="diagonal" size={16}/></Link></div>
+      </div>
+    </div>:<div className="selection-empty"><Icon name="heart" size={36}/><h3>Место для твоих фаворитов</h3><p>Откладывай понравившиеся скины — они останутся здесь и после возвращения на сайт.</p><button className="button primary" onClick={()=>setSavedOnly(false)}>Смотреть варианты <Icon name="arrow"/></button></div>}
+    <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{selected?`${selected.weapon}, ${selected.finish}. ${index+1} из ${pool.length}.${saved?' В отложенных.':''}`:'Отложенных скинов пока нет.'}</span>
+    <div className="selection-footnote"><span>01 — Листай варианты</span><span>02 — Сохраняй в отложенные</span><span>03 — Возвращайся к своему</span></div>
+  </section>;
 }
