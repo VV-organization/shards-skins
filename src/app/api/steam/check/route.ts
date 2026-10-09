@@ -11,5 +11,5 @@ export async function POST(request:Request){
   if(Date.now()-windowStart>60000){windowStart=Date.now();calls=0;}
   if(calls>=30||active>=4)return NextResponse.json({error:"Слишком много проверок. Попробуйте через минуту."},{status:429,headers:{"Retry-After":"60"}});
   calls++;active++;
-  try{return NextResponse.json(await lookupSteamProfile(body.steamId),{headers:{"Cache-Control":"no-store"}});}catch(error){return NextResponse.json({error:error instanceof SteamError?error.message:"Проверка Steam временно недоступна."},{status:error instanceof SteamError?error.status:503});}finally{active--;}
+  try{return NextResponse.json(await lookupSteamProfile(body.steamId),{headers:{"Cache-Control":"no-store"}});}catch(error){return NextResponse.json({error:error instanceof SteamError?error.message:"Не удалось подтвердить аккаунт Steam."},{status:error instanceof SteamError?error.status:503});}finally{active--;}
 }

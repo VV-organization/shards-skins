@@ -5,7 +5,7 @@ import {Icon} from "./icon";
 type Profile={steamId:string;name:string;profileUrl:string};
 export function BalanceForm(){
   const id=useId();const [amount,setAmount]=useState("1 000");const [method,setMethod]=useState("card");const [message,setMessage]=useState("");const minor=parseAmount(amount);
-  return <form onSubmit={async e=>{e.preventDefault();if(!minor){setMessage("Введите сумму больше нуля, до двух знаков после запятой.");return;}setMessage("Платёжный сервис временно недоступен. Баланс не изменён.");}}>
+  return <form onSubmit={async e=>{e.preventDefault();if(!minor){setMessage("Введите сумму больше нуля, до двух знаков после запятой.");return;}setMessage("Пополнение не выполнено. Деньги не списаны.");}}>
     <div className="topup-form-body"><label className="field-label" htmlFor={id}>Сколько Shards зачислить</label><div className="money-input"><input id={id} value={amount} inputMode="decimal" maxLength={12} onChange={e=>{setAmount(e.target.value);setMessage("");}} required/><span>Shards</span></div>
     <div className="amount-presets">{[500,1000,2500,5000].map(n=><button type="button" key={n} className={minor===n*100?"selected":""} onClick={()=>{setAmount(String(n));setMessage("");}}>{n.toLocaleString("ru-RU")}</button>)}</div>
     <fieldset className="payment-choice"><legend>Способ оплаты</legend><label className={method==="card"?"selected":""}><input type="radio" name={id+"method"} checked={method==="card"} onChange={()=>setMethod("card")}/>Банковская карта</label><label className={method==="sbp"?"selected":""}><input type="radio" name={id+"method"} checked={method==="sbp"} onChange={()=>setMethod("sbp")}/>СБП</label></fieldset>
@@ -19,16 +19,16 @@ export function SteamForm(){
   function invalidate(){generation.current++;setProfile(null);setBusy(false);setMessage("");}
   async function submit(){
     setMessage("");if(!minor){setMessage("Введите сумму зачисления больше нуля.");return;}
-    if(profile){setMessage("Пополнение Steam временно недоступно. Деньги не списаны.");return;}
+    if(profile){setMessage("Пополнение не выполнено. Деньги не списаны.");return;}
     if(!/^\d{17}$/.test(steamId)){setMessage("Steam ID должен содержать 17 цифр.");return;}
-    if(process.env.NEXT_PUBLIC_STATIC_EXPORT==="true"){setMessage("Проверка Steam временно недоступна. Попробуйте позже.");return;}
+    if(process.env.NEXT_PUBLIC_STATIC_EXPORT==="true"){setMessage("Не удалось подтвердить аккаунт Steam.");return;}
     const request=++generation.current;setBusy(true);
     try{
       const response=await fetch("/api/steam/check",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({steamId})});
       const data=await response.json();if(request!==generation.current)return;
       if(!response.ok)throw new Error(data.error??"Не удалось проверить аккаунт.");
       setProfile(data);
-    }catch(error){if(request===generation.current)setMessage(error instanceof Error?error.message:"Проверка временно недоступна.");}
+    }catch(error){if(request===generation.current)setMessage(error instanceof Error?error.message:"Не удалось подтвердить аккаунт Steam.");}
     finally{if(request===generation.current)setBusy(false);}
   }
   return <form onSubmit={e=>{e.preventDefault();void submit();}}>
