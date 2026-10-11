@@ -1,4 +1,5 @@
 import {test,expect,type Locator,type Page} from '@playwright/test';
+import {mkdirSync} from 'node:fs';
 async function settled(target:Locator){await target.scrollIntoViewIfNeeded();await expect.poll(()=>target.evaluate(el=>{let node:Element|null=el;while(node){if(node.getAnimations().some(a=>a.id.startsWith('shards-enter:')))return false;node=node.parentElement;}return true;})).toBe(true);await target.click();}
 const sessionId='11111111-1111-4111-8111-111111111111';
 const product={id:'knife',slug:'knife',kind:'skins',category:'Ножи',categoryId:'knife',game:'cs2',productType:'Нож',title:'Huntsman Knife | Damascus Steel',description:'',condition:'FN',weapon:'Huntsman Knife',stattrak:false,marketHashName:'knife',priceRevision:'r1',pricingSettingId:'p1',price:{currency:'COINS',amountMinor:25001,scale:2,display:'250,01'},availability:'available',fulfillmentMode:'steam-trade',createdAt:new Date().toISOString(),popularity:1,meta:[],keywords:[],details:{specifications:[],fulfillment:{title:'Steam',description:'',requirements:[]}}};
@@ -26,8 +27,8 @@ async function fixture(page:Page){
 }
 for(const width of [1440,390])test(`available balance shortfall and explicit purchase ${width}`,async({page})=>{
  await page.setViewportSize({width,height:900});const state=await fixture(page);await page.goto('http://127.0.0.1:5198/cart');
- await expect(page.getByText(/Доступно 100 Shards/)).toBeVisible();await expect(page.getByText(/Не хватает 150,01 Shards/)).toBeVisible();
- await expect(page.getByRole('radio')).toHaveCount(1);await expect(page.getByRole('radio',{name:'Баланс Shards'})).toBeChecked();
+ await expect(page.locator('.cart-wallet-row')).toContainText('100 Shards');await expect(page.locator('.cart-wallet-result')).toContainText('150,01 Shards');
+ await expect(page.getByRole('radio')).toHaveCount(0);await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow','39');
  await settled(page.getByRole('link',{name:'Пополнить баланс',exact:true}));await expect(page).toHaveURL(/amount=151/);
  await expect(page.getByLabel('Сколько Shards зачислить')).toHaveValue('151');expect(state.checkoutCalls).toBe(0);
  state.available=30000;await settled(page.getByRole('link',{name:'Продолжить покупку',exact:true}));await expect(page.getByRole('button',{name:'Купить скины',exact:true})).toBeEnabled();expect(state.checkoutCalls).toBe(0);
@@ -86,4 +87,19 @@ test('same Steam owner linking email refreshes csrf before immediate Steam quote
  await page.route('**/api/payments/steam-refill/quotes',route=>{expect(route.request().headers()['x-csrf-token']).toBe('rotated');quotes++;return route.fulfill({json:{quoteId:'steam',expiresAt:new Date(Date.now()+60000).toISOString(),fiatAmountMinor:52500,feeRubMinor:2500,steamLogin:'player'}});});
  await page.goto('http://127.0.0.1:5198/#steam');const panel=page.locator('#steam');await panel.getByLabel('Логин Steam').fill('player');await panel.getByLabel('На баланс Steam').fill('500');await settled(panel.getByRole('button',{name:'Подтвердить почту'}));
  const dialog=page.getByRole('dialog');await dialog.getByLabel('Электронная почта').fill('buyer@example.test');await dialog.getByRole('button',{name:'Получить код',exact:true}).click();await dialog.getByLabel('Код из письма').fill('123456');await dialog.getByRole('button',{name:'Подтвердить',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(panel.getByRole('button',{name:'Перейти к оплате'})).toBeEnabled();expect(quotes).toBeGreaterThan(0);
+});
+
+for(const width of [1440,768,390,320])test(`VV162 cart wallet states at ${width}`,async({page})=>{
+ await page.setViewportSize({width,height:1400});await page.emulateMedia({reducedMotion:'reduce'});
+ const state=await fixture(page);mkdirSync('../.qa/vv162',{recursive:true});
+ for(const [name,available,percent] of [['empty',0,0],['short',10000,39],['exact',25001,100],['surplus',30000,100]] as const){
+  state.available=available;await page.goto('/cart');
+  await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow',String(percent));
+  await expect(page.getByRole('button',{name:'Купить скины',exact:true})).toBeVisible();
+  if(available>=25001)await expect(page.getByRole('button',{name:'Купить скины',exact:true})).toBeEnabled();
+  else await expect(page.getByRole('button',{name:'Купить скины',exact:true})).toBeDisabled();
+  await page.evaluate(()=>document.fonts.ready);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.locator('.vv162-summary').screenshot({path:`../.qa/vv162/cart-${name}-${width}.png`});
+ }
 });

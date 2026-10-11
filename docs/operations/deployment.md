@@ -21,6 +21,25 @@
 
 ## Порядок запуска
 
+### VV-162 analytics
+
+Runtime configuration: `ANALYTICS_ENABLED=true`, `ANALYTICS_GA_ID=G-XWF1ZMQBL1`,
+`ANALYTICS_YANDEX_ID=113586674`, `ANALYTICS_WEBVISOR=true`. Counters load only
+in production on `https://shardsmarket.com`, on the home, catalog and legal
+pages. Account, cart, payment and auth pages do not load counters. Navigation
+from a public page into those areas opens a fresh document, ending Webvisor.
+Forms containing Steam login, email and OTP are masked. Manual page views omit
+query strings, fragments and external referrers.
+
+Before setting `ANALYTICS_GA_MANUAL_PAGEVIEWS_CONFIRMED=true`, disable automatic
+page views based on browser history in the GA4 web stream's Enhanced Measurement
+settings. Until confirmed, GA remains disabled independently of Yandex.
+`send_page_view:false` alone does not disable automatic history events; see
+[Google's page-view documentation](https://developers.google.com/analytics/devguides/collection/ga4/views).
+Local browser tests intercept both loaders: they verify one application page-view
+per public route and no tracker in the private document, not real delivery to
+the analytics dashboards.
+
 Workflow строго выполняет checkout → копирование `.env` и chmod → `docker compose build` → `docker compose up -d` → удаление `.env` через `if: always()`. Concurrency `shardsmarket-stage` исключает два одновременных деплоя. Отдельных status/health шагов, `down` или `--no-cache` нет. Существующий CI lint/test/build сохранён отдельно.
 
 Compose сам поднимает PostgreSQL, ждёт его healthcheck, выполняет одноразовый `migrate` (`restart: "no"`), затем запускает API и workers. Каждый backend process имеет собственный build context. Frontend ждёт healthy API; API проверяет `/health/ready` внутри контейнера. В первый запуск отсутствие/ошибка миграций блокирует зависимые процессы.

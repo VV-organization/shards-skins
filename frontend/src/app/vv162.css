@@ -1,0 +1,27 @@
+/* VV-162: approved cart summary redesign. Original designer CSS stays intact. */
+.order-summary.vv162-summary{padding:30px;border:1px solid #c6b6ff40;border-radius:28px;background:linear-gradient(140deg,#69559166,#21183f99);clip-path:none}
+.vv162-summary h2{font-size:32px;font-weight:500;margin-bottom:30px}
+.vv162-summary .summary-line{margin-bottom:24px}
+.cart-wallet{padding:22px;border:1px solid #c6b6ff26;border-radius:20px;background:linear-gradient(145deg,#211742e6,#170f32cc);margin:24px 0 28px}
+.cart-wallet-title{display:flex;align-items:center;gap:12px;font-size:14px;margin-bottom:26px;color:var(--muted)}
+.cart-wallet-title svg{color:#c6a4f8}
+.cart-wallet-row{display:flex;justify-content:space-between;gap:12px;align-items:baseline;color:var(--muted);font-size:14px}
+.cart-wallet-row strong{font-size:22px;color:var(--ink);text-align:right;line-height:1.3;overflow-wrap:anywhere}
+.cart-wallet small{font-size:13px;font-weight:400}
+.balance-meter{height:8px;border-radius:8px;background:#d7c3ff33;overflow:hidden;margin:18px 0 8px}
+.balance-meter>span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#9475ee,#d8b6ff)}
+.cart-wallet .success{display:flex;align-items:center;gap:5px}
+.cart-wallet-result{display:flex;justify-content:space-between;gap:14px;padding-top:20px;margin:20px 0 26px;border-top:1px dashed #d7c3ff30;font-size:14px;line-height:1.4}
+.cart-wallet-result>span{max-width:44%;color:var(--muted)}
+.cart-wallet-result>div{text-align:right;min-width:0;overflow-wrap:anywhere}
+.cart-wallet-result strong{font-size:20px;line-height:1.3}
+.cart-wallet-result p{font-size:13px}
+.cart-wallet-result.is-short>span,.cart-wallet-result.is-short strong{color:#f5b3aa}
+.cart-wallet .button{gap:12px;border-radius:16px;border-color:#bfa2f5;padding:16px;font-size:14px}
+.cart-wallet .text-link{font-size:13px;padding:0;display:inline}
+.vv162-summary .order-total{margin-top:0;border:0;padding-top:0}
+.vv162-summary .order-total strong{font-size:clamp(30px,3vw,42px);overflow-wrap:anywhere;white-space:normal;line-height:1.2}
+.vv162-summary>.button{border-radius:16px;min-height:60px}
+.cart-purchase-note{text-align:center;margin-top:12px}
+.legal-page h1{font-size:clamp(30px,5vw,64px);overflow-wrap:anywhere}
+@media(max-width:480px){.order-summary.vv162-summary{padding:22px 16px}.cart-wallet{padding:18px 14px}.cart-wallet-row strong{font-size:20px}.cart-wallet-result strong{font-size:18px}}

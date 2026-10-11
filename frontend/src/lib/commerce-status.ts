@@ -1,4 +1,5 @@
 import {topUpForShortfall} from './money.ts';
+export function balanceCoverage(total:number,available:number){return {percent:total>0?Math.floor(Math.min(1,Math.max(0,available)/total)*100):0,remaining:Math.max(0,available-total)};}
 export function skinShortfall(total:number,available:number){const missing=Math.max(0,total-available);return {missing,topUp:missing?topUpForShortfall(missing):null};}
 export function paymentMessage(purpose:string,payment:string,fulfillment:string){
  if(payment==='paid'){

@@ -57,3 +57,26 @@ Backend unit run намеренно пропускает DB integration tests; �
 - Исторические неэкспонированные donor checkout/fulfillment paths удалены; намеренно не поддерживаются unquoted checkout, guest email-payment upsert, Apple commerce, фиксированные bundle discounts или повторная inventory withdrawal.
 
 Активация следует отдельному [provider acceptance checklist](../operations/provider-acceptance.md). Все финансовые флаги по умолчанию выключены; отсутствие реального acceptance не маскируется успешными mock-тестами.
+
+## VV-162 local acceptance (2026-10-11)
+
+Approved copy, section order, deferred-items labels, empty legal page shells and
+cart summary redesign are implemented. Original designer stylesheet and 79
+protected resources remain unchanged. The new summary is isolated in vv162.css.
+Coverage and top-up use available funds, with held funds shown separately.
+Pricing migration 0036 creates a new 20% setting and retains historical 25%
+settings and the deployment's FX verification metadata.
+
+- Backend verification: 172 unit tests, lint, types, build and OpenAPI passed.
+- Disposable PostgreSQL: 107 passed; one real SIH sandbox test skipped without credentials.
+- Frontend: 42 unit tests, lint, types, production build and API contract passed.
+- Browser: 19 commerce/layout/analytics tests plus 4 cart state matrix tests passed.
+- Cart matrix: zero, insufficient, exact and surplus balances at 320/390/768/1440px.
+- Original visual comparison passed at all four widths; approved lower-page changes are intentional.
+- Analytics loaders are stubbed in the local browser test. It verifies sanitized
+  manual public page views and a fresh tracker-free private document, not receipt
+  of real events by Google/Yandex dashboards. GA activation still requires the
+  property configuration described in operations/deployment.md.
+
+These checks do not establish real payment acceptance, Steam delivery or mailbox
+delivery. Own provider credentials and a separate acceptance run remain required.
