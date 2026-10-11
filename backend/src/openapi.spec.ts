@@ -420,19 +420,8 @@ describe("OpenAPI contract", () => {
     }));
     expect(session?.requestBody?.required).toBe(true);
     expect(session?.requestBody?.content?.["application/json"]?.schema).toMatchObject({
-      required: ["amountRub", "steamLogin"],
-      properties: {
-        amountRub: {
-          type: "integer",
-          minimum: 50,
-          maximum: 9433,
-        },
-        steamLogin: {
-          type: "string",
-          minLength: 3,
-          maxLength: 64,
-        },
-      },
+      required: ["quoteId", "acceptedFiatMinor"],
+      properties: {quoteId:{type:"string"},acceptedFiatMinor:{type:"integer",minimum:1}},
     });
     expect(session?.responses?.["200"]?.content?.["application/json"]?.schema).toMatchObject({
       required: ["id", "userId", "status", "provider", "amountRubMinor", "feeRubMinor", "fiatAmountMinor", "fiatCurrency", "steamLogin", "checkoutUrl"],

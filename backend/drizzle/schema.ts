@@ -328,6 +328,7 @@ export const topUpPayments = pgTable(
     rateFiatMinor: integer("rate_fiat_minor").notNull(),
     rateCoinMinor: integer("rate_coin_minor").notNull(),
     providerSessionId: text("provider_session_id"),
+    providerPaymentId: text("provider_payment_id"),
     providerCheckoutUrl: text("provider_checkout_url"),
     providerStatus: text("provider_status"),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
@@ -339,6 +340,7 @@ export const topUpPayments = pgTable(
     uniqueIndex("top_up_payments_user_idempotency_uidx").on(table.userId, table.idempotencyKey),
     index("top_up_payments_user_created_idx").on(table.userId, table.createdAt),
     index("top_up_payments_status_idx").on(table.status),
+    uniqueIndex("top_up_payments_provider_payment_uidx").on(table.provider,table.providerPaymentId),
     index("top_up_payments_provider_session_idx").on(table.provider, table.providerSessionId),
   ],
 );
@@ -358,6 +360,7 @@ export const steamRefillPayments = pgTable(
     fiatCurrency: text("fiat_currency").notNull(),
     steamLogin: text("steam_login").notNull(),
     providerSessionId: text("provider_session_id"),
+    providerPaymentId: text("provider_payment_id"),
     providerCheckoutUrl: text("provider_checkout_url"),
     providerStatus: text("provider_status"),
     orderId: uuid("order_id"),
@@ -370,6 +373,7 @@ export const steamRefillPayments = pgTable(
     uniqueIndex("steam_refill_payments_user_idempotency_uidx").on(table.userId, table.idempotencyKey),
     index("steam_refill_payments_user_created_idx").on(table.userId, table.createdAt),
     index("steam_refill_payments_status_idx").on(table.status),
+    uniqueIndex("steam_refill_payments_provider_payment_uidx").on(table.provider,table.providerPaymentId),
     index("steam_refill_payments_provider_session_idx").on(table.provider, table.providerSessionId),
   ],
 );

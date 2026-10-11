@@ -34,6 +34,10 @@ describe("ArcPayClient", () => {
     const client = new ArcPayClient({ apiKeyFile: keyFile, fetch: (path) => response(path.includes("available") ? [method] : { id, url }) });
     await expect(client.createHostedCheckout(command)).rejects.toThrow("ARC_PAY_CHECKOUT_URL_INVALID");
   });
+  it("rejects an HTTPS checkout outside the configured provider origins", async () => {
+    const client=new ArcPayClient({apiKeyFile:keyFile,allowedCheckoutOrigins:['https://approved.example'],fetch:path=>response(path.includes('available')?[method]:{id,url:'https://untrusted.example/checkout'})});
+    await expect(client.createHostedCheckout(command)).rejects.toThrow('ARC_PAY_CHECKOUT_URL_INVALID');
+  });
   it("matches the authoritative payment id", async () => {
     const client = new ArcPayClient({ apiKeyFile: keyFile, fetch: () => response({ ...payment, id: "019eb86c-91b2-7ce0-99f1-0a89a8b7b982" }) });
     await expect(client.getPayment(id)).rejects.toThrow("ARC_PAY_PAYMENT_MISMATCH");

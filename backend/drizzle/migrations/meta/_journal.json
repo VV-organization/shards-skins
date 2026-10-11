@@ -239,6 +239,13 @@
       "when": 1791737435309,
       "tag": "0033_shards_order_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1791738117491,
+      "tag": "0034_shards_payment_binding",
+      "breakpoints": true
     }
   ]
 }

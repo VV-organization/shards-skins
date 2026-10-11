@@ -10,7 +10,7 @@ export type CreateHostedCheckoutCommand = {
 export type HostedCheckoutResult = { providerSessionId: string; checkoutUrl: string };
 export type ArcPayPayment = { id: string; status: string; amount: number; currency: string; externalId: string | null; metadata: Record<string, string> };
 export type ArcPayPaymentList = { nextCursor: string | null; pageSize: number; payments: ArcPayPayment[]; total: number };
-export type ArcPayClientOptions = { apiKeyFile: string; baseUrl?: string; environment?: "sandbox" | "live"; fetch?: FetchLike; timeoutMs?: number };
+export type ArcPayClientOptions = { allowedCheckoutOrigins?: string[]; apiKeyFile: string; baseUrl?: string; environment?: "sandbox" | "live"; fetch?: FetchLike; timeoutMs?: number };
 const uuid = z.string().regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/);
 const minor = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const paymentSchema = z.object({
@@ -53,6 +53,7 @@ export class ArcPayClient {
     return { apiKey, environment };
   }
   async createHostedCheckout(command: CreateHostedCheckoutCommand): Promise<HostedCheckoutResult> {
+    if(this.options.allowedCheckoutOrigins?.length===0)throw new Error("ARC_PAY_CHECKOUT_ORIGINS_REQUIRED");
     if (!minor.positive().safeParse(command.amountMinor).success) throw new Error("ARC_PAY_AMOUNT_INVALID");
     if (!uuid.safeParse(command.idempotencyKey).success) throw new Error("ARC_PAY_IDEMPOTENCY_KEY_INVALID");
     if (!command.description.trim() || command.description.length > 500 || !command.externalId.trim() || command.externalId.length > 255) throw new Error("ARC_PAY_REQUEST_INVALID");
@@ -72,7 +73,8 @@ export class ArcPayClient {
       success_url: command.successUrl, fail_url: command.failUrl, cancel_url: command.cancelUrl,
       ...(command.buyerEmail ? { customer_email: command.buyerEmail } : {}),
     }, command.idempotencyKey));
-    assertHttpsUrl("ARC_PAY_CHECKOUT_URL", checkout.url);
+    const hosted=assertHttpsUrl("ARC_PAY_CHECKOUT_URL", checkout.url);
+    if(this.options.allowedCheckoutOrigins&&!this.options.allowedCheckoutOrigins.includes(hosted.origin))throw new Error("ARC_PAY_CHECKOUT_URL_INVALID");
     return { providerSessionId: checkout.id, checkoutUrl: checkout.url };
   }
   async getPayment(paymentId: string): Promise<ArcPayPayment> {

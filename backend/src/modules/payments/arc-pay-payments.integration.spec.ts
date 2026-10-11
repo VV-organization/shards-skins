@@ -93,7 +93,7 @@ describe.skipIf(!databaseUrl)("Arc Pay SBP hosted checkout with existing Shards 
 
   async function create(kind: "coins" | "steam", idempotencyKey = randomUUID()) {
     const session = kind === "coins"
-      ? await payments.createTopUpSession({ userId, coinAmountMinor: 150000, idempotencyKey })
+      ? await payments.createTopUpSession({ userId, coinAmountMinor: 160000, idempotencyKey })
       : await payments.createSteamRefillSession({ userId, amountRub: 500, steamLogin: "shards_test_login", idempotencyKey });
     const order = [...orders.values()].find(o => o.external_id === session.id);
     if (!order) throw new Error("Expected created provider order");
@@ -130,7 +130,7 @@ describe.skipIf(!databaseUrl)("Arc Pay SBP hosted checkout with existing Shards 
     const row = (await pool.query<{ status: string; order_id: string }>(`SELECT * FROM ${table} WHERE id=$1`, [session.id])).rows[0];
     if (!row) throw new Error("Expected persisted payment");
     expect(row.status).toBe("paid");
-    expect((await wallet.getBalance(userId)).postedCoinMinor).toBe(kind === "coins" ? 150000 : 0);
+    expect((await wallet.getBalance(userId)).postedCoinMinor).toBe(kind === "coins" ? 160000 : 0);
     if (kind === "coins") {
       expect((await pool.query<{ n: number }>("SELECT count(*)::int AS n FROM wallet_transactions WHERE user_id=$1", [userId])).rows[0]?.n).toBe(1);
     } else {
@@ -141,7 +141,7 @@ describe.skipIf(!databaseUrl)("Arc Pay SBP hosted checkout with existing Shards 
     order.status = "refunded";
     expect((await notify(order)).status).toBe(200);
     expect((await pool.query<{ status: string; order_id: string }>(`SELECT status FROM ${table} WHERE id=$1`, [session.id])).rows[0]?.status).toBe("manual_review");
-    expect((await wallet.getBalance(userId)).postedCoinMinor).toBe(kind === "coins" ? 150000 : 0);
+    expect((await wallet.getBalance(userId)).postedCoinMinor).toBe(kind === "coins" ? 160000 : 0);
   });
 
   it.each(["coins", "steam"] as const)("rejects mismatched %s callback identity, amount and currency without settlement", async kind => {
@@ -171,10 +171,10 @@ describe.skipIf(!databaseUrl)("Arc Pay SBP hosted checkout with existing Shards 
       expect((await notify(order)).status).toBe(200);
     };
     const session = kind === "coins"
-      ? await payments.createTopUpSession({ userId, coinAmountMinor: 150000, idempotencyKey: randomUUID() })
+      ? await payments.createTopUpSession({ userId, coinAmountMinor: 160000, idempotencyKey: randomUUID() })
       : await payments.createSteamRefillSession({ userId, amountRub: 500, steamLogin: "shards_test_login", idempotencyKey: randomUUID() });
     expect(session.status).toBe("paid");
-    expect((await wallet.getBalance(userId)).postedCoinMinor).toBe(kind === "coins" ? 150000 : 0);
+    expect((await wallet.getBalance(userId)).postedCoinMinor).toBe(kind === "coins" ? 160000 : 0);
   });
 
   it.each(["coins", "steam"] as const)("preserves %s settlement when the create connection fails after a callback", async kind => {
@@ -184,7 +184,7 @@ describe.skipIf(!databaseUrl)("Arc Pay SBP hosted checkout with existing Shards 
       throw new Error("Connection interrupted after provider created the order");
     };
     const operation = kind === "coins"
-      ? payments.createTopUpSession({ userId, coinAmountMinor: 150000, idempotencyKey: randomUUID() })
+      ? payments.createTopUpSession({ userId, coinAmountMinor: 160000, idempotencyKey: randomUUID() })
       : payments.createSteamRefillSession({ userId, amountRub: 500, steamLogin: "shards_test_login", idempotencyKey: randomUUID() });
     await operation.catch(() => undefined);
     const table = kind === "coins" ? "top_up_payments" : "steam_refill_payments";
@@ -195,7 +195,7 @@ describe.skipIf(!databaseUrl)("Arc Pay SBP hosted checkout with existing Shards 
     beforeCreateResponse = () => Promise.reject(new Error("Connection lost after provider creation"));
     const idempotencyKey = randomUUID();
     const createPayment = () => kind === "coins"
-      ? payments.createTopUpSession({ userId, coinAmountMinor: 150000, idempotencyKey })
+      ? payments.createTopUpSession({ userId, coinAmountMinor: 160000, idempotencyKey })
       : payments.createSteamRefillSession({ userId, amountRub: 500, steamLogin: "shards_test_login", idempotencyKey });
     await expect(createPayment()).rejects.toThrow("checkout creation failed");
     const table = kind === "coins" ? "top_up_payments" : "steam_refill_payments";
@@ -209,7 +209,7 @@ describe.skipIf(!databaseUrl)("Arc Pay SBP hosted checkout with existing Shards 
     order.status = "captured";
     await payments.reconcilePendingTopUps({ limit: 100 });
     expect((await pool.query<{ status: string }>(`SELECT status FROM ${table} WHERE id=$1`, [row?.id])).rows[0]?.status).toBe("paid");
-    expect((await wallet.getBalance(userId)).postedCoinMinor).toBe(kind === "coins" ? 150000 : 0);
+    expect((await wallet.getBalance(userId)).postedCoinMinor).toBe(kind === "coins" ? 160000 : 0);
     expect(creationRequests).toBe(1);
   });
 
@@ -225,7 +225,7 @@ describe.skipIf(!databaseUrl)("Arc Pay SBP hosted checkout with existing Shards 
     order.status = "captured";
     await payments.reconcilePendingTopUps({ limit: 100 });
     expect((await pool.query<{ status: string }>(`SELECT status FROM ${table} WHERE id=$1`, [session.id])).rows[0]?.status).toBe("paid");
-    expect((await wallet.getBalance(userId)).postedCoinMinor).toBe(kind === "coins" ? 150000 : 0);
+    expect((await wallet.getBalance(userId)).postedCoinMinor).toBe(kind === "coins" ? 160000 : 0);
   });
 
   it.each(["coins", "steam"] as const)("settles %s from a signed sparse event using authoritative payment fields", async kind => {
@@ -234,7 +234,7 @@ describe.skipIf(!databaseUrl)("Arc Pay SBP hosted checkout with existing Shards 
     expect((await notify(order, true, randomUUID(), true)).status).toBe(200);
     const table = kind === "coins" ? "top_up_payments" : "steam_refill_payments";
     expect((await pool.query<{ status: string }>(`SELECT status FROM ${table} WHERE id=$1`, [session.id])).rows[0]?.status).toBe("paid");
-    expect((await wallet.getBalance(userId)).postedCoinMinor).toBe(kind === "coins" ? 150000 : 0);
+    expect((await wallet.getBalance(userId)).postedCoinMinor).toBe(kind === "coins" ? 160000 : 0);
   });
 
   it.each(["coins", "steam"] as const)("never creates a second %s checkout when replaying a crashed creation", async kind => {
@@ -243,7 +243,7 @@ describe.skipIf(!databaseUrl)("Arc Pay SBP hosted checkout with existing Shards 
     const table = kind === "coins" ? "top_up_payments" : "steam_refill_payments";
     await pool.query(`UPDATE ${table} SET status='provider_creation_pending', provider_session_id=NULL, provider_checkout_url=NULL WHERE id=$1`, [session.id]);
     const replay = kind === "coins"
-      ? await payments.createTopUpSession({ userId, coinAmountMinor: 150000, idempotencyKey })
+      ? await payments.createTopUpSession({ userId, coinAmountMinor: 160000, idempotencyKey })
       : await payments.createSteamRefillSession({ userId, amountRub: 500, steamLogin: "shards_test_login", idempotencyKey });
     expect(replay.id).toBe(session.id);
     expect(replay.status).toBe("provider_creation_pending");
@@ -267,7 +267,7 @@ describe.skipIf(!databaseUrl)("Arc Pay SBP hosted checkout with existing Shards 
 
   it("preserves failed creation handling when the provider rejects the request", async () => {
     rejectCreation = true;
-    await expect(payments.createTopUpSession({ userId, coinAmountMinor: 150000, idempotencyKey: randomUUID() })).rejects.toThrow("checkout creation failed");
+    await expect(payments.createTopUpSession({ userId, coinAmountMinor: 160000, idempotencyKey: randomUUID() })).rejects.toThrow("checkout creation failed");
     expect((await pool.query<{ status: string }>("SELECT status FROM top_up_payments WHERE user_id=$1", [userId])).rows[0]?.status).toBe("failed");
   });
 });

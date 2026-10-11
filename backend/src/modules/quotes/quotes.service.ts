@@ -20,6 +20,11 @@ export class QuotesService {
   const row=result.rows[0];if(!row)throw new Error('QUOTE_NOT_CREATED');
   return {id:row.id,purpose,userId,payload,expiresAt:row.expires_at.toISOString()};
  }
+ async readOwned<T>(id:string,purpose:QuotePurpose,userId:string):Promise<T>{
+  if(typeof id!=='string'||!uuid.test(id))throw new BadRequestException('INVALID_QUOTE');
+  const result=await this.database.query<{payload:T}>('SELECT payload FROM commerce_quotes WHERE id=$1 AND purpose=$2 AND user_id=$3',[id,purpose,userId]);
+  const row=result.rows[0];if(!row)throw new BadRequestException('INVALID_QUOTE');return row.payload;
+ }
  async lock<T>(client:Client,id:string,purpose:QuotePurpose,userId:string):Promise<T>{
   if(typeof id!=='string'||!uuid.test(id))throw new BadRequestException('INVALID_QUOTE');
   const result=await client.query<{purpose:string;user_id:string|null;payload:T;valid:boolean;consumed_entity_id:string|null}>(`SELECT purpose,user_id,payload,expires_at>clock_timestamp() AS valid,consumed_entity_id FROM commerce_quotes WHERE id=$1 FOR UPDATE`,[id]);

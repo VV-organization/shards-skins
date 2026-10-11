@@ -18,6 +18,7 @@ export type AppConfig = {
     webApiKeyFile?: string;
   };
   arcPay: {
+    checkoutAllowedOrigins?: string[];
     environment: ArcPayEnvironment;
     providerMode: ArcPayProviderMode;
     secretKeyFile?: string;
@@ -242,6 +243,7 @@ export function loadAppConfig(env: NodeJS.ProcessEnv): AppConfig {
       ...(steamWebApiKeyFile ? { webApiKeyFile: steamWebApiKeyFile } : {}),
     },
     arcPay: {
+      ...(env.NODE_ENV==='production'||env.ARC_PAY_CHECKOUT_ALLOWED_ORIGINS?{checkoutAllowedOrigins:(env.ARC_PAY_CHECKOUT_ALLOWED_ORIGINS??'').split(',').map(s=>s.trim()).filter(Boolean).map(origin=>new URL(parseHttpsUrl('ARC_PAY_CHECKOUT_ALLOWED_ORIGINS',origin,origin)).origin)}:{}),
       apiUrl: parseHttpsUrl("ARC_PAY_API_URL", env.ARC_PAY_API_URL, "https://api.arcpay.space/v1"),
       environment: parseArcPayEnvironment(env.ARC_PAY_ENVIRONMENT),
       providerMode: arcPayProviderMode,

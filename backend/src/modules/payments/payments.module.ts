@@ -1,3 +1,5 @@
+import {QuotesModule} from "../quotes/quotes.module";
+import {PaymentQuotesService} from "./payment-quotes.service";
 import { Module } from "@nestjs/common";
 
 import { DatabaseModule } from "../../common/database/database.module";
@@ -15,7 +17,7 @@ import { PaymentHistoryController } from "./payment-history.controller";
 import { PaymentHistoryService } from "./payment-history.service";
 
 @Module({
-  imports: [DatabaseModule, SessionsModule, UsersModule, WalletModule, FulfillmentModule],
+  imports: [QuotesModule, DatabaseModule, SessionsModule, UsersModule, WalletModule, FulfillmentModule],
   controllers: [PaymentsController, PaymentsWebhookController, PaymentHistoryController],
   providers: [
     {
@@ -23,10 +25,12 @@ import { PaymentHistoryService } from "./payment-history.service";
       inject: [APP_CONFIG],
       useFactory: (config: AppConfig): ArcPayClient => new ArcPayClient({
         apiKeyFile: config.arcPay.secretKeyFile ?? "",
+        ...(config.arcPay.checkoutAllowedOrigins?{allowedCheckoutOrigins:config.arcPay.checkoutAllowedOrigins}:{}),
         environment: config.arcPay.environment,
         baseUrl: config.arcPay.apiUrl,
       }),
     },
+    PaymentQuotesService,
     PaymentsService,
     PaymentHistoryService,
   ],

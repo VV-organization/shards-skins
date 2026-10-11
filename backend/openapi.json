@@ -4101,14 +4101,201 @@
         ]
       }
     },
+    "/payments/top-up/quotes": {
+      "post": {
+        "operationId": "PaymentsController_quoteWallet",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "coinAmountMinor"
+                ],
+                "properties": {
+                  "coinAmountMinor": {
+                    "type": "integer",
+                    "minimum": 10000,
+                    "maximum": 10000000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "quoteId",
+                    "purpose",
+                    "fiatAmountMinor",
+                    "currency",
+                    "termsVersion",
+                    "expiresAt"
+                  ],
+                  "properties": {
+                    "quoteId": {
+                      "type": "string"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "enum": [
+                        "wallet_topup",
+                        "steam_refill"
+                      ]
+                    },
+                    "fiatAmountMinor": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "enum": [
+                        "RUB"
+                      ]
+                    },
+                    "termsVersion": {
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "type": "string"
+                    },
+                    "coinAmountMinor": {
+                      "type": "integer"
+                    },
+                    "amountRub": {
+                      "type": "integer"
+                    },
+                    "feeRubMinor": {
+                      "type": "integer"
+                    },
+                    "steamLogin": {
+                      "type": "string"
+                    },
+                    "contactEmail": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/steam-refill/quotes": {
+      "post": {
+        "operationId": "PaymentsController_quoteSteam",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "amountRub",
+                  "steamLogin"
+                ],
+                "properties": {
+                  "amountRub": {
+                    "type": "integer",
+                    "minimum": 50,
+                    "maximum": 9433
+                  },
+                  "steamLogin": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "quoteId",
+                    "purpose",
+                    "fiatAmountMinor",
+                    "currency",
+                    "termsVersion",
+                    "expiresAt"
+                  ],
+                  "properties": {
+                    "quoteId": {
+                      "type": "string"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "enum": [
+                        "wallet_topup",
+                        "steam_refill"
+                      ]
+                    },
+                    "fiatAmountMinor": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "enum": [
+                        "RUB"
+                      ]
+                    },
+                    "termsVersion": {
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "type": "string"
+                    },
+                    "coinAmountMinor": {
+                      "type": "integer"
+                    },
+                    "amountRub": {
+                      "type": "integer"
+                    },
+                    "feeRubMinor": {
+                      "type": "integer"
+                    },
+                    "steamLogin": {
+                      "type": "string"
+                    },
+                    "contactEmail": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
     "/payments/top-up/sessions": {
       "post": {
-        "operationId": "PaymentsController_createTopUpSession",
+        "operationId": "PaymentsController_createWallet",
         "parameters": [
           {
             "name": "idempotency-key",
             "in": "header",
-            "description": "Unique customer-scoped top-up session key.",
             "required": true,
             "schema": {
               "type": "string"
@@ -4121,14 +4308,18 @@
             "application/json": {
               "schema": {
                 "type": "object",
+                "additionalProperties": false,
                 "required": [
-                  "coinAmountMinor"
+                  "quoteId",
+                  "acceptedFiatMinor"
                 ],
                 "properties": {
-                  "coinAmountMinor": {
+                  "quoteId": {
+                    "type": "string"
+                  },
+                  "acceptedFiatMinor": {
                     "type": "integer",
-                    "minimum": 10000,
-                    "maximum": 10000000
+                    "minimum": 1
                   }
                 }
               }
@@ -4231,12 +4422,11 @@
     },
     "/payments/steam-refill/sessions": {
       "post": {
-        "operationId": "PaymentsController_createSteamRefillSession",
+        "operationId": "PaymentsController_createSteam",
         "parameters": [
           {
             "name": "idempotency-key",
             "in": "header",
-            "description": "Unique customer-scoped Steam refill payment session key.",
             "required": true,
             "schema": {
               "type": "string"
@@ -4249,20 +4439,18 @@
             "application/json": {
               "schema": {
                 "type": "object",
+                "additionalProperties": false,
                 "required": [
-                  "amountRub",
-                  "steamLogin"
+                  "quoteId",
+                  "acceptedFiatMinor"
                 ],
                 "properties": {
-                  "amountRub": {
-                    "type": "integer",
-                    "minimum": 50,
-                    "maximum": 9433
+                  "quoteId": {
+                    "type": "string"
                   },
-                  "steamLogin": {
-                    "type": "string",
-                    "minLength": 3,
-                    "maxLength": 64
+                  "acceptedFiatMinor": {
+                    "type": "integer",
+                    "minimum": 1
                   }
                 }
               }
@@ -4339,6 +4527,96 @@
                     },
                     "checkoutUrl": {
                       "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/sessions/{id}": {
+      "get": {
+        "operationId": "PaymentsController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "purpose",
+                    "paymentStatus",
+                    "fulfillmentStatus",
+                    "fiatAmountMinor",
+                    "currency",
+                    "checkoutUrl",
+                    "orderId",
+                    "coinAmountMinor",
+                    "steamLogin",
+                    "amountRubMinor"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "enum": [
+                        "wallet_topup",
+                        "steam_refill"
+                      ]
+                    },
+                    "paymentStatus": {
+                      "type": "string"
+                    },
+                    "fulfillmentStatus": {
+                      "type": "string",
+                      "enum": [
+                        "not_applicable",
+                        "not_started",
+                        "pending",
+                        "delivered",
+                        "partial",
+                        "failed",
+                        "manual_review"
+                      ]
+                    },
+                    "fiatAmountMinor": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "enum": [
+                        "RUB"
+                      ]
+                    },
+                    "checkoutUrl": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "orderId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "coinAmountMinor": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "steamLogin": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "amountRubMinor": {
+                      "type": "integer",
                       "nullable": true
                     }
                   }
