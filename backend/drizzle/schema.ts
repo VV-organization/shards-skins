@@ -513,6 +513,11 @@ export const orderLines = pgTable(
 export const fulfillmentCommands = pgTable(
   "fulfillment_commands",
   {
+    leaseToken: uuid("lease_token"),
+    leaseOwner: text("lease_owner"),
+    leaseExpiresAt: timestamp("lease_expires_at",{withTimezone:true}),
+    dispatchedAt: timestamp("dispatched_at",{withTimezone:true}),
+    requestSnapshotHash: text("request_snapshot_hash"),
     providerOperationId: uuid("provider_operation_id").defaultRandom().notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
     orderId: uuid("order_id").notNull(),

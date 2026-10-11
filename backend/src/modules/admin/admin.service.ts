@@ -4,7 +4,7 @@ import { BadRequestException, ConflictException, Inject, Injectable } from "@nes
 
 import { DatabaseService } from "../../common/database/database.service";
 import { normalizeIdempotencyKey } from "../../common/idempotency/idempotency-key";
-import { FulfillmentService, type FulfillmentSkinReconciliationBatchResultDto } from "../fulfillment/fulfillment.service";
+import {FulfillmentOperationService,type OperationBatch} from "../fulfillment/fulfillment-operation.service";
 import { PaymentsService, type PaymentReconciliationResultDto } from "../payments/payments.service";
 
 export type AdminOperationsOverviewDto = {
@@ -79,7 +79,7 @@ export type AdminPaymentReconciliationResultDto = {
 
 export type AdminFulfillmentReconciliationResultDto = {
   idempotencyKey: string;
-  result: FulfillmentSkinReconciliationBatchResultDto | null;
+  result: OperationBatch | null;
   status: "duplicate" | "processed";
 };
 
@@ -194,7 +194,7 @@ function parseReconciliationBody(body: AdminPaymentReconciliationCommandBody): {
 export class AdminService {
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
-    @Inject(FulfillmentService) private readonly fulfillment: FulfillmentService,
+    @Inject(FulfillmentOperationService) private readonly fulfillment: FulfillmentOperationService,
     @Inject(PaymentsService) private readonly payments: PaymentsService,
   ) {}
 
@@ -472,7 +472,7 @@ export class AdminService {
     limit: number;
     reason: string;
     requestHash: string;
-    result: PaymentReconciliationResultDto | FulfillmentSkinReconciliationBatchResultDto;
+    result: PaymentReconciliationResultDto | OperationBatch;
     scope: string;
   }): Promise<void> {
     await this.database.transaction(async (client) => {

@@ -4562,7 +4562,8 @@
                     "orderId",
                     "coinAmountMinor",
                     "steamLogin",
-                    "amountRubMinor"
+                    "amountRubMinor",
+                    "refundStatus"
                   ],
                   "properties": {
                     "id": {
@@ -4617,6 +4618,10 @@
                     },
                     "amountRubMinor": {
                       "type": "integer",
+                      "nullable": true
+                    },
+                    "refundStatus": {
+                      "type": "string",
                       "nullable": true
                     }
                   }

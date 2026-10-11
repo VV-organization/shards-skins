@@ -1,11 +1,9 @@
-import { APP_CONFIG } from "./config/app-config.module";
-import type { AppConfig } from "./config/app-config";
 import "reflect-metadata";
 
 import { NestFactory } from "@nestjs/core";
 
 import { AppModule } from "./app.module";
-import { FulfillmentService, type ProcessFulfillmentResult, type ReconcileFulfillmentResult } from "./modules/fulfillment/fulfillment.service";
+import {FulfillmentOperationService,type OperationResult} from "./modules/fulfillment/fulfillment-operation.service";
 
 export type FulfillmentWorkerOptions = {
   intervalMs: number;
@@ -13,26 +11,8 @@ export type FulfillmentWorkerOptions = {
   skinTestMode: boolean;
 };
 
-export type FulfillmentWorkerCycleResult =
-  | {
-    didWork: false;
-    operation: "none";
-  }
-  | {
-    commandId: string;
-    didWork: true;
-    operation: "process";
-    status: Exclude<ProcessFulfillmentResult, { status: "none" }>["status"];
-  }
-  | {
-    commandId: string;
-    commandStatus: Exclude<ReconcileFulfillmentResult, { status: "none" }>["commandStatus"];
-    didWork: true;
-    operation: "reconcile";
-    providerStatus: Exclude<ReconcileFulfillmentResult, { status: "none" }>["providerStatus"];
-  };
-
-type FulfillmentWorkerService = Pick<FulfillmentService, "processNextPendingCommand" | "reconcileNextSubmittedSkinCommand">;
+export type FulfillmentWorkerCycleResult={didWork:boolean;recovered:number;submitted:OperationResult|'error';reconciled:OperationResult|'error';settled:number|'error'};
+type FulfillmentWorkerService=Pick<FulfillmentOperationService,'submitNext'|'reconcileNext'|'recoverExpired'|'settleTerminalHolds'>;
 
 function parseIntervalMs(value: string | undefined): number {
   const normalized = value?.trim() || "10000";
@@ -66,31 +46,12 @@ export async function runFulfillmentWorkerCycle(
   fulfillment: FulfillmentWorkerService,
   options: Pick<FulfillmentWorkerOptions, "skinTestMode">,
 ): Promise<FulfillmentWorkerCycleResult> {
-  const processed = await fulfillment.processNextPendingCommand({ skinTestMode: options.skinTestMode });
-  if (processed.status !== "none") {
-    return {
-      commandId: processed.commandId,
-      didWork: true,
-      operation: "process",
-      status: processed.status,
-    };
-  }
-
-  const reconciled = await fulfillment.reconcileNextSubmittedSkinCommand();
-  if (reconciled.status !== "none") {
-    return {
-      commandId: reconciled.commandId,
-      commandStatus: reconciled.commandStatus,
-      didWork: true,
-      operation: "reconcile",
-      providerStatus: reconciled.providerStatus,
-    };
-  }
-
-  return {
-    didWork: false,
-    operation: "none",
-  };
+  const recovered=await fulfillment.recoverExpired(20);
+  const results=await Promise.allSettled([fulfillment.submitNext(options.skinTestMode),fulfillment.reconcileNext(),fulfillment.settleTerminalHolds(20)]);
+  const submitted=results[0].status==='fulfilled'?results[0].value:'error';
+  const reconciled=results[1].status==='fulfilled'?results[1].value:'error';
+  const settled=results[2].status==='fulfilled'?results[2].value:'error';
+  return {didWork:recovered>0||submitted==='error'||reconciled==='error'||settled==='error'||submitted.status!=='none'||reconciled.status!=='none'||settled>0,recovered,submitted,reconciled,settled};
 }
 
 function sleep(ms: number): Promise<void> {
@@ -114,13 +75,10 @@ async function main(): Promise<void> {
   process.once("SIGTERM", stop);
 
   try {
-    const fulfillment = app.get(FulfillmentService);
+    const fulfillment = app.get(FulfillmentOperationService);
     for (;;) {
       try {
-        const config = app.get<AppConfig>(APP_CONFIG);
-        const result = config.commerce?.fulfillmentEnabled
-          ? await runFulfillmentWorkerCycle(fulfillment, options)
-          : await fulfillment.reconcileNextSubmittedSkinCommand();
+        const result = await runFulfillmentWorkerCycle(fulfillment, options);
         logWorkerEvent({ result, status: "cycle" });
       } catch (error) {
         const message = error instanceof Error ? error.message : "FULFILLMENT_WORKER_CYCLE_FAILED";

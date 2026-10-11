@@ -1,3 +1,4 @@
+import {FulfillmentOperationService} from "./fulfillment-operation.service";
 import { Module } from "@nestjs/common";
 
 import { DatabaseModule } from "../../common/database/database.module";
@@ -27,9 +28,10 @@ import { FulfillmentService } from "./fulfillment.service";
         steamRefillBaseUrl: config.sih.steamRefillBaseUrl,
       }),
     },
+    FulfillmentOperationService,
     FulfillmentHistoryService,
     FulfillmentService,
   ],
-  exports: [SihClient, FulfillmentHistoryService, FulfillmentService],
+  exports: [FulfillmentOperationService, SihClient, FulfillmentHistoryService, FulfillmentService],
 })
 export class FulfillmentModule {}
