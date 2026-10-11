@@ -75,7 +75,7 @@ services:
       NODE_ENV: production
       PORT: 5199
       REDIS_URL: redis://redis:6379/0
-    command: ['node', 'dist/notifications-worker.js']
+    command: ['node', 'dist/notifications-worker.js', '--watch']
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -90,7 +90,7 @@ services:
       NODE_ENV: production
       PORT: 5199
       REDIS_URL: redis://redis:6379/0
-    command: ['node', 'dist/vv-admin-dispatcher-worker.js']
+    command: ['node', 'dist/vv-admin-dispatcher-worker.js', '--watch']
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -105,7 +105,7 @@ services:
       NODE_ENV: production
       PORT: 5199
       REDIS_URL: redis://redis:6379/0
-    command: ['node', 'dist/catalog-sync-worker.js']
+    command: ['node', 'dist/catalog-sync-worker.js', '--watch']
     depends_on:
       migrate:
         condition: service_completed_successfully

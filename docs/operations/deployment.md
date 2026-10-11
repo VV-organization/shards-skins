@@ -56,3 +56,29 @@ Compose сам поднимает PostgreSQL, ждёт его healthcheck, вы�
 `docker compose config` с безопасным тестовым env прошёл; проверены project name, host ports, bind volumes, restart policy и собственный build каждого процесса. `docker compose build` успешно собрал все восемь application images. Docker entrypoint проверен на тестовых значениях: секрет передаётся в файл 0600, исходная переменная убирается из окружения дочернего процесса, runtime работает от UID 1000, `/app/.env` отсутствует. Backend lint/build и `git diff --check` проходят. Временный корневой `.env` удалён после проверки. На отдельной пустой disposable PostgreSQL БД выполнены миграции из Docker image, API readiness с Redis вернул ok, финансовые capabilities остались false. Проверена цепочка frontend container → Next `/api` proxy → API → PostgreSQL/Redis. Временные контейнеры, сеть и БД удалены; рабочие серверы и данные не использовались.
 
 Сам workflow не запускался, push/remote deploy и изменения сервера не выполнялись. Это проверка конфигурации и локальных образов; наличие runner, stage env, домена и реальное состояние сервера не проверялись.
+
+
+## VV-162 server setup (2026-10-11)
+
+Server: 147.93.85.171, Ubuntu24.04, Docker29.9, Compose5.6. Repository default
+branch is main. The shardsmarket-stage runner runs as deploy from
+/home/deploy/actions-runner. Runtime env is /home/deploy/.envs/shardsmarket/.env,
+mode0600, with newly generated database/session/encryption secrets.
+
+Nginx proxies shardsmarket.com to localhost3000. HTTPS is enabled with Let's
+Encrypt and certbot.timer renewal. Initial deployment38174164378 of b02c1cf
+completed successfully; public API readiness confirmed PostgreSQL and Redis.
+Live active markup is2000bps; previous pricing rows remain superseded.
+
+Notifications, catalog and VV Admin commands require --watch. Without it they
+finish one cycle and Docker repeatedly restarts them. Stage CLI contract tests
+check the actual Compose arguments against worker parsers.
+
+A root cron job at02:17UTC runs /root/shards-backup.sh, retaining local database
+dumps and matching runtime env snapshots for14days in /opt/shardsmarket/backups
+(mode0700, files0600). Initial dump was created and its archive index read.
+This is a local backup, not an off-host disaster-recovery copy.
+
+SMTP authentication for support@shardsmarket.com passed without sending a test
+email. ArcPay/SIH keys are not configured; financial flags remainfalse. GA4 is
+installed but not activated pending Enhanced Measurement confirmation.

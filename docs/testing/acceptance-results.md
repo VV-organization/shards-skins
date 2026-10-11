@@ -67,7 +67,7 @@ Coverage and top-up use available funds, with held funds shown separately.
 Pricing migration 0036 creates a new 20% setting and retains historical 25%
 settings and the deployment's FX verification metadata.
 
-- Backend verification: 172 unit tests, lint, types, build and OpenAPI passed.
+- Backend verification: 175 unit tests, lint, types, build and OpenAPI passed.
 - Disposable PostgreSQL: 107 passed; one real SIH sandbox test skipped without credentials.
 - Frontend: 42 unit tests, lint, types, production build and API contract passed.
 - Browser: 19 commerce/layout/analytics tests plus 4 cart state matrix tests passed.
@@ -80,3 +80,7 @@ settings and the deployment's FX verification metadata.
 
 These checks do not establish real payment acceptance, Steam delivery or mailbox
 delivery. Own provider credentials and a separate acceptance run remain required.
+
+The first live deployment exposed one-shot commands for notifications, catalog
+and VV Admin workers under restart:unless-stopped. Compose now supplies --watch;
+three CLI contract tests reproduce the old once=true behavior and verify the fix.
