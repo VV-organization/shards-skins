@@ -58,8 +58,8 @@ function safeNumber(value: bigint, code: string): number {
 }
 
 function formatCoins(amountMinor: number): string {
-  if (amountMinor % 100 === 0) return `${(amountMinor / 100).toLocaleString("ru-RU")} Coins`;
-  return `${(amountMinor / 100).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Coins`;
+  if (amountMinor % 100 === 0) return `${(amountMinor / 100).toLocaleString("ru-RU")} Shards`;
+  return `${(amountMinor / 100).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Shards`;
 }
 
 function roundUp(value: bigint, increment: bigint): bigint {
@@ -78,7 +78,7 @@ function calculateQuote(setting: PricingSettingRow, supplierAmountMicrounit: big
 
   const supplierFiatMinor = ceilDiv(supplierAmountMicrounit * supplierToFiatRateMinor, supplierMicrounitDenominator);
   const fiatAmountMinor = ceilDiv(supplierFiatMinor * (basisPointDenominator + markupBps), basisPointDenominator);
-  const coinAmountMinor = ceilDiv(fiatAmountMinor * coinRateNumerator, coinRateDenominator);
+  const coinAmountMinor = (fiatAmountMinor * coinRateNumerator * 2n + coinRateDenominator) / (coinRateDenominator * 2n);
   const roundedCoinAmountMinor = roundUp(coinAmountMinor > minPriceCoinMinor ? coinAmountMinor : minPriceCoinMinor, roundToCoinMinor);
 
   const amountMinor = safeNumber(roundedCoinAmountMinor, "CATALOG_PRICING_AMOUNT_OVERFLOW");
@@ -100,13 +100,10 @@ function calculateQuote(setting: PricingSettingRow, supplierAmountMicrounit: big
 
 @Injectable()
 export class CatalogPricingService {
-  private readonly activeSettingCache = new Map<string, Promise<PricingSettingRow>>();
 
   constructor(@Inject(DatabaseService) private readonly database: DatabaseService) {}
 
   private async activeSetting(scope: string): Promise<PricingSettingRow> {
-    const cached = this.activeSettingCache.get(scope);
-    if (cached !== undefined) return cached;
     const lookup = this.database.query<PricingSettingRow>(
       `
         SELECT
@@ -130,11 +127,7 @@ export class CatalogPricingService {
       const setting = result.rows[0];
       if (setting === undefined) throw new NotFoundException("Pricing setting not found");
       return setting;
-    }).catch((error: unknown) => {
-      this.activeSettingCache.delete(scope);
-      throw error;
     });
-    this.activeSettingCache.set(scope, lookup);
     return lookup;
   }
 

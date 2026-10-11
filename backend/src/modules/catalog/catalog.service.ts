@@ -20,7 +20,7 @@ const allowedKinds = new Set<CatalogProductKind>(["apple_gift_card", "skins", "s
 const defaultCatalogLimit = 120;
 const maxCatalogLimit = 240;
 const coinRateFiatMinor = 100;
-const coinRateCoinMinor = 150;
+const coinRateCoinMinor = 160;
 const appleGiftCardRubRates: Record<string, { rateRubScaled: number; unit: number }> = {
   AED: { rateRubScaled: 230_211, unit: 1 },
   BRL: { rateRubScaled: 163_038, unit: 1 },
@@ -71,9 +71,9 @@ const supplierQuotedCoinMinorSql = `
                     )
                     / 10000
                   )
-                  * active_pricing_settings.coin_rate_numerator::bigint + active_pricing_settings.coin_rate_denominator::bigint - 1
+                  * active_pricing_settings.coin_rate_numerator::bigint * 2 + active_pricing_settings.coin_rate_denominator::bigint
                 )
-                / active_pricing_settings.coin_rate_denominator::bigint,
+                / (active_pricing_settings.coin_rate_denominator::bigint * 2),
                 active_pricing_settings.min_price_coin_minor::bigint
               )
               + active_pricing_settings.round_to_coin_minor::bigint - 1
@@ -171,8 +171,8 @@ function priceDto(amountMinor: number) {
     amountMinor,
     scale: 2 as const,
     display: amountMinor % 100 === 0
-      ? `${(amountMinor / 100).toLocaleString("ru-RU")} Coins`
-      : `${(amountMinor / 100).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Coins`,
+      ? `${(amountMinor / 100).toLocaleString("ru-RU")} Shards`
+      : `${(amountMinor / 100).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Shards`,
   };
 }
 
@@ -292,7 +292,7 @@ function catalogPricingDto(): CatalogListDto["pricing"] {
       fiatCurrency: "RUB",
       fiatMinor: 100,
       coinMinor: 150,
-      display: "1 RUB = 1.5 Coins",
+      display: "1 RUB = 1.6 Shards",
     },
   };
 }

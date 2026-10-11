@@ -37,3 +37,15 @@ export function formatMinor(minor: number, digits = 2) {
 export function inputAmount(minor: number) {
   return (minor / 100).toFixed(2).replace(/\.00$/, "").replace(".", ",");
 }
+
+/** Display estimate only; backend quote remains the payment authority. */
+export function topUpFiatMinor(shardsMinor: number): number {
+  validMinor(shardsMinor);
+  if (shardsMinor < 10000 || shardsMinor > 10000000 || shardsMinor % 100 !== 0) throw new RangeError('Invalid top-up amount');
+  return Number((BigInt(shardsMinor) * 5n + 7n) / 8n);
+}
+export function topUpForShortfall(shortfallMinor: number): number | null {
+  validMinor(shortfallMinor);
+  const amount = Math.max(10000, Math.ceil(shortfallMinor / 100) * 100);
+  return amount > 10000000 ? null : amount;
+}

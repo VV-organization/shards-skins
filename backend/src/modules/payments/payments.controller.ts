@@ -42,7 +42,7 @@ const topUpSessionSchema = {
       required: ["fiatMinor", "coinMinor"],
       properties: {
         fiatMinor: { type: "integer", enum: [100] },
-        coinMinor: { type: "integer", enum: [150] },
+        coinMinor: { type: "integer", enum: [160] },
       },
     },
     checkoutUrl: { type: "string", nullable: true },

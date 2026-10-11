@@ -25,3 +25,12 @@ test("итог переводит общую сумму Shards с единств
 });
 
 test("fractional conversion rounds half up and rejects invalid money",()=>{assert.equal(shardsToRub(4),3);assert.equal(rubToShards(1),2);assert.equal(shardsToRub(160001),100001);assert.throws(()=>shardsToRub(-1));assert.throws(()=>rubToShards(NaN));});
+
+test('top-up preview enforces whole Shards and never silently rounds an invalid request', async () => {
+  const { topUpFiatMinor, topUpForShortfall } = await import('../src/lib/money.ts');
+  assert.equal(topUpFiatMinor(10100), 6313);
+  assert.throws(() => topUpFiatMinor(10001));
+  assert.equal(topUpForShortfall(1), 10000);
+  assert.equal(topUpForShortfall(10001), 10100);
+  assert.equal(topUpForShortfall(10000001), null);
+});

@@ -1,6 +1,141 @@
 {
   "openapi": "3.0.0",
   "paths": {
+    "/storefront/config": {
+      "get": {
+        "operationId": "StorefrontController_config",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "currency",
+                    "rate",
+                    "rateVersion",
+                    "walletTopUp",
+                    "steamRefill",
+                    "steamFeeBps",
+                    "paymentMethods",
+                    "capabilities"
+                  ],
+                  "properties": {
+                    "currency": {
+                      "type": "string",
+                      "enum": [
+                        "Shards"
+                      ]
+                    },
+                    "rate": {
+                      "type": "object",
+                      "required": [
+                        "fiatMinor",
+                        "coinMinor"
+                      ],
+                      "properties": {
+                        "fiatMinor": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "coinMinor": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "rateVersion": {
+                      "type": "string"
+                    },
+                    "walletTopUp": {
+                      "type": "object",
+                      "required": [
+                        "minimumCoinMinor",
+                        "maximumCoinMinor",
+                        "stepCoinMinor"
+                      ],
+                      "properties": {
+                        "minimumCoinMinor": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maximumCoinMinor": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "stepCoinMinor": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "steamRefill": {
+                      "type": "object",
+                      "required": [
+                        "minimumRubMinor",
+                        "maximumRubMinor",
+                        "stepRubMinor"
+                      ],
+                      "properties": {
+                        "minimumRubMinor": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "maximumRubMinor": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "stepRubMinor": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "steamFeeBps": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "paymentMethods": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "sbp"
+                        ]
+                      }
+                    },
+                    "capabilities": {
+                      "type": "object",
+                      "required": [
+                        "checkoutEnabled",
+                        "walletTopUpEnabled",
+                        "steamRefillEnabled"
+                      ],
+                      "properties": {
+                        "checkoutEnabled": {
+                          "type": "boolean"
+                        },
+                        "walletTopUpEnabled": {
+                          "type": "boolean"
+                        },
+                        "steamRefillEnabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Storefront"
+        ]
+      }
+    },
     "/health/live": {
       "get": {
         "operationId": "HealthController_live",
@@ -1107,7 +1242,7 @@
                         "coinMinor": {
                           "type": "integer",
                           "enum": [
-                            150
+                            160
                           ]
                         }
                       }

@@ -1,3 +1,4 @@
+import { topUpFiatMinor } from "../../common/money/shards";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
@@ -22,7 +23,7 @@ type Queryable = {
 const TOP_UP_MIN_COIN_MINOR = 10_000;
 const TOP_UP_MAX_COIN_MINOR = 10_000_000;
 const COIN_RATE_FIAT_MINOR = 100;
-const COIN_RATE_COIN_MINOR = 150;
+const COIN_RATE_COIN_MINOR = 160;
 const TOP_UP_PROVIDER = "arc_pay";
 const STEAM_REFILL_PROVIDER = "arc_pay";
 const STEAM_REFILL_FEE_BASIS_POINTS = 500;
@@ -44,7 +45,7 @@ export type TopUpSessionDto = {
   fiatCurrency: "RUB";
   rate: {
     fiatMinor: 100;
-    coinMinor: 150;
+    coinMinor: number;
   };
   checkoutUrl: string | null;
 };
@@ -101,7 +102,7 @@ type TopUpPaymentRow = {
   fiat_amount_minor: number;
   fiat_currency: TopUpSessionDto["fiatCurrency"];
   rate_fiat_minor: 100;
-  rate_coin_minor: 150;
+  rate_coin_minor: number;
   provider_checkout_url: string | null;
   request_hash: string;
 };
@@ -204,7 +205,7 @@ function assertCoinAmountMinor(value: number): void {
     value > TOP_UP_MAX_COIN_MINOR ||
     value % 100 !== 0
   ) {
-    throw new BadRequestException("Top-up amount must be a whole Coins amount between 100 and 100000 Coins");
+    throw new BadRequestException("Top-up amount must be a whole Shards amount between 100 and 100000 Shards");
   }
 }
 
@@ -227,7 +228,7 @@ function normalizeSteamLogin(value: string): string {
 }
 
 function fiatMinorForCoinMinor(coinAmountMinor: number): number {
-  return Math.ceil((coinAmountMinor * COIN_RATE_FIAT_MINOR) / COIN_RATE_COIN_MINOR);
+  return topUpFiatMinor(coinAmountMinor);
 }
 
 function steamRefillPaymentTerms(amountRub: number): { amountRubMinor: number; feeRubMinor: number; fiatAmountMinor: number } {

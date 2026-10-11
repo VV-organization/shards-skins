@@ -1,3 +1,4 @@
+import { StorefrontModule } from "./modules/storefront/storefront.module";
 import { APP_GUARD } from "@nestjs/core";
 import { CommerceEnabledGuard } from "./config/commerce-enabled.guard";
 import { MiddlewareConsumer, Module, type NestModule } from "@nestjs/common";
@@ -24,7 +25,7 @@ import { WalletModule } from "./modules/wallet/wallet.module";
 
 @Module({
   providers: [{ provide: APP_GUARD, useClass: CommerceEnabledGuard }],
-  imports: [AppConfigModule, DatabaseModule, QueueModule, HealthModule, AuditModule, AdminModule, AuthModule, CatalogModule, WalletModule, CartModule, CheckoutModule, FulfillmentModule, InventoryModule, IntegrationModule, OrdersModule, PaymentsModule, NotificationsModule, EmailAuthModule],
+  imports: [StorefrontModule, AppConfigModule, DatabaseModule, QueueModule, HealthModule, AuditModule, AdminModule, AuthModule, CatalogModule, WalletModule, CartModule, CheckoutModule, FulfillmentModule, InventoryModule, IntegrationModule, OrdersModule, PaymentsModule, NotificationsModule, EmailAuthModule],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

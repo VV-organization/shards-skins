@@ -6,11 +6,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { AppModule } from "../../app.module";
 import type { CatalogListDto } from "./catalog.types";
+import { CatalogPricingService } from "./catalog-pricing.service";
 import { CatalogSupplierSyncService } from "./catalog-supplier-sync.service";
 
 const databaseUrl = process.env.SHARDS_TEST_DATABASE_URL;
 const deagleMarketHashName = "Desert Eagle | Printstream (Minimal Wear)";
-// $1.011 × 95 RUB/USD × 1.25 markup × 1.5 Shards/RUB, rounded up to whole Shards = 181.
+// $1.011 × 95 RUB/USD × 1.25 markup × 1.6 Shards/RUB, rounded half-up to hundredths = 192.11.
 const deagleProjectedSlug = "desert-eagle-printstream-minimal-wear-b26c34c3";
 
 async function createApp(): Promise<INestApplication> {
@@ -146,9 +147,9 @@ describe.skipIf(!databaseUrl)("catalog PostgreSQL persistence", () => {
     expect(providerItem).toBeDefined();
     expect(providerItem?.price).toEqual({
       currency: "COINS",
-      amountMinor: 18100,
+      amountMinor: 19211,
       scale: 2,
-      display: "181 Coins",
+      display: "192,11 Shards",
     });
     expect(providerItem?.game).toBe("cs2");
   });
@@ -242,9 +243,9 @@ describe.skipIf(!databaseUrl)("catalog PostgreSQL persistence", () => {
     expect(providerItem).toBeDefined();
     expect(providerItem?.price).toEqual({
       currency: "COINS",
-      amountMinor: 18100,
+      amountMinor: 19211,
       scale: 2,
-      display: "181 Coins",
+      display: "192,11 Shards",
     });
   });
 
@@ -261,7 +262,7 @@ describe.skipIf(!databaseUrl)("catalog PostgreSQL persistence", () => {
 
     const providerItem = body.items.find((item) => item.slug === deagleProjectedSlug);
     expect(providerItem).toBeDefined();
-    expect(providerItem?.price.amountMinor).toBe(18100);
+    expect(providerItem?.price.amountMinor).toBe(19211);
     expect(body.items.every((item) => item.price.amountMinor >= 15000 && item.price.amountMinor <= 25000)).toBe(true);
   });
 
@@ -622,4 +623,24 @@ describe.skipIf(!databaseUrl)("catalog PostgreSQL persistence", () => {
     ]);
     expect(body.facets.games.map((item) => item.id)).toEqual(["cs2"]);
   });
+  it("keeps list, detail, SQL price bounds and supplier quote aligned after a new price version", async () => {
+    await insertDeagleListing();
+    await app.get(CatalogSupplierSyncService).promoteActiveSihListings("cs2");
+    const pricing = app.get(CatalogPricingService);
+    expect((await pricing.quoteSupplierPrice({scope:"sih-skins",supplierAmountMicrounit:1011000n})).amountMinor).toBe(19211);
+    await pool.query("UPDATE pricing_settings SET superseded_at=now() WHERE id='pricing-shards-v1'");
+    await pool.query(`INSERT INTO pricing_settings (id,scope,source,supplier_currency,fiat_currency,supplier_to_fiat_rate_minor,coin_rate_numerator,coin_rate_denominator,markup_bps,min_price_coin_minor,round_to_coin_minor,valid_from) VALUES ('test-shards-new-rate','sih-skins','sih','USD','RUB',10000,8,5,2500,1,1,now())`);
+    try {
+      const quoted = await pricing.quoteSupplierPrice({scope:"sih-skins",supplierAmountMicrounit:1011000n});
+      expect(quoted.amountMinor).toBe(20221);
+      const detail = await request(app.getHttpServer() as Parameters<typeof request>[0]).get(`/catalog/${deagleProjectedSlug}`).expect(200);
+      expect((detail.body as {price:{amountMinor:number}}).price.amountMinor).toBe(20221);
+      const listed = await request(app.getHttpServer() as Parameters<typeof request>[0]).get('/catalog').query({min:'202.21',max:'202.21',sort:'price_asc'}).expect(200);
+      expect((listed.body as CatalogListDto).items.find(item=>item.slug===deagleProjectedSlug)?.price.amountMinor).toBe(20221);
+    } finally {
+      await pool.query("DELETE FROM pricing_settings WHERE id='test-shards-new-rate'");
+      await pool.query("UPDATE pricing_settings SET superseded_at=NULL WHERE id='pricing-shards-v1'");
+    }
+  });
+
 });
