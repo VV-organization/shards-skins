@@ -1,4 +1,3 @@
-import { BundlesModule } from "../bundles/bundles.module";
 import { Module } from "@nestjs/common";
 
 import { DatabaseModule } from "../../common/database/database.module";
@@ -8,7 +7,7 @@ import { CartController } from "./cart.controller";
 import { CartService } from "./cart.service";
 
 @Module({
-  imports: [BundlesModule, DatabaseModule, CatalogModule, SessionsModule],
+  imports: [DatabaseModule, CatalogModule, SessionsModule],
   controllers: [CartController],
   providers: [CartService],
   exports: [CartService],

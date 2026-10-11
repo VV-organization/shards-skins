@@ -18,3 +18,5 @@
 - CSS проверен побайтно после исключения правил `.float-block`, `.float-track`, `.float-labels`: других стилевых изменений нет.
 - Backend: 167 unit tests; PostgreSQL каталог/прайсинг/sync: 17 tests passed. Frontend: 32 tests, typecheck/lint/build passed.
 - Динамические страницы получают API-цены; старый каталог используется только как источник витринных иллюстраций. Отсутствующие SKU не получают цену или разрешение на покупку из snapshot.
+
+Task 5: authoritative versioned cart, one unit per SKU, 50-SKU cap, durable owner-scoped idempotency responses, snapshot retention and serialized mutations. PostgreSQL 6/6 cart/bundle-boundary checks; backend verify 167 unit checks; frontend 34 unit checks, lint/typecheck; Playwright guest→Steam callback fixture→cart→reload→remove→reload passed with real entrance animations. Browser provider responses are fixtures, not live Steam acceptance. Atomic duo and duo intent resume belong to Task 6.

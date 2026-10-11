@@ -94,12 +94,11 @@ describe("OpenAPI contract", () => {
     expect(document.paths["/cart/items/{productSlug}"]?.delete).toBeDefined();
     expect(document.paths["/cart/items/{productSlug}"]?.put?.requestBody?.required).toBe(true);
     expect(document.paths["/cart/items/{productSlug}"]?.put?.requestBody?.content?.["application/json"]?.schema).toMatchObject({
-      required: ["quantity"],
+      required: ["expectedCartVersion", "quantity"],
       properties: {
         quantity: {
           type: "integer",
-          minimum: 1,
-          maximum: 50,
+          enum: [1],
         },
       },
     });

@@ -2392,11 +2392,23 @@
                 "schema": {
                   "type": "object",
                   "required": [
+                    "version",
                     "items",
-                    "bundles",
-                    "totalCoinMinor"
+                    "totalCoinMinor",
+                    "canCheckout"
                   ],
                   "properties": {
+                    "version": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "canCheckout": {
+                      "type": "boolean"
+                    },
+                    "totalCoinMinor": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "items": {
                       "type": "array",
                       "items": {
@@ -2409,7 +2421,9 @@
                           "quantity",
                           "unitPriceCoinMinor",
                           "lineTotalCoinMinor",
-                          "recipient"
+                          "recipient",
+                          "product",
+                          "availability"
                         ],
                         "properties": {
                           "productId": {
@@ -2421,9 +2435,7 @@
                           "kind": {
                             "type": "string",
                             "enum": [
-                              "skins",
-                              "steam",
-                              "apple_gift_card"
+                              "skins"
                             ]
                           },
                           "title": {
@@ -2431,240 +2443,208 @@
                           },
                           "quantity": {
                             "type": "integer",
-                            "minimum": 1,
-                            "maximum": 50
+                            "enum": [
+                              1
+                            ]
                           },
                           "unitPriceCoinMinor": {
-                            "type": "integer",
-                            "minimum": 1
+                            "type": "integer"
                           },
                           "lineTotalCoinMinor": {
-                            "type": "integer",
-                            "minimum": 1
+                            "type": "integer"
                           },
                           "recipient": {
                             "type": "object"
-                          }
-                        }
-                      }
-                    },
-                    "bundles": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "required": [
-                          "id",
-                          "title",
-                          "items",
-                          "originalTotalCoinMinor",
-                          "totalCoinMinor",
-                          "discountPercent",
-                          "availability"
-                        ],
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "enum": [
-                              "mono",
-                              "chroma",
-                              "metal"
-                            ]
                           },
-                          "title": {
-                            "type": "string"
-                          },
-                          "items": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "required": [
-                                "categoryId",
-                                "condition",
-                                "weapon",
-                                "stattrak",
-                                "marketHashName",
-                                "priceRevision",
-                                "pricingSettingId",
-                                "id",
-                                "slug",
-                                "kind",
-                                "category",
-                                "productType",
-                                "title",
-                                "description",
-                                "price",
-                                "availability",
-                                "fulfillmentMode",
-                                "createdAt",
-                                "popularity",
-                                "meta",
-                                "keywords",
-                                "details"
-                              ],
-                              "properties": {
-                                "categoryId": {
-                                  "type": "string"
-                                },
-                                "condition": {
-                                  "type": "string"
-                                },
-                                "weapon": {
-                                  "type": "string"
-                                },
-                                "stattrak": {
-                                  "type": "boolean"
-                                },
-                                "marketHashName": {
-                                  "type": "string"
-                                },
-                                "priceRevision": {
-                                  "type": "string"
-                                },
-                                "pricingSettingId": {
-                                  "type": "string"
-                                },
-                                "id": {
-                                  "type": "string"
-                                },
-                                "slug": {
-                                  "type": "string"
-                                },
-                                "kind": {
-                                  "type": "string",
-                                  "enum": [
-                                    "skins"
-                                  ]
-                                },
-                                "category": {
-                                  "type": "string"
-                                },
-                                "game": {
-                                  "type": "string"
-                                },
-                                "productType": {
-                                  "type": "string"
-                                },
-                                "title": {
-                                  "type": "string"
-                                },
-                                "description": {
-                                  "type": "string"
-                                },
-                                "price": {
-                                  "type": "object",
-                                  "required": [
-                                    "currency",
-                                    "amountMinor",
-                                    "scale",
-                                    "display"
-                                  ],
-                                  "properties": {
-                                    "currency": {
-                                      "type": "string",
-                                      "enum": [
-                                        "COINS"
-                                      ]
-                                    },
-                                    "amountMinor": {
-                                      "type": "integer",
-                                      "minimum": 1
-                                    },
-                                    "scale": {
-                                      "type": "integer",
-                                      "enum": [
-                                        2
-                                      ]
-                                    },
-                                    "display": {
-                                      "type": "string"
-                                    }
-                                  }
-                                },
-                                "availability": {
-                                  "type": "string",
-                                  "enum": [
-                                    "available",
-                                    "on-request",
-                                    "unavailable"
-                                  ]
-                                },
-                                "fulfillmentMode": {
-                                  "type": "string",
-                                  "enum": [
-                                    "automatic",
-                                    "steam-trade",
-                                    "manual"
-                                  ]
-                                },
-                                "createdAt": {
-                                  "type": "string",
-                                  "format": "date-time"
-                                },
-                                "popularity": {
-                                  "type": "integer"
-                                },
-                                "image": {
-                                  "type": "string"
-                                },
-                                "imageAlt": {
-                                  "type": "string"
-                                },
-                                "meta": {
-                                  "type": "array",
-                                  "items": {
+                          "product": {
+                            "type": "object",
+                            "required": [
+                              "categoryId",
+                              "condition",
+                              "weapon",
+                              "stattrak",
+                              "marketHashName",
+                              "priceRevision",
+                              "pricingSettingId",
+                              "id",
+                              "slug",
+                              "kind",
+                              "category",
+                              "productType",
+                              "title",
+                              "description",
+                              "price",
+                              "availability",
+                              "fulfillmentMode",
+                              "createdAt",
+                              "popularity",
+                              "meta",
+                              "keywords",
+                              "details"
+                            ],
+                            "properties": {
+                              "categoryId": {
+                                "type": "string"
+                              },
+                              "condition": {
+                                "type": "string"
+                              },
+                              "weapon": {
+                                "type": "string"
+                              },
+                              "stattrak": {
+                                "type": "boolean"
+                              },
+                              "marketHashName": {
+                                "type": "string"
+                              },
+                              "priceRevision": {
+                                "type": "string"
+                              },
+                              "pricingSettingId": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "skins"
+                                ]
+                              },
+                              "category": {
+                                "type": "string"
+                              },
+                              "game": {
+                                "type": "string"
+                              },
+                              "productType": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "price": {
+                                "type": "object",
+                                "required": [
+                                  "currency",
+                                  "amountMinor",
+                                  "scale",
+                                  "display"
+                                ],
+                                "properties": {
+                                  "currency": {
+                                    "type": "string",
+                                    "enum": [
+                                      "COINS"
+                                    ]
+                                  },
+                                  "amountMinor": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "scale": {
+                                    "type": "integer",
+                                    "enum": [
+                                      2
+                                    ]
+                                  },
+                                  "display": {
                                     "type": "string"
                                   }
-                                },
-                                "keywords": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "string"
-                                  }
-                                },
-                                "details": {
-                                  "type": "object",
-                                  "required": [
-                                    "specifications",
-                                    "fulfillment"
-                                  ],
-                                  "properties": {
-                                    "specifications": {
-                                      "type": "array",
-                                      "items": {
-                                        "type": "object",
-                                        "required": [
-                                          "label",
-                                          "value"
-                                        ],
-                                        "properties": {
-                                          "label": {
-                                            "type": "string"
-                                          },
-                                          "value": {
-                                            "type": "string"
-                                          }
-                                        }
-                                      }
-                                    },
-                                    "fulfillment": {
+                                }
+                              },
+                              "availability": {
+                                "type": "string",
+                                "enum": [
+                                  "available",
+                                  "on-request",
+                                  "unavailable"
+                                ]
+                              },
+                              "fulfillmentMode": {
+                                "type": "string",
+                                "enum": [
+                                  "automatic",
+                                  "steam-trade",
+                                  "manual"
+                                ]
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "popularity": {
+                                "type": "integer"
+                              },
+                              "image": {
+                                "type": "string"
+                              },
+                              "imageAlt": {
+                                "type": "string"
+                              },
+                              "meta": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "keywords": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "details": {
+                                "type": "object",
+                                "required": [
+                                  "specifications",
+                                  "fulfillment"
+                                ],
+                                "properties": {
+                                  "specifications": {
+                                    "type": "array",
+                                    "items": {
                                       "type": "object",
                                       "required": [
-                                        "title",
-                                        "description",
-                                        "requirements"
+                                        "label",
+                                        "value"
                                       ],
                                       "properties": {
-                                        "title": {
+                                        "label": {
                                           "type": "string"
                                         },
-                                        "description": {
+                                        "value": {
                                           "type": "string"
-                                        },
-                                        "requirements": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "fulfillment": {
+                                    "type": "object",
+                                    "required": [
+                                      "title",
+                                      "description",
+                                      "requirements"
+                                    ],
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "requirements": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
                                         }
                                       }
                                     }
@@ -2673,33 +2653,16 @@
                               }
                             }
                           },
-                          "originalTotalCoinMinor": {
-                            "type": "integer",
-                            "minimum": 0
-                          },
-                          "totalCoinMinor": {
-                            "type": "integer",
-                            "minimum": 0
-                          },
-                          "discountPercent": {
-                            "type": "integer",
-                            "enum": [
-                              5
-                            ]
-                          },
                           "availability": {
                             "type": "string",
                             "enum": [
                               "available",
-                              "on-request"
+                              "unavailable",
+                              "price_changed"
                             ]
                           }
                         }
                       }
-                    },
-                    "totalCoinMinor": {
-                      "type": "integer",
-                      "minimum": 0
                     }
                   }
                 }
@@ -2713,7 +2676,35 @@
       },
       "delete": {
         "operationId": "CartController_clear",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "expectedCartVersion"
+                ],
+                "properties": {
+                  "expectedCartVersion": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "",
@@ -2722,11 +2713,23 @@
                 "schema": {
                   "type": "object",
                   "required": [
+                    "version",
                     "items",
-                    "bundles",
-                    "totalCoinMinor"
+                    "totalCoinMinor",
+                    "canCheckout"
                   ],
                   "properties": {
+                    "version": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "canCheckout": {
+                      "type": "boolean"
+                    },
+                    "totalCoinMinor": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "items": {
                       "type": "array",
                       "items": {
@@ -2739,7 +2742,9 @@
                           "quantity",
                           "unitPriceCoinMinor",
                           "lineTotalCoinMinor",
-                          "recipient"
+                          "recipient",
+                          "product",
+                          "availability"
                         ],
                         "properties": {
                           "productId": {
@@ -2751,9 +2756,7 @@
                           "kind": {
                             "type": "string",
                             "enum": [
-                              "skins",
-                              "steam",
-                              "apple_gift_card"
+                              "skins"
                             ]
                           },
                           "title": {
@@ -2761,240 +2764,208 @@
                           },
                           "quantity": {
                             "type": "integer",
-                            "minimum": 1,
-                            "maximum": 50
+                            "enum": [
+                              1
+                            ]
                           },
                           "unitPriceCoinMinor": {
-                            "type": "integer",
-                            "minimum": 1
+                            "type": "integer"
                           },
                           "lineTotalCoinMinor": {
-                            "type": "integer",
-                            "minimum": 1
+                            "type": "integer"
                           },
                           "recipient": {
                             "type": "object"
-                          }
-                        }
-                      }
-                    },
-                    "bundles": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "required": [
-                          "id",
-                          "title",
-                          "items",
-                          "originalTotalCoinMinor",
-                          "totalCoinMinor",
-                          "discountPercent",
-                          "availability"
-                        ],
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "enum": [
-                              "mono",
-                              "chroma",
-                              "metal"
-                            ]
                           },
-                          "title": {
-                            "type": "string"
-                          },
-                          "items": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "required": [
-                                "categoryId",
-                                "condition",
-                                "weapon",
-                                "stattrak",
-                                "marketHashName",
-                                "priceRevision",
-                                "pricingSettingId",
-                                "id",
-                                "slug",
-                                "kind",
-                                "category",
-                                "productType",
-                                "title",
-                                "description",
-                                "price",
-                                "availability",
-                                "fulfillmentMode",
-                                "createdAt",
-                                "popularity",
-                                "meta",
-                                "keywords",
-                                "details"
-                              ],
-                              "properties": {
-                                "categoryId": {
-                                  "type": "string"
-                                },
-                                "condition": {
-                                  "type": "string"
-                                },
-                                "weapon": {
-                                  "type": "string"
-                                },
-                                "stattrak": {
-                                  "type": "boolean"
-                                },
-                                "marketHashName": {
-                                  "type": "string"
-                                },
-                                "priceRevision": {
-                                  "type": "string"
-                                },
-                                "pricingSettingId": {
-                                  "type": "string"
-                                },
-                                "id": {
-                                  "type": "string"
-                                },
-                                "slug": {
-                                  "type": "string"
-                                },
-                                "kind": {
-                                  "type": "string",
-                                  "enum": [
-                                    "skins"
-                                  ]
-                                },
-                                "category": {
-                                  "type": "string"
-                                },
-                                "game": {
-                                  "type": "string"
-                                },
-                                "productType": {
-                                  "type": "string"
-                                },
-                                "title": {
-                                  "type": "string"
-                                },
-                                "description": {
-                                  "type": "string"
-                                },
-                                "price": {
-                                  "type": "object",
-                                  "required": [
-                                    "currency",
-                                    "amountMinor",
-                                    "scale",
-                                    "display"
-                                  ],
-                                  "properties": {
-                                    "currency": {
-                                      "type": "string",
-                                      "enum": [
-                                        "COINS"
-                                      ]
-                                    },
-                                    "amountMinor": {
-                                      "type": "integer",
-                                      "minimum": 1
-                                    },
-                                    "scale": {
-                                      "type": "integer",
-                                      "enum": [
-                                        2
-                                      ]
-                                    },
-                                    "display": {
-                                      "type": "string"
-                                    }
-                                  }
-                                },
-                                "availability": {
-                                  "type": "string",
-                                  "enum": [
-                                    "available",
-                                    "on-request",
-                                    "unavailable"
-                                  ]
-                                },
-                                "fulfillmentMode": {
-                                  "type": "string",
-                                  "enum": [
-                                    "automatic",
-                                    "steam-trade",
-                                    "manual"
-                                  ]
-                                },
-                                "createdAt": {
-                                  "type": "string",
-                                  "format": "date-time"
-                                },
-                                "popularity": {
-                                  "type": "integer"
-                                },
-                                "image": {
-                                  "type": "string"
-                                },
-                                "imageAlt": {
-                                  "type": "string"
-                                },
-                                "meta": {
-                                  "type": "array",
-                                  "items": {
+                          "product": {
+                            "type": "object",
+                            "required": [
+                              "categoryId",
+                              "condition",
+                              "weapon",
+                              "stattrak",
+                              "marketHashName",
+                              "priceRevision",
+                              "pricingSettingId",
+                              "id",
+                              "slug",
+                              "kind",
+                              "category",
+                              "productType",
+                              "title",
+                              "description",
+                              "price",
+                              "availability",
+                              "fulfillmentMode",
+                              "createdAt",
+                              "popularity",
+                              "meta",
+                              "keywords",
+                              "details"
+                            ],
+                            "properties": {
+                              "categoryId": {
+                                "type": "string"
+                              },
+                              "condition": {
+                                "type": "string"
+                              },
+                              "weapon": {
+                                "type": "string"
+                              },
+                              "stattrak": {
+                                "type": "boolean"
+                              },
+                              "marketHashName": {
+                                "type": "string"
+                              },
+                              "priceRevision": {
+                                "type": "string"
+                              },
+                              "pricingSettingId": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "skins"
+                                ]
+                              },
+                              "category": {
+                                "type": "string"
+                              },
+                              "game": {
+                                "type": "string"
+                              },
+                              "productType": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "price": {
+                                "type": "object",
+                                "required": [
+                                  "currency",
+                                  "amountMinor",
+                                  "scale",
+                                  "display"
+                                ],
+                                "properties": {
+                                  "currency": {
+                                    "type": "string",
+                                    "enum": [
+                                      "COINS"
+                                    ]
+                                  },
+                                  "amountMinor": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "scale": {
+                                    "type": "integer",
+                                    "enum": [
+                                      2
+                                    ]
+                                  },
+                                  "display": {
                                     "type": "string"
                                   }
-                                },
-                                "keywords": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "string"
-                                  }
-                                },
-                                "details": {
-                                  "type": "object",
-                                  "required": [
-                                    "specifications",
-                                    "fulfillment"
-                                  ],
-                                  "properties": {
-                                    "specifications": {
-                                      "type": "array",
-                                      "items": {
-                                        "type": "object",
-                                        "required": [
-                                          "label",
-                                          "value"
-                                        ],
-                                        "properties": {
-                                          "label": {
-                                            "type": "string"
-                                          },
-                                          "value": {
-                                            "type": "string"
-                                          }
-                                        }
-                                      }
-                                    },
-                                    "fulfillment": {
+                                }
+                              },
+                              "availability": {
+                                "type": "string",
+                                "enum": [
+                                  "available",
+                                  "on-request",
+                                  "unavailable"
+                                ]
+                              },
+                              "fulfillmentMode": {
+                                "type": "string",
+                                "enum": [
+                                  "automatic",
+                                  "steam-trade",
+                                  "manual"
+                                ]
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "popularity": {
+                                "type": "integer"
+                              },
+                              "image": {
+                                "type": "string"
+                              },
+                              "imageAlt": {
+                                "type": "string"
+                              },
+                              "meta": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "keywords": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "details": {
+                                "type": "object",
+                                "required": [
+                                  "specifications",
+                                  "fulfillment"
+                                ],
+                                "properties": {
+                                  "specifications": {
+                                    "type": "array",
+                                    "items": {
                                       "type": "object",
                                       "required": [
-                                        "title",
-                                        "description",
-                                        "requirements"
+                                        "label",
+                                        "value"
                                       ],
                                       "properties": {
-                                        "title": {
+                                        "label": {
                                           "type": "string"
                                         },
-                                        "description": {
+                                        "value": {
                                           "type": "string"
-                                        },
-                                        "requirements": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "fulfillment": {
+                                    "type": "object",
+                                    "required": [
+                                      "title",
+                                      "description",
+                                      "requirements"
+                                    ],
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "requirements": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
                                         }
                                       }
                                     }
@@ -3003,33 +2974,16 @@
                               }
                             }
                           },
-                          "originalTotalCoinMinor": {
-                            "type": "integer",
-                            "minimum": 0
-                          },
-                          "totalCoinMinor": {
-                            "type": "integer",
-                            "minimum": 0
-                          },
-                          "discountPercent": {
-                            "type": "integer",
-                            "enum": [
-                              5
-                            ]
-                          },
                           "availability": {
                             "type": "string",
                             "enum": [
                               "available",
-                              "on-request"
+                              "unavailable",
+                              "price_changed"
                             ]
                           }
                         }
                       }
-                    },
-                    "totalCoinMinor": {
-                      "type": "integer",
-                      "minimum": 0
                     }
                   }
                 }
@@ -3045,7 +2999,16 @@
     "/cart/items/{productSlug}": {
       "put": {
         "operationId": "CartController_setItem",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -3053,21 +3016,19 @@
               "schema": {
                 "type": "object",
                 "required": [
+                  "expectedCartVersion",
                   "quantity"
                 ],
                 "properties": {
+                  "expectedCartVersion": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
                   "quantity": {
                     "type": "integer",
-                    "minimum": 1,
-                    "maximum": 50
-                  },
-                  "recipient": {
-                    "type": "object",
-                    "properties": {
-                      "steamLogin": {
-                        "type": "string"
-                      }
-                    }
+                    "enum": [
+                      1
+                    ]
                   }
                 }
               }
@@ -3082,11 +3043,23 @@
                 "schema": {
                   "type": "object",
                   "required": [
+                    "version",
                     "items",
-                    "bundles",
-                    "totalCoinMinor"
+                    "totalCoinMinor",
+                    "canCheckout"
                   ],
                   "properties": {
+                    "version": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "canCheckout": {
+                      "type": "boolean"
+                    },
+                    "totalCoinMinor": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "items": {
                       "type": "array",
                       "items": {
@@ -3099,7 +3072,9 @@
                           "quantity",
                           "unitPriceCoinMinor",
                           "lineTotalCoinMinor",
-                          "recipient"
+                          "recipient",
+                          "product",
+                          "availability"
                         ],
                         "properties": {
                           "productId": {
@@ -3111,9 +3086,7 @@
                           "kind": {
                             "type": "string",
                             "enum": [
-                              "skins",
-                              "steam",
-                              "apple_gift_card"
+                              "skins"
                             ]
                           },
                           "title": {
@@ -3121,240 +3094,208 @@
                           },
                           "quantity": {
                             "type": "integer",
-                            "minimum": 1,
-                            "maximum": 50
+                            "enum": [
+                              1
+                            ]
                           },
                           "unitPriceCoinMinor": {
-                            "type": "integer",
-                            "minimum": 1
+                            "type": "integer"
                           },
                           "lineTotalCoinMinor": {
-                            "type": "integer",
-                            "minimum": 1
+                            "type": "integer"
                           },
                           "recipient": {
                             "type": "object"
-                          }
-                        }
-                      }
-                    },
-                    "bundles": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "required": [
-                          "id",
-                          "title",
-                          "items",
-                          "originalTotalCoinMinor",
-                          "totalCoinMinor",
-                          "discountPercent",
-                          "availability"
-                        ],
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "enum": [
-                              "mono",
-                              "chroma",
-                              "metal"
-                            ]
                           },
-                          "title": {
-                            "type": "string"
-                          },
-                          "items": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "required": [
-                                "categoryId",
-                                "condition",
-                                "weapon",
-                                "stattrak",
-                                "marketHashName",
-                                "priceRevision",
-                                "pricingSettingId",
-                                "id",
-                                "slug",
-                                "kind",
-                                "category",
-                                "productType",
-                                "title",
-                                "description",
-                                "price",
-                                "availability",
-                                "fulfillmentMode",
-                                "createdAt",
-                                "popularity",
-                                "meta",
-                                "keywords",
-                                "details"
-                              ],
-                              "properties": {
-                                "categoryId": {
-                                  "type": "string"
-                                },
-                                "condition": {
-                                  "type": "string"
-                                },
-                                "weapon": {
-                                  "type": "string"
-                                },
-                                "stattrak": {
-                                  "type": "boolean"
-                                },
-                                "marketHashName": {
-                                  "type": "string"
-                                },
-                                "priceRevision": {
-                                  "type": "string"
-                                },
-                                "pricingSettingId": {
-                                  "type": "string"
-                                },
-                                "id": {
-                                  "type": "string"
-                                },
-                                "slug": {
-                                  "type": "string"
-                                },
-                                "kind": {
-                                  "type": "string",
-                                  "enum": [
-                                    "skins"
-                                  ]
-                                },
-                                "category": {
-                                  "type": "string"
-                                },
-                                "game": {
-                                  "type": "string"
-                                },
-                                "productType": {
-                                  "type": "string"
-                                },
-                                "title": {
-                                  "type": "string"
-                                },
-                                "description": {
-                                  "type": "string"
-                                },
-                                "price": {
-                                  "type": "object",
-                                  "required": [
-                                    "currency",
-                                    "amountMinor",
-                                    "scale",
-                                    "display"
-                                  ],
-                                  "properties": {
-                                    "currency": {
-                                      "type": "string",
-                                      "enum": [
-                                        "COINS"
-                                      ]
-                                    },
-                                    "amountMinor": {
-                                      "type": "integer",
-                                      "minimum": 1
-                                    },
-                                    "scale": {
-                                      "type": "integer",
-                                      "enum": [
-                                        2
-                                      ]
-                                    },
-                                    "display": {
-                                      "type": "string"
-                                    }
-                                  }
-                                },
-                                "availability": {
-                                  "type": "string",
-                                  "enum": [
-                                    "available",
-                                    "on-request",
-                                    "unavailable"
-                                  ]
-                                },
-                                "fulfillmentMode": {
-                                  "type": "string",
-                                  "enum": [
-                                    "automatic",
-                                    "steam-trade",
-                                    "manual"
-                                  ]
-                                },
-                                "createdAt": {
-                                  "type": "string",
-                                  "format": "date-time"
-                                },
-                                "popularity": {
-                                  "type": "integer"
-                                },
-                                "image": {
-                                  "type": "string"
-                                },
-                                "imageAlt": {
-                                  "type": "string"
-                                },
-                                "meta": {
-                                  "type": "array",
-                                  "items": {
+                          "product": {
+                            "type": "object",
+                            "required": [
+                              "categoryId",
+                              "condition",
+                              "weapon",
+                              "stattrak",
+                              "marketHashName",
+                              "priceRevision",
+                              "pricingSettingId",
+                              "id",
+                              "slug",
+                              "kind",
+                              "category",
+                              "productType",
+                              "title",
+                              "description",
+                              "price",
+                              "availability",
+                              "fulfillmentMode",
+                              "createdAt",
+                              "popularity",
+                              "meta",
+                              "keywords",
+                              "details"
+                            ],
+                            "properties": {
+                              "categoryId": {
+                                "type": "string"
+                              },
+                              "condition": {
+                                "type": "string"
+                              },
+                              "weapon": {
+                                "type": "string"
+                              },
+                              "stattrak": {
+                                "type": "boolean"
+                              },
+                              "marketHashName": {
+                                "type": "string"
+                              },
+                              "priceRevision": {
+                                "type": "string"
+                              },
+                              "pricingSettingId": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "skins"
+                                ]
+                              },
+                              "category": {
+                                "type": "string"
+                              },
+                              "game": {
+                                "type": "string"
+                              },
+                              "productType": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "price": {
+                                "type": "object",
+                                "required": [
+                                  "currency",
+                                  "amountMinor",
+                                  "scale",
+                                  "display"
+                                ],
+                                "properties": {
+                                  "currency": {
+                                    "type": "string",
+                                    "enum": [
+                                      "COINS"
+                                    ]
+                                  },
+                                  "amountMinor": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "scale": {
+                                    "type": "integer",
+                                    "enum": [
+                                      2
+                                    ]
+                                  },
+                                  "display": {
                                     "type": "string"
                                   }
-                                },
-                                "keywords": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "string"
-                                  }
-                                },
-                                "details": {
-                                  "type": "object",
-                                  "required": [
-                                    "specifications",
-                                    "fulfillment"
-                                  ],
-                                  "properties": {
-                                    "specifications": {
-                                      "type": "array",
-                                      "items": {
-                                        "type": "object",
-                                        "required": [
-                                          "label",
-                                          "value"
-                                        ],
-                                        "properties": {
-                                          "label": {
-                                            "type": "string"
-                                          },
-                                          "value": {
-                                            "type": "string"
-                                          }
-                                        }
-                                      }
-                                    },
-                                    "fulfillment": {
+                                }
+                              },
+                              "availability": {
+                                "type": "string",
+                                "enum": [
+                                  "available",
+                                  "on-request",
+                                  "unavailable"
+                                ]
+                              },
+                              "fulfillmentMode": {
+                                "type": "string",
+                                "enum": [
+                                  "automatic",
+                                  "steam-trade",
+                                  "manual"
+                                ]
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "popularity": {
+                                "type": "integer"
+                              },
+                              "image": {
+                                "type": "string"
+                              },
+                              "imageAlt": {
+                                "type": "string"
+                              },
+                              "meta": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "keywords": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "details": {
+                                "type": "object",
+                                "required": [
+                                  "specifications",
+                                  "fulfillment"
+                                ],
+                                "properties": {
+                                  "specifications": {
+                                    "type": "array",
+                                    "items": {
                                       "type": "object",
                                       "required": [
-                                        "title",
-                                        "description",
-                                        "requirements"
+                                        "label",
+                                        "value"
                                       ],
                                       "properties": {
-                                        "title": {
+                                        "label": {
                                           "type": "string"
                                         },
-                                        "description": {
+                                        "value": {
                                           "type": "string"
-                                        },
-                                        "requirements": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "fulfillment": {
+                                    "type": "object",
+                                    "required": [
+                                      "title",
+                                      "description",
+                                      "requirements"
+                                    ],
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "requirements": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
                                         }
                                       }
                                     }
@@ -3363,33 +3304,16 @@
                               }
                             }
                           },
-                          "originalTotalCoinMinor": {
-                            "type": "integer",
-                            "minimum": 0
-                          },
-                          "totalCoinMinor": {
-                            "type": "integer",
-                            "minimum": 0
-                          },
-                          "discountPercent": {
-                            "type": "integer",
-                            "enum": [
-                              5
-                            ]
-                          },
                           "availability": {
                             "type": "string",
                             "enum": [
                               "available",
-                              "on-request"
+                              "unavailable",
+                              "price_changed"
                             ]
                           }
                         }
                       }
-                    },
-                    "totalCoinMinor": {
-                      "type": "integer",
-                      "minimum": 0
                     }
                   }
                 }
@@ -3403,7 +3327,35 @@
       },
       "delete": {
         "operationId": "CartController_removeItem",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "expectedCartVersion"
+                ],
+                "properties": {
+                  "expectedCartVersion": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "",
@@ -3412,11 +3364,23 @@
                 "schema": {
                   "type": "object",
                   "required": [
+                    "version",
                     "items",
-                    "bundles",
-                    "totalCoinMinor"
+                    "totalCoinMinor",
+                    "canCheckout"
                   ],
                   "properties": {
+                    "version": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "canCheckout": {
+                      "type": "boolean"
+                    },
+                    "totalCoinMinor": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "items": {
                       "type": "array",
                       "items": {
@@ -3429,7 +3393,9 @@
                           "quantity",
                           "unitPriceCoinMinor",
                           "lineTotalCoinMinor",
-                          "recipient"
+                          "recipient",
+                          "product",
+                          "availability"
                         ],
                         "properties": {
                           "productId": {
@@ -3441,9 +3407,7 @@
                           "kind": {
                             "type": "string",
                             "enum": [
-                              "skins",
-                              "steam",
-                              "apple_gift_card"
+                              "skins"
                             ]
                           },
                           "title": {
@@ -3451,240 +3415,208 @@
                           },
                           "quantity": {
                             "type": "integer",
-                            "minimum": 1,
-                            "maximum": 50
+                            "enum": [
+                              1
+                            ]
                           },
                           "unitPriceCoinMinor": {
-                            "type": "integer",
-                            "minimum": 1
+                            "type": "integer"
                           },
                           "lineTotalCoinMinor": {
-                            "type": "integer",
-                            "minimum": 1
+                            "type": "integer"
                           },
                           "recipient": {
                             "type": "object"
-                          }
-                        }
-                      }
-                    },
-                    "bundles": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "required": [
-                          "id",
-                          "title",
-                          "items",
-                          "originalTotalCoinMinor",
-                          "totalCoinMinor",
-                          "discountPercent",
-                          "availability"
-                        ],
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "enum": [
-                              "mono",
-                              "chroma",
-                              "metal"
-                            ]
                           },
-                          "title": {
-                            "type": "string"
-                          },
-                          "items": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "required": [
-                                "categoryId",
-                                "condition",
-                                "weapon",
-                                "stattrak",
-                                "marketHashName",
-                                "priceRevision",
-                                "pricingSettingId",
-                                "id",
-                                "slug",
-                                "kind",
-                                "category",
-                                "productType",
-                                "title",
-                                "description",
-                                "price",
-                                "availability",
-                                "fulfillmentMode",
-                                "createdAt",
-                                "popularity",
-                                "meta",
-                                "keywords",
-                                "details"
-                              ],
-                              "properties": {
-                                "categoryId": {
-                                  "type": "string"
-                                },
-                                "condition": {
-                                  "type": "string"
-                                },
-                                "weapon": {
-                                  "type": "string"
-                                },
-                                "stattrak": {
-                                  "type": "boolean"
-                                },
-                                "marketHashName": {
-                                  "type": "string"
-                                },
-                                "priceRevision": {
-                                  "type": "string"
-                                },
-                                "pricingSettingId": {
-                                  "type": "string"
-                                },
-                                "id": {
-                                  "type": "string"
-                                },
-                                "slug": {
-                                  "type": "string"
-                                },
-                                "kind": {
-                                  "type": "string",
-                                  "enum": [
-                                    "skins"
-                                  ]
-                                },
-                                "category": {
-                                  "type": "string"
-                                },
-                                "game": {
-                                  "type": "string"
-                                },
-                                "productType": {
-                                  "type": "string"
-                                },
-                                "title": {
-                                  "type": "string"
-                                },
-                                "description": {
-                                  "type": "string"
-                                },
-                                "price": {
-                                  "type": "object",
-                                  "required": [
-                                    "currency",
-                                    "amountMinor",
-                                    "scale",
-                                    "display"
-                                  ],
-                                  "properties": {
-                                    "currency": {
-                                      "type": "string",
-                                      "enum": [
-                                        "COINS"
-                                      ]
-                                    },
-                                    "amountMinor": {
-                                      "type": "integer",
-                                      "minimum": 1
-                                    },
-                                    "scale": {
-                                      "type": "integer",
-                                      "enum": [
-                                        2
-                                      ]
-                                    },
-                                    "display": {
-                                      "type": "string"
-                                    }
-                                  }
-                                },
-                                "availability": {
-                                  "type": "string",
-                                  "enum": [
-                                    "available",
-                                    "on-request",
-                                    "unavailable"
-                                  ]
-                                },
-                                "fulfillmentMode": {
-                                  "type": "string",
-                                  "enum": [
-                                    "automatic",
-                                    "steam-trade",
-                                    "manual"
-                                  ]
-                                },
-                                "createdAt": {
-                                  "type": "string",
-                                  "format": "date-time"
-                                },
-                                "popularity": {
-                                  "type": "integer"
-                                },
-                                "image": {
-                                  "type": "string"
-                                },
-                                "imageAlt": {
-                                  "type": "string"
-                                },
-                                "meta": {
-                                  "type": "array",
-                                  "items": {
+                          "product": {
+                            "type": "object",
+                            "required": [
+                              "categoryId",
+                              "condition",
+                              "weapon",
+                              "stattrak",
+                              "marketHashName",
+                              "priceRevision",
+                              "pricingSettingId",
+                              "id",
+                              "slug",
+                              "kind",
+                              "category",
+                              "productType",
+                              "title",
+                              "description",
+                              "price",
+                              "availability",
+                              "fulfillmentMode",
+                              "createdAt",
+                              "popularity",
+                              "meta",
+                              "keywords",
+                              "details"
+                            ],
+                            "properties": {
+                              "categoryId": {
+                                "type": "string"
+                              },
+                              "condition": {
+                                "type": "string"
+                              },
+                              "weapon": {
+                                "type": "string"
+                              },
+                              "stattrak": {
+                                "type": "boolean"
+                              },
+                              "marketHashName": {
+                                "type": "string"
+                              },
+                              "priceRevision": {
+                                "type": "string"
+                              },
+                              "pricingSettingId": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "skins"
+                                ]
+                              },
+                              "category": {
+                                "type": "string"
+                              },
+                              "game": {
+                                "type": "string"
+                              },
+                              "productType": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "price": {
+                                "type": "object",
+                                "required": [
+                                  "currency",
+                                  "amountMinor",
+                                  "scale",
+                                  "display"
+                                ],
+                                "properties": {
+                                  "currency": {
+                                    "type": "string",
+                                    "enum": [
+                                      "COINS"
+                                    ]
+                                  },
+                                  "amountMinor": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "scale": {
+                                    "type": "integer",
+                                    "enum": [
+                                      2
+                                    ]
+                                  },
+                                  "display": {
                                     "type": "string"
                                   }
-                                },
-                                "keywords": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "string"
-                                  }
-                                },
-                                "details": {
-                                  "type": "object",
-                                  "required": [
-                                    "specifications",
-                                    "fulfillment"
-                                  ],
-                                  "properties": {
-                                    "specifications": {
-                                      "type": "array",
-                                      "items": {
-                                        "type": "object",
-                                        "required": [
-                                          "label",
-                                          "value"
-                                        ],
-                                        "properties": {
-                                          "label": {
-                                            "type": "string"
-                                          },
-                                          "value": {
-                                            "type": "string"
-                                          }
-                                        }
-                                      }
-                                    },
-                                    "fulfillment": {
+                                }
+                              },
+                              "availability": {
+                                "type": "string",
+                                "enum": [
+                                  "available",
+                                  "on-request",
+                                  "unavailable"
+                                ]
+                              },
+                              "fulfillmentMode": {
+                                "type": "string",
+                                "enum": [
+                                  "automatic",
+                                  "steam-trade",
+                                  "manual"
+                                ]
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "popularity": {
+                                "type": "integer"
+                              },
+                              "image": {
+                                "type": "string"
+                              },
+                              "imageAlt": {
+                                "type": "string"
+                              },
+                              "meta": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "keywords": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "details": {
+                                "type": "object",
+                                "required": [
+                                  "specifications",
+                                  "fulfillment"
+                                ],
+                                "properties": {
+                                  "specifications": {
+                                    "type": "array",
+                                    "items": {
                                       "type": "object",
                                       "required": [
-                                        "title",
-                                        "description",
-                                        "requirements"
+                                        "label",
+                                        "value"
                                       ],
                                       "properties": {
-                                        "title": {
+                                        "label": {
                                           "type": "string"
                                         },
-                                        "description": {
+                                        "value": {
                                           "type": "string"
-                                        },
-                                        "requirements": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "fulfillment": {
+                                    "type": "object",
+                                    "required": [
+                                      "title",
+                                      "description",
+                                      "requirements"
+                                    ],
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "requirements": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
                                         }
                                       }
                                     }
@@ -3693,33 +3625,16 @@
                               }
                             }
                           },
-                          "originalTotalCoinMinor": {
-                            "type": "integer",
-                            "minimum": 0
-                          },
-                          "totalCoinMinor": {
-                            "type": "integer",
-                            "minimum": 0
-                          },
-                          "discountPercent": {
-                            "type": "integer",
-                            "enum": [
-                              5
-                            ]
-                          },
                           "availability": {
                             "type": "string",
                             "enum": [
                               "available",
-                              "on-request"
+                              "unavailable",
+                              "price_changed"
                             ]
                           }
                         }
                       }
-                    },
-                    "totalCoinMinor": {
-                      "type": "integer",
-                      "minimum": 0
                     }
                   }
                 }

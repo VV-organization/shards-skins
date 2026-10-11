@@ -342,17 +342,17 @@ export class CatalogService {
     };
   }
 
-  async getBySlug(slug: string): Promise<CatalogProductDto> {
+  async getBySlug(slug: string, client: Pick<DatabaseService,"query"> = this.database): Promise<CatalogProductDto> {
     if (parseSteamRefillAmountRub(slug) !== null) throw new NotFoundException("Product not found");
 
-    const product = (await this.loadProducts({ slug, limit: 1 }))[0];
+    const product = (await this.loadProducts({ slug, limit: 1 }, client))[0];
     if (!product) throw new NotFoundException("Product not found");
     return productDto(product);
   }
 
-  async lookup(slugs: unknown): Promise<{items: CatalogProductDto[]}> {
+  async lookup(slugs: unknown, client: Pick<DatabaseService,"query"> = this.database): Promise<{items: CatalogProductDto[]}> {
     if (!Array.isArray(slugs) || slugs.length > 50 || slugs.some(slug => typeof slug !== "string" || slug.length === 0 || slug.length > 250)) throw new BadRequestException("At most 50 product slugs are allowed");
-    const products=await this.loadProducts({slugs:[...new Set(slugs as string[])],limit:50});
+    const products=await this.loadProducts({slugs:[...new Set(slugs as string[])],limit:50},client);
     return {items:products.map(productDto)};
   }
 
@@ -369,7 +369,7 @@ export class CatalogService {
     slug?: string; slugs?: string[];
     sort?: CatalogSort;
     types?: string[];
-  } = {}): Promise<LoadedCatalogProduct[]> {
+  } = {}, client: Pick<DatabaseService,"query"> = this.database): Promise<LoadedCatalogProduct[]> {
     const { params, where } = this.catalogWhere(command);
     if (command.minPriceCoinMinor !== undefined) {
       params.push(command.minPriceCoinMinor);
@@ -403,7 +403,7 @@ export class CatalogService {
       }
       return "catalog_products.popularity DESC, catalog_products.created_at DESC, catalog_products.id ASC";
     })();
-    const result = await this.database.query<{
+    const result = await client.query<{
       id: string;
       slug: string;
       kind: CatalogProductKind;

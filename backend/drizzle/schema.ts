@@ -422,6 +422,7 @@ export const carts = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     userId: text("user_id").notNull(),
     status: text("status").default("active").notNull(),
+    version: integer("version").default(0).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -439,6 +440,7 @@ export const cartItems = pgTable(
     productSlug: text("product_slug").notNull(),
     quantity: integer("quantity").notNull(),
     recipient: jsonb("recipient").default({}).notNull(),
+    productSnapshot: jsonb("product_snapshot").default({}).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -749,3 +751,12 @@ export const orderPublicNumbers = pgTable(
   },
   (table) => [uniqueIndex("order_public_numbers_value_uidx").on(table.publicNumber)],
 );
+
+export const cartCommands = pgTable("cart_commands", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  response: jsonb("response").notNull(),
+  createdAt: timestamp("created_at",{withTimezone:true}).defaultNow().notNull(),
+},table=>[uniqueIndex("cart_commands_user_key_uidx").on(table.userId,table.idempotencyKey)]);

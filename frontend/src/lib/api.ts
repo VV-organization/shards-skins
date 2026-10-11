@@ -1,3 +1,4 @@
+import {CommandJournal,type JournalCommand} from './command-journal.ts';
 type Fetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 type Options = { signal?: AbortSignal; idempotencyKey?: string; anonymous?: boolean };
 export class ApiError extends Error {
@@ -17,13 +18,26 @@ export class ApiClient {
   private csrf: string|null=null;
   private controllers=new Set<AbortController>();
   private keys=new Map<string,string>();
+  private journal=new CommandJournal();
   constructor(fetcher:Fetch=(input,init)=>fetch(input,init)) { this.fetcher=fetcher; }
-  setOwner(owner:string|null) { if(owner!==this.owner){this.reset();this.owner=owner;} }
+  setOwner(owner:string|null) { if(owner!==this.owner){if(this.owner)this.journal.clear(this.owner);this.reset();this.owner=owner;} }
   reset() { this.generation++;this.csrf=null;this.keys.clear();for(const controller of this.controllers)controller.abort();this.controllers.clear(); }
   commandKey(purpose:string,intent:string) {
     if(!this.owner)throw new ApiError(401,{code:'SESSION_REQUIRED'});
     const scope=JSON.stringify([this.owner,purpose,intent]);
     let key=this.keys.get(scope);if(!key){key=crypto.randomUUID();this.keys.set(scope,key);}return key;
+  }
+  async command<T>(intent:string,method:JournalCommand['method'],path:string,body:unknown):Promise<T> {
+    const owner=this.owner;if(!owner)throw new ApiError(401,{code:'SESSION_REQUIRED'});
+    const command=this.journal.begin(owner,intent,method,path,body);
+    try {
+      const result=await this.request<T>(command.method,command.path,command.body,{idempotencyKey:command.key});
+      this.journal.complete(owner,intent);return result;
+    } catch(error) {
+      // A definitive client rejection did not commit. Network/5xx outcomes remain replayable.
+      if(error instanceof ApiError&&error.status>=400&&error.status<500&&error.status!==408&&error.status!==429)this.journal.complete(owner,intent);
+      throw error;
+    }
   }
   get<T>(path:string,options:Options={}) { return this.request<T>('GET',path,undefined,options); }
   post<T>(path:string,body:unknown,options:Options={}) { return this.request<T>('POST',path,body,options); }
