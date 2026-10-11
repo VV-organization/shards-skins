@@ -65,6 +65,7 @@ describe.skipIf(!databaseUrl)('recoverable fulfillment operations',()=>{
   expect((await wallet.getBalance(userId))).toEqual({postedCoinMinor:100000-capture,heldCoinMinor:0,availableCoinMinor:100000-capture});
   expect((await pool.query<{status:string}>('SELECT status FROM orders WHERE id=$1',[orderId])).rows[0]?.status).toBe(status);
   await engine.complete(a,{kind:'finished'});await engine.settleTerminalHolds(10);expect((await wallet.getBalance(userId)).postedCoinMinor).toBe(100000-capture);
+  const events=await pool.query<{payload:{data:{fulfillmentStatus:string;capturedAmount:string;payment:{status:string}}}}>("SELECT payload FROM vv_admin_integration_outbox WHERE subject_external_id=$1",[orderId]);expect(events.rows).toHaveLength(1);expect(events.rows[0]?.payload.data.fulfillmentStatus).toBe(status);expect(events.rows[0]?.payload.data.capturedAmount).toBe((capture/100).toFixed(2));expect(events.rows[0]?.payload.data.payment.status).toBe(capture?'paid':'failed');
  });
  it('fails missing stock explicitly and never creates at a higher supplier cost',async()=>{
   await seed();provider.getMinimumItem.mockResolvedValueOnce(null).mockResolvedValueOnce({availableQuantity:1,priceMicrousd:2000000n});

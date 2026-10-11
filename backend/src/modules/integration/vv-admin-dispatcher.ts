@@ -38,15 +38,16 @@ export class VvAdminDispatcher {
           }),
         },
         body: rawBody,
+        signal: AbortSignal.timeout(15000),
       });
       if (!response.ok) {
-        await this.outbox.markRetryableFailure(record.id, `HTTP_${response.status}`);
+        await this.outbox.markRetryableFailure(record.id, `HTTP_${response.status}`, record.attemptCount);
         return "retry";
       }
-      await this.outbox.markAccepted(record.id, response.status);
+      await this.outbox.markAccepted(record.id, response.status, record.attemptCount);
       return "accepted";
     } catch (error) {
-      await this.outbox.markRetryableFailure(record.id, readErrorCode(error));
+      await this.outbox.markRetryableFailure(record.id, readErrorCode(error), record.attemptCount);
       return "retry";
     }
   }

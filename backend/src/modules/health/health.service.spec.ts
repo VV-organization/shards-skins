@@ -5,7 +5,7 @@ it('reports failed connections rather than treating configured URLs as healthy',
   const service = new HealthService(loadAppConfig({ DATABASE_URL: 'postgres://shards:x@127.0.0.1:1/shards', REDIS_URL: 'redis://127.0.0.1:1' }));
   expect(await service.readiness()).toMatchObject({ status: 'degraded', dependencies: { postgres: 'unavailable', redis: 'unavailable' } });
 });
-it('does not advertise disabled new money operations even when credentials are configured', () => {
+it('does not advertise disabled new money operations even when credentials are configured', async () => {
   const service = new HealthService(loadAppConfig({DATABASE_URL:'postgres://localhost/shards', REDIS_URL:'redis://localhost', ARC_PAY_PROVIDER_MODE:'real', ARC_PAY_SECRET_KEY_FILE:'/nonexistent/key', ARC_PAY_WEBHOOK_SIGNING_SECRET_FILE:'/nonexistent/hook', ARC_PAY_PUBLIC_ORIGIN:'https://shards.example', SIH_API_KEY_FILE:'/nonexistent/sih'}));
-  expect(service.capabilities()).toMatchObject({ checkoutEnabled: false, coinsTopUpEnabled: false, skinFulfillmentEnabled: false, steamRefillEnabled: false });
+  expect(await service.capabilities()).toMatchObject({ checkoutEnabled: false, coinsTopUpEnabled: false, skinFulfillmentEnabled: false, steamRefillEnabled: false });
 });

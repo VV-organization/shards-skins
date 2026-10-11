@@ -70,7 +70,7 @@ export class HealthController {
     },
   })
   @Get("capabilities")
-  capabilities(): CapabilitiesResponse {
+  capabilities(): Promise<CapabilitiesResponse> {
     return this.healthService.capabilities();
   }
 }

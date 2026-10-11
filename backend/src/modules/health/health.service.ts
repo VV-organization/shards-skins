@@ -1,6 +1,7 @@
+import {StorefrontService} from '../storefront/storefront.service';
 import { Pool } from "pg";
 import Redis from "ioredis";
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 
 import type { AppConfig } from "../../config/app-config";
 import { isArcPayConfigured } from "../../config/app-config";
@@ -9,7 +10,7 @@ import type { CapabilitiesResponse, LivenessResponse, ReadinessResponse } from "
 
 @Injectable()
 export class HealthService {
-  constructor(@Inject(APP_CONFIG) private readonly config: AppConfig) {}
+  constructor(@Inject(APP_CONFIG) private readonly config: AppConfig,@Optional() @Inject(StorefrontService) private readonly storefront?:StorefrontService) {}
 
   liveness(): LivenessResponse {
     return {
@@ -40,7 +41,8 @@ export class HealthService {
     finally { redis.disconnect(); }
   }
 
-  capabilities(): CapabilitiesResponse {
+  async capabilities(): Promise<CapabilitiesResponse> {
+    const storefront=await this.storefront?.getConfig();
     const reasons = [
       ...(this.config.databaseUrl ? [] : ["DATABASE_NOT_CONFIGURED"]),
       ...(this.config.redisUrl ? [] : ["REDIS_NOT_CONFIGURED"]),
@@ -53,10 +55,10 @@ export class HealthService {
     const hasSih = Boolean(this.config.sih.apiKeyFile);
 
     return {
-      checkoutEnabled: Boolean(this.config.commerce?.checkoutEnabled) && hasCore && hasSih,
-      coinsTopUpEnabled: Boolean(this.config.commerce?.paymentsEnabled) && hasCore && hasArcPay,
+      checkoutEnabled: Boolean(storefront?.capabilities.checkoutEnabled) && hasCore && hasSih,
+      coinsTopUpEnabled: Boolean(storefront?.capabilities.walletTopUpEnabled) && hasCore && hasArcPay,
       skinFulfillmentEnabled: Boolean(this.config.commerce?.fulfillmentEnabled) && hasCore && hasSih,
-      steamRefillEnabled: Boolean(this.config.commerce?.paymentsEnabled && this.config.commerce.fulfillmentEnabled) && hasCore && hasArcPay && hasSih,
+      steamRefillEnabled: Boolean(storefront?.capabilities.steamRefillEnabled) && hasCore && hasArcPay,
       reasons,
     };
   }

@@ -12,7 +12,7 @@ export class CommerceEnabledGuard implements CanActivate {
     const path = request.path.replace(/\/$/, '');
     const checkout = /^\/checkout(?:\/cart)?$/.test(path);
     const payment = /^\/payments\/(?:top-up|steam-refill)\/sessions$/.test(path);
-    if ((checkout && !this.config.commerce?.checkoutEnabled) || (payment && !this.config.commerce?.paymentsEnabled)) {
+    if ((checkout && (!this.config.commerce?.checkoutEnabled||!this.config.commerce.fulfillmentEnabled)) || (payment && !this.config.commerce?.paymentsEnabled) || (path==='/payments/steam-refill/sessions'&&!this.config.commerce?.fulfillmentEnabled)) {
       throw new ServiceUnavailableException({ code: 'COMMERCE_UNAVAILABLE', message: 'Операция временно недоступна' });
     }
     return true;

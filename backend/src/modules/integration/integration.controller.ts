@@ -56,6 +56,10 @@ export class IntegrationController {
     return this.integration.readiness();
   }
 
+  @UseGuards(AdminGuard)
+  @Get("admin/integration/health/operations")
+  operations(){return this.integrationHealth.operations();}
+
   @Get("admin/integration/health/redis")
   async redisHealth(@Res({ passthrough: true }) response: Response): Promise<IntegrationHealthResult> {
     return respondHealth(response, await this.integrationHealth.redis());

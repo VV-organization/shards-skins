@@ -93,6 +93,7 @@ export class FulfillmentOperationService {
    const lineStatus=outcome.kind==='finished'?'supplier_finished':outcome.kind==='failed'?'supplier_failed':outcome.kind==='manual_review'?'manual_review':'supplier_submitted';
    await client.query('UPDATE order_lines SET status=$2 WHERE id=$1',[lease.lineId,lineStatus]);
    if(outcome.kind==='manual_review'&&lease.type==='sih_steam_refill')await client.query(`UPDATE steam_refill_payments SET metadata=metadata||jsonb_build_object('refundStatus',$2::text) WHERE order_id=$1`,[lease.orderId,outcome.errorCode==='STEAM_REFUND_REVIEW_REQUIRED'?'manual_refund_required':'outcome_review_required']);
+   if(outcome.kind==='manual_review')await this.alert(client,lease.orderId,'manual_review',outcome.errorCode??'FULFILLMENT_REVIEW');
    if(outcome.kind==='manual_review')await client.query("UPDATE orders SET status='manual_review',updated_at=clock_timestamp() WHERE id=$1",[lease.orderId]);
    if(outcome.kind==='finished'||outcome.kind==='failed')await this.settle(client,lease.orderId,lease.userId);
    return {status:outcome.kind==='finished'?'completed':outcome.kind,commandId:lease.id};
@@ -105,7 +106,22 @@ export class FulfillmentOperationService {
   if(hold.rows[0]?.status==='active')await this.wallet.settleOrderHoldWithClient(client,{orderId,userId,captureCoinMinor:Number(total.capture),idempotencyKey:`fulfillment-settle:${orderId}`,reason:'fulfillment_terminal'});
   const status=total.finished===0?'failed':total.finished===total.count?'fulfilled':'partially_fulfilled';
   await client.query('UPDATE orders SET status=$2,updated_at=clock_timestamp() WHERE id=$1',[orderId,status]);
+  await this.terminalEvent(client,orderId,userId,status,Number(total.capture));
   return true;
+ }
+ private async alert(client:Client,orderId:string,status:string,reason:string){
+  await client.query(`INSERT INTO notification_outbox(channel,event_type,entity_id,idempotency_key,payload) VALUES ('slack','fulfillment.status',$1,$2,$3::jsonb) ON CONFLICT(channel,idempotency_key) DO NOTHING`,[orderId,`shards.fulfillment.${orderId}.${status}`,json({orderId,status,reason})]);
+ }
+ private async terminalEvent(client:Client,orderId:string,userId:string,status:string,capture:number){
+  const order=(await client.query<{created_at:Date;total_coin_minor:number}>('SELECT created_at,total_coin_minor FROM orders WHERE id=$1',[orderId])).rows[0];if(!order)return;
+  const steam=(await client.query<{fiat_amount_minor:number;status:string}>('SELECT fiat_amount_minor,status FROM steam_refill_payments WHERE order_id=$1',[orderId])).rows[0];
+  const lines=(await client.query<{id:string;title:string;status:string;unit_price_coin_minor:number}>('SELECT id,title,status,unit_price_coin_minor FROM order_lines WHERE order_id=$1 ORDER BY line_index',[orderId])).rows;
+  const now=new Date().toISOString(),eventId=`shards.order.${orderId}.settled`,eventType=status==='failed'?'order.failed':'order.completed',currency=steam?'RUB':'SHARDS';
+  const paid=steam?.status==='paid'||capture>0;
+  // VV v2 has no partial status: completed means settled; retain exact per-line delivery in event data.
+  const event={schemaVersion:2,eventId,eventType,source:'customer',occurredAt:now,site:{domain:new URL(this.config.integration.publicOrigin).hostname},subject:{type:'order',externalId:orderId},data:{externalOrderId:orderId,externalUserId:userId,status:status==='failed'?'failed':'completed',fulfillmentStatus:status,totalAmount:((steam?.fiat_amount_minor??capture)/100).toFixed(2),quotedAmount:(order.total_coin_minor/100).toFixed(2),capturedAmount:((steam?.fiat_amount_minor??capture)/100).toFixed(2),releasedAmount:((order.total_coin_minor-capture)/100).toFixed(2),currency,createdAtExternal:order.created_at.toISOString(),completedAtExternal:now,payment:{status:paid?'paid':'failed',paidAt:paid?now:null,method:{type:steam?'sbp':'internal_balance',displayName:steam?'СБП':'Shards',provider:steam?'ArcPay':null}},items:lines.map(line=>({externalItemId:line.id,name:line.title,priceAmount:((steam?.fiat_amount_minor??(line.status==='supplier_finished'?line.unit_price_coin_minor:0))/100).toFixed(2),currency,fulfillmentStatus:line.status}))}};
+  await client.query(`INSERT INTO vv_admin_integration_outbox(event_id,event_type,subject_type,subject_external_id,payload) VALUES ($1,$2,'order',$3,$4::jsonb) ON CONFLICT(event_id) DO NOTHING`,[eventId,eventType,orderId,json(event)]);
+  await this.alert(client,orderId,status,'TERMINAL_SETTLEMENT');
  }
  async reconcileSubmittedSkinCommands(command:{limit?:number}={}):Promise<OperationBatch>{
   const limit=command.limit??20;if(!Number.isSafeInteger(limit)||limit<1||limit>100)throw new Error('INVALID_RECOVERY_LIMIT');

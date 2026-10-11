@@ -12,3 +12,5 @@ coverage/
 .qa/
 playwright-report/
 test-results/
+secrets/
+backups/

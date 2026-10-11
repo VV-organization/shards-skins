@@ -22,5 +22,6 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/drizzle ./drizzle
 COPY --from=build /app/src ./src
 
-EXPOSE 5191
+USER node
+EXPOSE 5199
 CMD ["node", "dist/main.js"]

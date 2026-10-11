@@ -1,3 +1,4 @@
+import {createHash} from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import { Injectable } from "@nestjs/common";
@@ -43,6 +44,7 @@ export class SmtpMailClient implements MailGateway {
     if (this.transport === null || this.from === null) throw new Error("SMTP_NOT_CONFIGURED");
     if (input.from !== this.from) throw new Error("SMTP_FROM_MISMATCH");
     const response = await this.transport.sendMail({
+      messageId: `<${createHash("sha256").update(input.idempotencyKey).digest("hex")}@shards.local>`,
       from: input.from,
       to: input.to,
       subject: input.subject,
@@ -60,6 +62,7 @@ export class SmtpMailClient implements MailGateway {
     const passwordFile = config.notifications.smtpPasswordFile;
     if (username === undefined || passwordFile === undefined) return null;
     return transportFactory({
+      connectionTimeout: 15000, greetingTimeout: 15000, socketTimeout: 30000,
       host: config.notifications.smtpHost,
       port: config.notifications.smtpPort,
       secure: config.notifications.smtpSecure,

@@ -73,6 +73,13 @@ export class NotificationOutboxService {
       return { ...record, payload: { ...record.payload } };
     }
     return this.database.transaction(async (client) => {
+      // Recover bounded expired claims; attempt_count is the monotonic fencing token.
+      const expired = await client.query<{id:string}>(`SELECT id FROM notification_outbox WHERE status='processing' AND locked_at<clock_timestamp()-interval '3 minutes' ORDER BY locked_at LIMIT 20 FOR UPDATE SKIP LOCKED`);
+      const ids=expired.rows.map(row=>row.id);
+      if(ids.length){
+        await client.query(`UPDATE notification_attempts SET status='unknown',finished_at=clock_timestamp() WHERE notification_id=ANY($1::uuid[]) AND finished_at IS NULL`,[ids]);
+        await client.query(`UPDATE notification_outbox SET status='pending',locked_at=NULL,last_error_code='LEASE_EXPIRED',available_at=clock_timestamp(),updated_at=clock_timestamp() WHERE id=ANY($1::uuid[])`,[ids]);
+      }
       const claimed = await client.query<NotificationOutboxRow>(`
         SELECT id, channel, event_type, entity_id, idempotency_key, payload, status, attempt_count
         FROM notification_outbox
@@ -104,19 +111,20 @@ export class NotificationOutboxService {
     });
   }
 
-  async markAccepted(notificationId: string, providerMessageId: string): Promise<void> {
+  async markAccepted(notificationId: string, providerMessageId: string, expectedAttempt: number): Promise<void> {
     if (!this.database.isConfigured()) {
       const record = [...this.memoryByKey.values()].find((candidate) => candidate.id === notificationId);
       if (!record) throw new Error("NOTIFICATION_OUTBOX_NOT_FOUND");
+      if(record.status!=="processing"||record.attemptCount!==expectedAttempt)return;
       record.status = "accepted";
       return;
     }
     await this.database.transaction(async (client) => {
       const notification = await client.query<{ channel: NotificationChannel; idempotency_key: string; attempt_count: number }>(`
-        SELECT channel, idempotency_key, attempt_count FROM notification_outbox WHERE id = $1 FOR UPDATE
-      `, [notificationId]);
+        SELECT channel, idempotency_key, attempt_count FROM notification_outbox WHERE id = $1 AND status='processing' AND attempt_count=$2 AND locked_at>clock_timestamp()-interval '3 minutes' FOR UPDATE
+      `, [notificationId, expectedAttempt]);
       const row = notification.rows[0];
-      if (!row) throw new Error("NOTIFICATION_OUTBOX_NOT_FOUND");
+      if (!row) return;
       await client.query(`
         UPDATE notification_attempts
         SET status = 'accepted', response_snapshot = $4::jsonb, finished_at = clock_timestamp()
@@ -130,19 +138,18 @@ export class NotificationOutboxService {
     });
   }
 
-  async markRetryableFailure(notificationId: string, errorCode: string): Promise<void> {
+  async markRetryableFailure(notificationId: string, errorCode: string, expectedAttempt: number): Promise<void> {
     if (!this.database.isConfigured()) {
       const record = [...this.memoryByKey.values()].find((candidate) => candidate.id === notificationId);
       if (!record) throw new Error("NOTIFICATION_OUTBOX_NOT_FOUND");
+      if(record.status!=="processing"||record.attemptCount!==expectedAttempt)return;
       record.status = "pending";
       return;
     }
-    await this.database.query(`
-      UPDATE notification_outbox
-      SET status = 'pending', locked_at = NULL, last_error_code = $2,
-        available_at = clock_timestamp() + interval '1 minute', updated_at = clock_timestamp()
-      WHERE id = $1
-    `, [notificationId, errorCode.slice(0, 120)]);
+    await this.database.transaction(async client=>{
+      const result=await client.query(`UPDATE notification_outbox SET status='pending',locked_at=NULL,last_error_code=$2,available_at=clock_timestamp()+interval '1 minute',updated_at=clock_timestamp() WHERE id=$1 AND status='processing' AND attempt_count=$3 AND locked_at>clock_timestamp()-interval '3 minutes' RETURNING id`,[notificationId,errorCode.slice(0,120),expectedAttempt]);
+      if(result.rowCount)await client.query(`UPDATE notification_attempts SET status='failed',finished_at=clock_timestamp() WHERE notification_id=$1 AND finished_at IS NULL`,[notificationId]);
+    });
   }
 
   private fromRow(row: NotificationOutboxRow): NotificationOutboxRecord {

@@ -57,7 +57,7 @@ describe("notifications", () => {
     });
 
     expect((await outbox.claimNext())?.id).toBe(queued.id);
-    await outbox.markAccepted(queued.id, "re_123");
+    await outbox.markAccepted(queued.id, "re_123", 1);
     expect(await outbox.claimNext()).toBeNull();
   });
 

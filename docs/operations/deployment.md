@@ -1,0 +1,12 @@
+# Изолированный запуск Shards
+
+Локальная реализация не активирует провайдеров. `compose.yml` — подготовленная конфигурация: все сервисы требуют явного профиля `app`, нет auto-deploy и внешнего runner. Используются собственные сеть/volumes проекта `shards`; порты API/UI привязаны к localhost. TLS reverse proxy настраивается для собственного домена. `/api/*` идёт через Next к `api:5199`; OpenID PUBLIC_BASE_URL должен оканчиваться `/api`, frontend origin — без пути.
+
+1. Подготовить собственные `.env` и `secrets/` вне Git, права 0700/0600 с доступом UID контейнера. DATABASE_URL указывает на `postgres:5432/shards`, REDIS_URL — `redis:6379/0`; пароль БД совпадает с файлом postgres-password. Создать отдельные COOKIE_HMAC_SECRET и DATA_ENCRYPTION_SECRET (не менее 32 случайных символов). Не менять ключ шифрования при обычном рестарте.
+2. Собрать образы. Сделать backup перед миграциями. Поднять только postgres/redis; выполнить миграции один раз: `docker compose --profile app run --rm api npm run db:migrate`. Не запускать destructive integration tests против deployment DB.
+3. Запустить API/UI/фоновые процессы с тремя финансовыми флагами false. В compose флаги берутся из окружения команды Compose или root `.env`, а не из backend env_file: проверять итоговую конфигурацию без публикации секретов. SMTP/VV/каталог требуют собственные credentials, ни один чужой секрет не переносится.
+4. Проверить `/health/live`, `/health/ready`, `/storefront/config`; protected `/admin/integration/health/operations` с X-Admin-Token. Убедиться, что публичные API не принимают необъявленные денежные параметры и каталог содержит только разрешённые CS2 SKU.
+5. Настроить отдельный сбор логов всех workers. Каталог обновляется раз в 5 минут при TTL доступности 15 минут. Reconciliation обходит платежи и wallet каждые 60 секунд, fulfillment — каждые 10 секунд; SMTP/VV имеют собственные циклы и lease recovery.
+6. Активация — отдельно по provider-acceptance.md. `SHARDS_CHECKOUT_ENABLED`, `SHARDS_PAYMENTS_ENABLED`, `SHARDS_FULFILLMENT_ENABLED` по умолчанию false. Checkout дополнительно требует единственную активную pricing-setting с metadata.fxVerified=true; выставлять только после подтверждения источника/даты FX. ArcPay production требует allowlist HTTPS origins возвратного checkout URL.
+
+Отказ от релиза: откатить образ совместимого кода, выключить новые финансовые команды, сохранить БД и reconciliation. Деструктивный откат миграций удалением схемы недопустим. Live deployment, опубликованные assets и реальные исходы провайдеров в этом репозитории не подтверждены.

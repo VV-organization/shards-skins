@@ -1,11 +1,13 @@
 {
   "name": "shardsmarket",
   "private": true,
-  "engines": { "node": ">=24 <25" },
+  "engines": {
+    "node": ">=24 <25"
+  },
   "scripts": {
     "dev": "npm --prefix frontend run dev",
     "dev:api": "npm --prefix backend run dev",
     "test": "npm --prefix backend test && npm --prefix frontend test",
-    "verify": "npm --prefix backend run verify && npm --prefix frontend test && npm --prefix frontend run typecheck && npm --prefix frontend run lint && npm --prefix frontend run build"
+    "verify": "npm --prefix backend run verify && npm --prefix frontend run api:check && npm --prefix frontend run visual:source && npm --prefix frontend test && npm --prefix frontend run typecheck && npm --prefix frontend run lint && npm --prefix frontend run build"
   }
 }

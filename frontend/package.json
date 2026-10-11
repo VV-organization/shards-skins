@@ -16,7 +16,10 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "build:pages": "node scripts/build-pages.mjs",
     "api:sync": "node scripts/sync-api.mjs",
-    "api:check": "node scripts/sync-api.mjs --check"
+    "api:check": "node scripts/sync-api.mjs --check",
+    "test:e2e": "playwright test",
+    "visual:source": "node scripts/check-designer-assets.mjs",
+    "visual:compare": "node scripts/compare-visual.mjs"
   },
   "dependencies": {
     "next": "16.3.5",

@@ -110,10 +110,18 @@ export class VvAdminOutboxService {
     }
 
     return this.database.transaction(async (client) => {
+      // Recover bounded expired claims; attempt_count is the monotonic fencing token.
+      const expired = await client.query<{id:string}>(`SELECT id FROM vv_admin_integration_outbox WHERE status='processing' AND locked_at<clock_timestamp()-interval '3 minutes' ORDER BY locked_at LIMIT 20 FOR UPDATE SKIP LOCKED`);
+      const ids=expired.rows.map(row=>row.id);
+      if(ids.length){
+        await client.query(`UPDATE vv_admin_integration_attempts SET status='unknown',finished_at=clock_timestamp() WHERE outbox_id=ANY($1::uuid[]) AND finished_at IS NULL`,[ids]);
+        await client.query(`UPDATE vv_admin_integration_outbox SET status='pending',locked_at=NULL,last_error_code='LEASE_EXPIRED',available_at=clock_timestamp(),updated_at=clock_timestamp() WHERE id=ANY($1::uuid[])`,[ids]);
+      }
       const claimed = await client.query<VvAdminOutboxRow>(`
         SELECT id, event_id, event_type, subject_type, subject_external_id, payload, status, attempt_count
         FROM vv_admin_integration_outbox
         WHERE status = 'pending' AND available_at <= clock_timestamp()
+          AND NOT EXISTS (SELECT 1 FROM vv_admin_integration_outbox prior WHERE prior.subject_type=vv_admin_integration_outbox.subject_type AND prior.subject_external_id=vv_admin_integration_outbox.subject_external_id AND (prior.created_at,prior.id)<(vv_admin_integration_outbox.created_at,vv_admin_integration_outbox.id) AND prior.status<>'accepted')
         ORDER BY available_at ASC, created_at ASC
         FOR UPDATE SKIP LOCKED
         LIMIT 1
@@ -140,20 +148,21 @@ export class VvAdminOutboxService {
     });
   }
 
-  async markAccepted(outboxId: string, statusCode: number): Promise<void> {
+  async markAccepted(outboxId: string, statusCode: number, expectedAttempt: number): Promise<void> {
     if (!this.database.isConfigured()) {
       const record = [...this.memoryByEventId.values()].find((candidate) => candidate.id === outboxId);
       if (!record) throw new Error("VV_ADMIN_OUTBOX_NOT_FOUND");
+      if(record.status!=="processing"||record.attemptCount!==expectedAttempt)return;
       record.status = "accepted";
       return;
     }
     await this.database.transaction(async (client) => {
       const row = await client.query<{ event_id: string; attempt_count: number }>(
-        "SELECT event_id, attempt_count FROM vv_admin_integration_outbox WHERE id = $1 FOR UPDATE",
-        [outboxId],
+        "SELECT event_id, attempt_count FROM vv_admin_integration_outbox WHERE id = $1 AND status='processing' AND attempt_count=$2 AND locked_at>clock_timestamp()-interval '3 minutes' FOR UPDATE",
+        [outboxId, expectedAttempt],
       );
       const outbox = row.rows[0];
-      if (!outbox) throw new Error("VV_ADMIN_OUTBOX_NOT_FOUND");
+      if (!outbox) return;
       await client.query(`
         UPDATE vv_admin_integration_attempts
         SET status = 'accepted', response_snapshot = $3::jsonb, finished_at = clock_timestamp()
@@ -167,19 +176,18 @@ export class VvAdminOutboxService {
     });
   }
 
-  async markRetryableFailure(outboxId: string, errorCode: string): Promise<void> {
+  async markRetryableFailure(outboxId: string, errorCode: string, expectedAttempt: number): Promise<void> {
     if (!this.database.isConfigured()) {
       const record = [...this.memoryByEventId.values()].find((candidate) => candidate.id === outboxId);
       if (!record) throw new Error("VV_ADMIN_OUTBOX_NOT_FOUND");
+      if(record.status!=="processing"||record.attemptCount!==expectedAttempt)return;
       record.status = "pending";
       return;
     }
-    await this.database.query(`
-      UPDATE vv_admin_integration_outbox
-      SET status = 'pending', locked_at = NULL, last_error_code = $2,
-        available_at = clock_timestamp() + interval '1 minute', updated_at = clock_timestamp()
-      WHERE id = $1
-    `, [outboxId, errorCode.slice(0, 120)]);
+    await this.database.transaction(async client=>{
+      const result=await client.query(`UPDATE vv_admin_integration_outbox SET status='pending',locked_at=NULL,last_error_code=$2,available_at=clock_timestamp()+interval '1 minute',updated_at=clock_timestamp() WHERE id=$1 AND status='processing' AND attempt_count=$3 AND locked_at>clock_timestamp()-interval '3 minutes' RETURNING id`,[outboxId,errorCode.slice(0,120),expectedAttempt]);
+      if(result.rowCount)await client.query(`UPDATE vv_admin_integration_attempts SET status='failed',finished_at=clock_timestamp() WHERE outbox_id=$1 AND finished_at IS NULL`,[outboxId]);
+    });
   }
 }
 

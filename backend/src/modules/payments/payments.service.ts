@@ -1,7 +1,7 @@
 import {QuotesService} from "../quotes/quotes.service";
 import {WALLET_TERMS_VERSION,STEAM_TERMS_VERSION,type PaymentTerms,type PaymentPurpose,type PaymentQuoteBinding} from "./payment-quote.types";
 import { topUpFiatMinor } from "../../common/money/shards";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import type { QueryResult, QueryResultRow } from "pg";
@@ -1316,6 +1316,9 @@ export class PaymentsService {
     }
     const limit = command.limit ?? 20;
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw new BadRequestException("Reconciliation limit must be between 1 and 100");
+    // One fair budget across both products; oldest unobserved attempt is checked first.
+    const candidates=await this.database.query<{id:string;kind:string}>(`SELECT p.id,p.kind FROM (SELECT id,'top_up' AS kind,created_at,status,metadata FROM top_up_payments UNION ALL SELECT id,'steam_refill' AS kind,created_at,status,metadata FROM steam_refill_payments) p WHERE p.status IN ('checkout_pending','provider_creation_pending') OR (p.status='manual_review' AND p.metadata->>'providerCreationAmbiguous'='true') ORDER BY coalesce((SELECT max(a.created_at) FROM payment_provider_attempts a WHERE a.top_up_payment_id=p.id OR a.steam_refill_payment_id=p.id),p.created_at),p.id LIMIT $1`,[limit]);
+    const topUpIds=candidates.rows.filter(row=>row.kind==='top_up').map(row=>row.id),steamIds=candidates.rows.filter(row=>row.kind==='steam_refill').map(row=>row.id);
     const pendingTopUps = await this.database.query<TopUpPaymentReconciliationRow>(
       `
         SELECT
@@ -1327,14 +1330,14 @@ export class PaymentsService {
           fiat_currency,
           request_hash
         FROM top_up_payments
-        WHERE provider = $1
+        WHERE provider = $1 AND id=ANY($3::uuid[])
           AND (status IN ('checkout_pending', 'provider_creation_pending') OR (status = 'manual_review' AND metadata->>'providerCreationAmbiguous' = 'true'))
         ORDER BY created_at ASC, id ASC
         LIMIT $2
       `,
-      [TOP_UP_PROVIDER, limit],
+      [TOP_UP_PROVIDER, limit, topUpIds],
     );
-    const remainingLimit = limit - pendingTopUps.rows.length;
+    const remainingLimit = steamIds.length;
     const pendingSteamRefills = remainingLimit > 0
       ? await this.database.query<SteamRefillPaymentReconciliationRow>(
         `
@@ -1350,12 +1353,12 @@ export class PaymentsService {
             order_id::text AS order_id,
             request_hash
           FROM steam_refill_payments
-          WHERE provider = $1
+          WHERE provider = $1 AND id=ANY($3::uuid[])
             AND (status IN ('checkout_pending', 'provider_creation_pending') OR (status = 'manual_review' AND metadata->>'providerCreationAmbiguous' = 'true'))
           ORDER BY created_at ASC, id ASC
           LIMIT $2
         `,
-        [STEAM_REFILL_PROVIDER, remainingLimit],
+        [STEAM_REFILL_PROVIDER, remainingLimit, steamIds],
       )
       : { rows: [] };
     const result: PaymentReconciliationResultDto = {
@@ -1370,7 +1373,7 @@ export class PaymentsService {
     };
 
     for (const topUpPayment of pendingTopUps.rows) {
-      const attemptKey = `reconcile:${topUpPayment.id}`;
+      const attemptKey = `reconcile:${topUpPayment.id}:${randomUUID()}`;
       await this.beginReconciliationAttempt({ id: topUpPayment.id, kind: "top_up", request_hash: topUpPayment.request_hash }, attemptKey);
       let providerPayments: Awaited<ReturnType<ArcPayClient["listPayments"]>>;
       try {
@@ -1432,7 +1435,7 @@ export class PaymentsService {
     }
 
     for (const steamRefillPayment of pendingSteamRefills.rows) {
-      const attemptKey = `reconcile:${steamRefillPayment.id}`;
+      const attemptKey = `reconcile:${steamRefillPayment.id}:${randomUUID()}`;
       await this.beginReconciliationAttempt({
         id: steamRefillPayment.id,
         kind: "steam_refill",
@@ -2116,7 +2119,7 @@ export class PaymentsService {
         paidAmount: (topUp.fiat_amount_minor / 100).toFixed(2),
         paidCurrency: topUp.fiat_currency,
         creditedAmount: (topUp.coin_amount_minor / 100).toFixed(2),
-        creditedCurrency: "FC",
+        creditedCurrency: "SHARDS",
         createdAtExternal: topUp.created_at.toISOString(),
         updatedAtExternal: topUp.updated_at.toISOString(),
       },

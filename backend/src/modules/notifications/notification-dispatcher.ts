@@ -33,21 +33,22 @@ export class NotificationDispatcher {
       if (notification.channel === "slack") {
         if (!this.slack) throw new Error("SLACK_CLIENT_NOT_AVAILABLE");
         await this.slack.send({ blocks: this.resolveSlackBlocks(notification) });
-        await this.outbox.markAccepted(notification.id, "slack-webhook");
+        await this.outbox.markAccepted(notification.id, "slack-webhook", notification.attemptCount);
         return { status: "accepted", notificationId: notification.id };
       }
       const email = this.resolveEmail(notification);
       const accepted = await this.mail.send({ ...email.message, from: this.from, to: email.to, idempotencyKey: notification.idempotencyKey });
-      await this.outbox.markAccepted(notification.id, accepted.emailId);
+      await this.outbox.markAccepted(notification.id, accepted.emailId, notification.attemptCount);
       return { status: "accepted", notificationId: notification.id };
     } catch (error) {
       const errorCode = error instanceof Error ? error.message : "NOTIFICATION_DISPATCH_FAILED";
-      await this.outbox.markRetryableFailure(notification.id, errorCode);
+      await this.outbox.markRetryableFailure(notification.id, errorCode, notification.attemptCount);
       return { status: "retry_scheduled", notificationId: notification.id };
     }
   }
 
   private resolveSlackBlocks(notification: NotificationOutboxRecord): unknown[] {
+    if(notification.eventType==='fulfillment.status')return [{type:'section',text:{type:'plain_text',text:`Shards: ${String(notification.payload.orderId)} — ${String(notification.payload.status)} (${String(notification.payload.reason)})`}}];
     if (notification.eventType === "order.slack-alert") return this.resolveOrderSlackBlocks(notification);
     throw new Error("SLACK_NOTIFICATION_EVENT_UNSUPPORTED");
   }
