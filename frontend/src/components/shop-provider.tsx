@@ -54,7 +54,7 @@ export function ShopProvider({catalog,children}:{catalog:Catalog;children:ReactN
 
   const [notice,setNotice]=useState<{label:string;count:number}|null>(null);
   const [favoriteRaw,setFavoriteRaw]=useStored("shards:favorites","[]");
-  const favorites=useMemo(()=>{try{const v:unknown=JSON.parse(favoriteRaw);return Array.isArray(v)?v.filter((id):id is string=>typeof id==="string"&&catalog.products.some(p=>p.id===id)):[];}catch{return [];}},[favoriteRaw,catalog.products]);
+  const favorites=useMemo(()=>{try{const v:unknown=JSON.parse(favoriteRaw);return Array.isArray(v)?v.filter((id):id is string=>typeof id==="string"):[];}catch{return [];}},[favoriteRaw]);
   function toggleFavorite(id:string){setFavoriteRaw(JSON.stringify(favorites.includes(id)?favorites.filter(x=>x!==id):[...favorites,id]));}
   const [loginDialog,setLoginDialog]=useState(false);
   const [loginMode,setLoginMode]=useState<"steam"|"email">("steam");

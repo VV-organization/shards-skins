@@ -1541,10 +1541,32 @@
         ]
       }
     },
-    "/catalog": {
-      "get": {
-        "operationId": "CatalogController_list",
+    "/catalog/lookup": {
+      "post": {
+        "operationId": "CatalogController_lookup",
         "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "slugs"
+                ],
+                "properties": {
+                  "slugs": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "",
@@ -1553,10 +1575,7 @@
                 "schema": {
                   "type": "object",
                   "required": [
-                    "items",
-                    "facets",
-                    "pricing",
-                    "pagination"
+                    "items"
                   ],
                   "properties": {
                     "items": {
@@ -1564,6 +1583,13 @@
                       "items": {
                         "type": "object",
                         "required": [
+                          "categoryId",
+                          "condition",
+                          "weapon",
+                          "stattrak",
+                          "marketHashName",
+                          "priceRevision",
+                          "pricingSettingId",
                           "id",
                           "slug",
                           "kind",
@@ -1581,6 +1607,27 @@
                           "details"
                         ],
                         "properties": {
+                          "categoryId": {
+                            "type": "string"
+                          },
+                          "condition": {
+                            "type": "string"
+                          },
+                          "weapon": {
+                            "type": "string"
+                          },
+                          "stattrak": {
+                            "type": "boolean"
+                          },
+                          "marketHashName": {
+                            "type": "string"
+                          },
+                          "priceRevision": {
+                            "type": "string"
+                          },
+                          "pricingSettingId": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string"
                           },
@@ -1642,7 +1689,237 @@
                             "type": "string",
                             "enum": [
                               "available",
-                              "on-request"
+                              "on-request",
+                              "unavailable"
+                            ]
+                          },
+                          "fulfillmentMode": {
+                            "type": "string",
+                            "enum": [
+                              "automatic",
+                              "steam-trade",
+                              "manual"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "popularity": {
+                            "type": "integer"
+                          },
+                          "image": {
+                            "type": "string"
+                          },
+                          "imageAlt": {
+                            "type": "string"
+                          },
+                          "meta": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "keywords": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "details": {
+                            "type": "object",
+                            "required": [
+                              "specifications",
+                              "fulfillment"
+                            ],
+                            "properties": {
+                              "specifications": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "required": [
+                                    "label",
+                                    "value"
+                                  ],
+                                  "properties": {
+                                    "label": {
+                                      "type": "string"
+                                    },
+                                    "value": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              },
+                              "fulfillment": {
+                                "type": "object",
+                                "required": [
+                                  "title",
+                                  "description",
+                                  "requirements"
+                                ],
+                                "properties": {
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "requirements": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Catalog"
+        ]
+      }
+    },
+    "/catalog": {
+      "get": {
+        "operationId": "CatalogController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "facets",
+                    "pricing",
+                    "pagination"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "categoryId",
+                          "condition",
+                          "weapon",
+                          "stattrak",
+                          "marketHashName",
+                          "priceRevision",
+                          "pricingSettingId",
+                          "id",
+                          "slug",
+                          "kind",
+                          "category",
+                          "productType",
+                          "title",
+                          "description",
+                          "price",
+                          "availability",
+                          "fulfillmentMode",
+                          "createdAt",
+                          "popularity",
+                          "meta",
+                          "keywords",
+                          "details"
+                        ],
+                        "properties": {
+                          "categoryId": {
+                            "type": "string"
+                          },
+                          "condition": {
+                            "type": "string"
+                          },
+                          "weapon": {
+                            "type": "string"
+                          },
+                          "stattrak": {
+                            "type": "boolean"
+                          },
+                          "marketHashName": {
+                            "type": "string"
+                          },
+                          "priceRevision": {
+                            "type": "string"
+                          },
+                          "pricingSettingId": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "skins"
+                            ]
+                          },
+                          "category": {
+                            "type": "string"
+                          },
+                          "game": {
+                            "type": "string"
+                          },
+                          "productType": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "price": {
+                            "type": "object",
+                            "required": [
+                              "currency",
+                              "amountMinor",
+                              "scale",
+                              "display"
+                            ],
+                            "properties": {
+                              "currency": {
+                                "type": "string",
+                                "enum": [
+                                  "COINS"
+                                ]
+                              },
+                              "amountMinor": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "scale": {
+                                "type": "integer",
+                                "enum": [
+                                  2
+                                ]
+                              },
+                              "display": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "availability": {
+                            "type": "string",
+                            "enum": [
+                              "available",
+                              "on-request",
+                              "unavailable"
                             ]
                           },
                           "fulfillmentMode": {
@@ -1900,6 +2177,13 @@
                 "schema": {
                   "type": "object",
                   "required": [
+                    "categoryId",
+                    "condition",
+                    "weapon",
+                    "stattrak",
+                    "marketHashName",
+                    "priceRevision",
+                    "pricingSettingId",
                     "id",
                     "slug",
                     "kind",
@@ -1917,6 +2201,27 @@
                     "details"
                   ],
                   "properties": {
+                    "categoryId": {
+                      "type": "string"
+                    },
+                    "condition": {
+                      "type": "string"
+                    },
+                    "weapon": {
+                      "type": "string"
+                    },
+                    "stattrak": {
+                      "type": "boolean"
+                    },
+                    "marketHashName": {
+                      "type": "string"
+                    },
+                    "priceRevision": {
+                      "type": "string"
+                    },
+                    "pricingSettingId": {
+                      "type": "string"
+                    },
                     "id": {
                       "type": "string"
                     },
@@ -1978,7 +2283,8 @@
                       "type": "string",
                       "enum": [
                         "available",
-                        "on-request"
+                        "on-request",
+                        "unavailable"
                       ]
                     },
                     "fulfillmentMode": {
@@ -2172,6 +2478,13 @@
                             "items": {
                               "type": "object",
                               "required": [
+                                "categoryId",
+                                "condition",
+                                "weapon",
+                                "stattrak",
+                                "marketHashName",
+                                "priceRevision",
+                                "pricingSettingId",
                                 "id",
                                 "slug",
                                 "kind",
@@ -2189,6 +2502,27 @@
                                 "details"
                               ],
                               "properties": {
+                                "categoryId": {
+                                  "type": "string"
+                                },
+                                "condition": {
+                                  "type": "string"
+                                },
+                                "weapon": {
+                                  "type": "string"
+                                },
+                                "stattrak": {
+                                  "type": "boolean"
+                                },
+                                "marketHashName": {
+                                  "type": "string"
+                                },
+                                "priceRevision": {
+                                  "type": "string"
+                                },
+                                "pricingSettingId": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string"
                                 },
@@ -2250,7 +2584,8 @@
                                   "type": "string",
                                   "enum": [
                                     "available",
-                                    "on-request"
+                                    "on-request",
+                                    "unavailable"
                                   ]
                                 },
                                 "fulfillmentMode": {
@@ -2473,6 +2808,13 @@
                             "items": {
                               "type": "object",
                               "required": [
+                                "categoryId",
+                                "condition",
+                                "weapon",
+                                "stattrak",
+                                "marketHashName",
+                                "priceRevision",
+                                "pricingSettingId",
                                 "id",
                                 "slug",
                                 "kind",
@@ -2490,6 +2832,27 @@
                                 "details"
                               ],
                               "properties": {
+                                "categoryId": {
+                                  "type": "string"
+                                },
+                                "condition": {
+                                  "type": "string"
+                                },
+                                "weapon": {
+                                  "type": "string"
+                                },
+                                "stattrak": {
+                                  "type": "boolean"
+                                },
+                                "marketHashName": {
+                                  "type": "string"
+                                },
+                                "priceRevision": {
+                                  "type": "string"
+                                },
+                                "pricingSettingId": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string"
                                 },
@@ -2551,7 +2914,8 @@
                                   "type": "string",
                                   "enum": [
                                     "available",
-                                    "on-request"
+                                    "on-request",
+                                    "unavailable"
                                   ]
                                 },
                                 "fulfillmentMode": {
@@ -2804,6 +3168,13 @@
                             "items": {
                               "type": "object",
                               "required": [
+                                "categoryId",
+                                "condition",
+                                "weapon",
+                                "stattrak",
+                                "marketHashName",
+                                "priceRevision",
+                                "pricingSettingId",
                                 "id",
                                 "slug",
                                 "kind",
@@ -2821,6 +3192,27 @@
                                 "details"
                               ],
                               "properties": {
+                                "categoryId": {
+                                  "type": "string"
+                                },
+                                "condition": {
+                                  "type": "string"
+                                },
+                                "weapon": {
+                                  "type": "string"
+                                },
+                                "stattrak": {
+                                  "type": "boolean"
+                                },
+                                "marketHashName": {
+                                  "type": "string"
+                                },
+                                "priceRevision": {
+                                  "type": "string"
+                                },
+                                "pricingSettingId": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string"
                                 },
@@ -2882,7 +3274,8 @@
                                   "type": "string",
                                   "enum": [
                                     "available",
-                                    "on-request"
+                                    "on-request",
+                                    "unavailable"
                                   ]
                                 },
                                 "fulfillmentMode": {
@@ -3105,6 +3498,13 @@
                             "items": {
                               "type": "object",
                               "required": [
+                                "categoryId",
+                                "condition",
+                                "weapon",
+                                "stattrak",
+                                "marketHashName",
+                                "priceRevision",
+                                "pricingSettingId",
                                 "id",
                                 "slug",
                                 "kind",
@@ -3122,6 +3522,27 @@
                                 "details"
                               ],
                               "properties": {
+                                "categoryId": {
+                                  "type": "string"
+                                },
+                                "condition": {
+                                  "type": "string"
+                                },
+                                "weapon": {
+                                  "type": "string"
+                                },
+                                "stattrak": {
+                                  "type": "boolean"
+                                },
+                                "marketHashName": {
+                                  "type": "string"
+                                },
+                                "priceRevision": {
+                                  "type": "string"
+                                },
+                                "pricingSettingId": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string"
                                 },
@@ -3183,7 +3604,8 @@
                                   "type": "string",
                                   "enum": [
                                     "available",
-                                    "on-request"
+                                    "on-request",
+                                    "unavailable"
                                   ]
                                 },
                                 "fulfillmentMode": {

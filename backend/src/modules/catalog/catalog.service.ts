@@ -1,8 +1,8 @@
+import { createHash } from "node:crypto";
 import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 
 import { DatabaseService } from "../../common/database/database.service";
 import { CATALOG_GAMES, getCatalogGameDefinition, parseCatalogGame, type CatalogGame } from "./catalog-game";
-import { CatalogPricingService } from "./catalog-pricing.service";
 import { parseAppleGiftCardDetails } from "./apple-gift-card";
 import type {
   CatalogFacetOption,
@@ -92,11 +92,6 @@ const effectivePriceCoinMinorSql = `
             catalog_products.price_coin_minor::bigint
           )
 `;
-const relatedTerms: Record<CatalogProductKind, string[]> = {
-  apple_gift_card: ["apple", "app store", "itunes", "подарочная карта", "подарочный код"],
-  steam: ["steam", "стим", "пополнение", "баланс", "кошелек"],
-  skins: ["скин", "скины", "предмет", "предметы", "cs2", "rust", "раст", "tf2", "team fortress"],
-};
 const gameSearchTerms: Record<CatalogGame, string[]> = {
   cs2: ["cs2", "кс", "counter-strike", "counter strike"],
   rust: ["rust", "раст"],
@@ -104,6 +99,7 @@ const gameSearchTerms: Record<CatalogGame, string[]> = {
 };
 
 type LoadedCatalogProduct = CatalogProduct & {
+  categoryId?: string | null; condition?: string; weapon?: string; stattrak?: boolean; marketHashName?: string; pricingSettingId?: string;
   priceCoinMinor?: number;
   supplierPriceMicrousd?: string;
 };
@@ -206,6 +202,9 @@ function productDto(product: LoadedCatalogProduct): CatalogProductDto {
     ? appleGiftCardPriceCoinMinor(priceCoinMinor(product), details)
     : priceCoinMinor(product);
   return {
+    categoryId: product.categoryId ?? "other", condition: product.condition ?? "", weapon: product.weapon ?? "", stattrak: product.stattrak ?? false, marketHashName: product.marketHashName ?? product.title,
+    pricingSettingId: product.pricingSettingId ?? "unconfigured",
+    priceRevision: createHash("sha256").update(JSON.stringify([product.slug,amountMinor,product.pricingSettingId,product.availability])).digest("hex"),
     id: product.id,
     slug: product.slug,
     kind: product.kind,
@@ -225,48 +224,6 @@ function productDto(product: LoadedCatalogProduct): CatalogProductDto {
     details,
     price: priceDto(amountMinor),
   };
-}
-
-function searchableText(product: CatalogProduct): string {
-  return [
-    product.title,
-    product.description,
-    product.category,
-    product.game ?? "",
-    product.productType,
-    product.kind,
-    ...product.meta,
-    ...product.keywords,
-    ...relatedTerms[product.kind],
-  ]
-    .map(normalize)
-    .join(" ");
-}
-
-function matchesQuery(product: CatalogProduct, query: string): boolean {
-  const normalizedQuery = normalize(query);
-  if (!normalizedQuery) return true;
-  const exactGame = gameFromSearch(normalizedQuery);
-  if (exactGame) return normalize(product.game ?? "") === exactGame;
-  const haystack = searchableText(product);
-  return normalizedQuery.split(/\s+/).filter(Boolean).every((term) => {
-    if (term === "steam") return product.kind === "steam";
-    return haystack.includes(term);
-  });
-}
-
-function relevance(product: CatalogProduct, query: string): number {
-  const normalizedQuery = normalize(query);
-  if (!normalizedQuery) return product.popularity;
-  const title = normalize(product.title);
-  const classification = normalize([product.category, product.game ?? "", product.productType].join(" "));
-  const details = searchableText(product);
-  return (
-    (title.includes(normalizedQuery) ? 50 : 0)
-    + (classification.includes(normalizedQuery) ? 20 : 0)
-    + (details.includes(normalizedQuery) ? 10 : 0)
-    + product.popularity / 100
-  );
 }
 
 function facetOptionsFromValues(values: Array<string | null | undefined>): CatalogFacetOption[] {
@@ -301,8 +258,6 @@ function catalogPricingDto(): CatalogListDto["pricing"] {
 export class CatalogService {
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
-    @Inject(CatalogPricingService)
-    private readonly pricing: CatalogPricingService,
   ) {}
 
   async list(query: CatalogListQuery): Promise<CatalogListDto> {
@@ -313,8 +268,8 @@ export class CatalogService {
     const max = numberQuery(query.max);
     const minPrice = min !== undefined && max !== undefined && min > max ? max : min;
     const maxPrice = min !== undefined && max !== undefined && min > max ? min : max;
-    const minPriceCoinMinor = minPrice === undefined ? undefined : minPrice * 100;
-    const maxPriceCoinMinor = maxPrice === undefined ? undefined : maxPrice * 100;
+    const minPriceCoinMinor = minPrice === undefined ? undefined : decimalMinor(String(minPrice));
+    const maxPriceCoinMinor = maxPrice === undefined ? undefined : decimalMinor(String(maxPrice));
     const sort = sortQuery(query.sort);
     const search = query.q ?? "";
     const game = this.gameFilter(query);
@@ -335,6 +290,9 @@ export class CatalogService {
     }
     const [products, catalogFacets, total] = await Promise.all([
       this.loadProducts({
+        ...(query.categoryId ? {categoryId:query.categoryId} : {}),
+        ...(query.stattrak ? {stattrak:query.stattrak} : {}),
+        ...(typeof query.weapon === "string" ? {weapon:query.weapon} : {}),
         ...(category === undefined ? {} : { category }),
         ...(game === undefined ? {} : { game }),
         conditions,
@@ -347,11 +305,17 @@ export class CatalogService {
         sort,
       }),
       this.loadFacets({
+        ...(query.categoryId ? {categoryId:query.categoryId} : {}),
+        ...(query.stattrak ? {stattrak:query.stattrak} : {}),
+        ...(typeof query.weapon === "string" ? {weapon:query.weapon} : {}),
         ...(category === undefined ? {} : { category }),
         ...(game === undefined ? {} : { game }),
         search,
       }),
       this.countProducts({
+        ...(query.categoryId ? {categoryId:query.categoryId} : {}),
+        ...(query.stattrak ? {stattrak:query.stattrak} : {}),
+        ...(typeof query.weapon === "string" ? {weapon:query.weapon} : {}),
         ...(category === undefined ? {} : { category }),
         ...(game === undefined ? {} : { game }),
         conditions,
@@ -362,21 +326,8 @@ export class CatalogService {
       }),
     ]);
 
-    const items = products
-      .filter((product) => minPriceCoinMinor === undefined || priceCoinMinor(product) >= minPriceCoinMinor)
-      .filter((product) => maxPriceCoinMinor === undefined || priceCoinMinor(product) <= maxPriceCoinMinor)
-      .filter((product) => matchesQuery(product, search))
-      .sort((left, right) => {
-        if (sort === "price_asc") return priceCoinMinor(left) - priceCoinMinor(right);
-        if (sort === "price_desc") return priceCoinMinor(right) - priceCoinMinor(left);
-        if (sort === "newest") return Date.parse(right.createdAt) - Date.parse(left.createdAt);
-        if (sort === "name_asc") return left.title.localeCompare(right.title, "ru-RU");
-        if (sort === "name_desc") return right.title.localeCompare(left.title, "ru-RU");
-        return relevance(right, search) - relevance(left, search) || left.id.localeCompare(right.id);
-      })
-      .slice(0, limit);
-
-    const quotedItems = await Promise.all(items.map((product) => this.withLivePrice(product)));
+    const items = products;
+    const quotedItems = items;
 
     return {
       items: quotedItems.map(productDto),
@@ -396,19 +347,17 @@ export class CatalogService {
 
     const product = (await this.loadProducts({ slug, limit: 1 }))[0];
     if (!product) throw new NotFoundException("Product not found");
-    return productDto(await this.withLivePrice(product));
+    return productDto(product);
   }
 
-  private async withLivePrice(product: LoadedCatalogProduct): Promise<LoadedCatalogProduct> {
-    if (product.supplierPriceMicrousd === undefined) return product;
-    const livePrice = await this.pricing.quoteSupplierPrice({
-      scope: "sih-skins",
-      supplierAmountMicrounit: BigInt(product.supplierPriceMicrousd),
-    });
-    return { ...product, priceCoinMinor: livePrice.amountMinor };
+  async lookup(slugs: unknown): Promise<{items: CatalogProductDto[]}> {
+    if (!Array.isArray(slugs) || slugs.length > 50 || slugs.some(slug => typeof slug !== "string" || slug.length === 0 || slug.length > 250)) throw new BadRequestException("At most 50 product slugs are allowed");
+    const products=await this.loadProducts({slugs:[...new Set(slugs as string[])],limit:50});
+    return {items:products.map(productDto)};
   }
 
   private async loadProducts(command: {
+    categoryId?: string; stattrak?: string; weapon?: string;
     category?: CatalogProductKind;
     conditions?: string[];
     game?: CatalogGame;
@@ -417,7 +366,7 @@ export class CatalogService {
     minPriceCoinMinor?: number;
     offset?: number;
     search?: string;
-    slug?: string;
+    slug?: string; slugs?: string[];
     sort?: CatalogSort;
     types?: string[];
   } = {}): Promise<LoadedCatalogProduct[]> {
@@ -475,6 +424,7 @@ export class CatalogService {
       keywords: string[];
       details: CatalogProduct["details"];
       supplier_price_microusd: string | null;
+      category_id:string|null; condition_code:string|null; weapon:string|null; stattrak:boolean; supplier_item_id:string|null; pricing_setting_id:string|null;
     }>(
       `
         SELECT
@@ -488,7 +438,8 @@ export class CatalogService {
           catalog_products.description,
           catalog_products.price_coin_minor,
           ${effectivePriceCoinMinorSql}::text AS effective_price_coin_minor,
-          catalog_products.availability,
+          CASE WHEN catalog_products.public_enabled AND catalog_products.category_id IS NOT NULL AND supplier_listings.active AND supplier_listings.available_quantity > 0 AND supplier_listings.price_microusd > 0 AND supplier_listings.last_seen_at > clock_timestamp() - interval '15 minutes' THEN 'available' ELSE 'unavailable' END AS availability,
+          catalog_products.category_id, catalog_products.condition_code, catalog_products.weapon, catalog_products.stattrak, catalog_products.supplier_item_id, active_pricing_settings.id AS pricing_setting_id,
           catalog_products.fulfillment_mode,
           catalog_products.created_at,
           catalog_products.popularity,
@@ -504,7 +455,6 @@ export class CatalogService {
           AND supplier_listings.supplier = 'sih'
           AND supplier_listings.game = lower(catalog_products.game)
           AND supplier_listings.market_hash_name = catalog_products.supplier_item_id
-          AND supplier_listings.active = true
 ${supplierPricingJoin}
         WHERE ${where.join("\n          AND ")}
         ORDER BY ${orderBy}
@@ -514,6 +464,7 @@ ${supplierPricingJoin}
       params,
     );
     return result.rows.map((row) => ({
+      categoryId:row.category_id, condition:row.condition_code??"", weapon:row.weapon??"", stattrak:row.stattrak, marketHashName:row.supplier_item_id??row.title, pricingSettingId:row.pricing_setting_id??"unconfigured",
       id: row.id,
       slug: row.slug,
       kind: row.kind,
@@ -538,21 +489,28 @@ ${supplierPricingJoin}
   }
 
   private catalogWhere(command: {
+    categoryId?: string; stattrak?: string; weapon?: string;
     category?: CatalogProductKind;
     conditions?: string[];
     game?: CatalogGame;
     maxPriceCoinMinor?: number;
     minPriceCoinMinor?: number;
     search?: string;
-    slug?: string;
+    slug?: string; slugs?: string[];
     types?: string[];
   }) {
-    const params: Array<number | string> = [];
+    const params: Array<number | string | string[]> = [];
     const where = [
-      "catalog_products.public_enabled = true",
+      command.slug === undefined && command.slugs === undefined ? "catalog_products.public_enabled = true" : "(catalog_products.public_enabled = true OR catalog_products.ever_published = true)",
       "catalog_products.kind = 'skins'",
       "lower(catalog_products.game) = 'cs2'",
     ];
+    if (command.categoryId !== undefined) { params.push(command.categoryId); where.push(`catalog_products.category_id = $${params.length}`); }
+    if (command.stattrak !== undefined) {
+      if (!["true","false","1","0"].includes(command.stattrak)) throw new BadRequestException("Invalid StatTrak filter");
+      where.push(`catalog_products.stattrak = ${["true","1"].includes(command.stattrak)?"true":"false"}`);
+    }
+    if (command.weapon !== undefined) { params.push(command.weapon); where.push(`lower(catalog_products.weapon) = lower($${params.length})`); }
     if (command.category !== undefined) {
       params.push(command.category);
       where.push(`catalog_products.kind = $${params.length}`);
@@ -563,6 +521,7 @@ ${supplierPricingJoin}
       params.push(command.game);
       where.push(`lower(coalesce(catalog_products.game, '')) = $${params.length}`);
     }
+    if (command.slugs !== undefined) { params.push(command.slugs);where.push(`catalog_products.slug = ANY($${params.length}::text[])`); }
     if (command.slug !== undefined) {
       params.push(command.slug);
       where.push(`catalog_products.slug = $${params.length}`);
@@ -578,6 +537,7 @@ ${supplierPricingJoin}
     const conditionFilters = command.conditions ?? [];
     if (conditionFilters.length > 0) {
       const conditions = conditionFilters.map((condition) => {
+        if (["fn","mw","ft","ww","bs"].includes(condition)) { params.push(condition.toUpperCase()); return `catalog_products.condition_code = $${params.length}`; }
         params.push(`%${condition}%`);
         return `(
           EXISTS (
@@ -632,13 +592,14 @@ ${supplierPricingJoin}
   }
 
   private async countProducts(command: {
+    categoryId?: string; stattrak?: string; weapon?: string;
     category?: CatalogProductKind;
     conditions?: string[];
     game?: CatalogGame;
     maxPriceCoinMinor?: number;
     minPriceCoinMinor?: number;
     search?: string;
-    slug?: string;
+    slug?: string; slugs?: string[];
     types?: string[];
   }): Promise<number> {
     const { params, where } = this.catalogWhere(command);
@@ -659,7 +620,6 @@ ${supplierPricingJoin}
           AND supplier_listings.supplier = 'sih'
           AND supplier_listings.game = lower(catalog_products.game)
           AND supplier_listings.market_hash_name = catalog_products.supplier_item_id
-          AND supplier_listings.active = true
 ${supplierPricingJoin}
         WHERE ${where.join("\n          AND ")}
       `,
@@ -681,6 +641,7 @@ ${supplierPricingJoin}
   }
 
   private async loadFacets(command: {
+    categoryId?: string; stattrak?: string; weapon?: string;
     category?: CatalogProductKind;
     game?: CatalogGame;
     search?: string;
@@ -739,4 +700,12 @@ ${supplierPricingJoin}
       availability: [{ id: "available", title: "Доступен к оформлению" }],
     };
   }
+}
+
+function decimalMinor(value:string):number {
+  if (!/^\d+(?:\.\d{1,2})?$/.test(value)) throw new BadRequestException("Invalid price");
+  const [whole,fraction=""]=value.split(".");
+  const minor=BigInt(whole??"0")*100n+BigInt(fraction.padEnd(2,"0"));
+  if(minor>BigInt(Number.MAX_SAFE_INTEGER))throw new BadRequestException("Invalid price");
+  return Number(minor);
 }

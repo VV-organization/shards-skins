@@ -1,7 +1,7 @@
 export type Category = { id:string; name:string; description:string };
 export type Product = {
   id:string; name:string; description:string; imageUrl:string; categoryId:string;
-  condition:string; float:number | null; priceMinor:number;
+  condition:string; priceMinor:number; availability:"available"|"unavailable"; priceRevision:string; marketHashName?:string; pricingSettingId?:string;
   weapon:string; finish:string; rarity:string; stattrak:boolean;
   source: { name:string; url:string; capturedAt:string; price:number; currency:string; rublesPerUnit:number };
 };

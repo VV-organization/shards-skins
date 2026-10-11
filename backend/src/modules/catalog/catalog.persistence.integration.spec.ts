@@ -643,4 +643,22 @@ describe.skipIf(!databaseUrl)("catalog PostgreSQL persistence", () => {
     }
   });
 
+  it("keeps a formerly public SKU readable when unavailable, and never exposes unpublished records", async()=>{
+    await insertDeagleListing();
+    await app.get(CatalogSupplierSyncService).promoteActiveSihListings("cs2");
+    const server=app.getHttpServer() as Parameters<typeof request>[0];
+    const stale=await request(server).get(`/catalog/${deagleProjectedSlug}`).expect(200);
+    expect((stale.body as {availability:string}).availability).toBe("unavailable");
+    await pool.query("UPDATE supplier_listings SET last_seen_at=now() WHERE market_hash_name=$1",[deagleMarketHashName]);
+    const fresh=await request(server).get(`/catalog/${deagleProjectedSlug}`).expect(200);
+    expect((fresh.body as {availability:string}).availability).toBe("available");
+    expect((fresh.body as {priceRevision:string}).priceRevision).not.toBe((stale.body as {priceRevision:string}).priceRevision);
+    await pool.query("UPDATE catalog_products SET public_enabled=false WHERE slug=$1",[deagleProjectedSlug]);
+    const gone=await request(server).post('/catalog/lookup').send({slugs:[deagleProjectedSlug]}).expect(200);
+    expect((gone.body as {items:Array<{availability:string}>}).items[0]?.availability).toBe("unavailable");
+    await pool.query("UPDATE catalog_products SET ever_published=false WHERE slug=$1",[deagleProjectedSlug]);
+    await request(server).get(`/catalog/${deagleProjectedSlug}`).expect(404);
+    await request(server).post('/catalog/lookup').send({slugs:Array(51).fill(deagleProjectedSlug)}).expect(400);
+  });
+
 });

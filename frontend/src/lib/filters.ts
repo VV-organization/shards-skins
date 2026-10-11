@@ -2,6 +2,10 @@ import type {Product} from "./types.ts";
 import {parseAmount} from "./money.ts";
 export const conditions = ["Прямо с завода","Немного поношенное","После полевых испытаний","Поношенное","Закаленное в боях"];
 export function conditionCode(condition:string) {
+  const codes:Record<string,string>={"Factory New":"FN","Minimal Wear":"MW","Field-Tested":"FT","Well-Worn":"WW","Battle-Scarred":"BS"};
+  if(["FN","MW","FT","WW","BS"].includes(condition))return condition;
+  if(codes[condition])return codes[condition];
+  if(!condition || condition==="Без окраски")return "—";
   if (condition.includes("завода")) return "FN";
   if (condition.includes("Немного")) return "MW";
   if (condition.includes("полевых")) return "FT";
@@ -24,8 +28,9 @@ export function filterProducts(products: Product[], filters: Filters) {
   });
   if(filters.sort==="price-asc") filtered.sort((a,b)=>a.priceMinor-b.priceMinor);
   if(filters.sort==="price-desc") filtered.sort((a,b)=>b.priceMinor-a.priceMinor);
-  if(filters.sort==="float") filtered.sort((a,b)=>(a.float??1)-(b.float??1));
   return filtered;
 }
 
 export function invalidPriceRange(min:string,max:string){const low=min?parseAmount(min):null;const high=max?parseAmount(max):null;return (!!min&&low===null)||(!!max&&high===null)||(low!==null&&high!==null&&low>high);}
+
+export function normalizeSort(sort:string|null):string { return sort==="price-asc"||sort==="price-desc"?sort:"featured"; }

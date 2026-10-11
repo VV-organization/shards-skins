@@ -1,5 +1,5 @@
-import { Controller, Get, Inject, Param, Query } from "@nestjs/common";
-import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, HttpCode, Post, Get, Inject, Param, Query } from "@nestjs/common";
+import { ApiBody, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 
 import { CatalogService } from "./catalog.service";
 import type { CatalogListDto, CatalogListQuery, CatalogProductDto } from "./catalog.types";
@@ -18,6 +18,7 @@ const priceSchema = {
 export const productSchema = {
   type: "object",
   required: [
+    "categoryId","condition","weapon","stattrak","marketHashName","priceRevision","pricingSettingId",
     "id",
     "slug",
     "kind",
@@ -35,6 +36,7 @@ export const productSchema = {
     "details",
   ],
   properties: {
+    categoryId:{type:"string"},condition:{type:"string"},weapon:{type:"string"},stattrak:{type:"boolean"},marketHashName:{type:"string"},priceRevision:{type:"string"},pricingSettingId:{type:"string"},
     id: { type: "string" },
     slug: { type: "string" },
     kind: { type: "string", enum: ["skins"] },
@@ -44,7 +46,7 @@ export const productSchema = {
     title: { type: "string" },
     description: { type: "string" },
     price: priceSchema,
-    availability: { type: "string", enum: ["available", "on-request"] },
+    availability: { type: "string", enum: ["available", "on-request", "unavailable"] },
     fulfillmentMode: { type: "string", enum: ["automatic", "steam-trade", "manual"] },
     createdAt: { type: "string", format: "date-time" },
     popularity: { type: "integer" },
@@ -63,6 +65,12 @@ export const productSchema = {
 @Controller("catalog")
 export class CatalogController {
   constructor(@Inject(CatalogService) private readonly catalog: CatalogService) {}
+
+  @Post("lookup")
+  @HttpCode(200)
+  @ApiBody({schema:{type:"object",required:["slugs"],properties:{slugs:{type:"array",maxItems:50,items:{type:"string"}}}}})
+  @ApiOkResponse({schema:{type:"object",required:["items"],properties:{items:{type:"array",items:productSchema}}}})
+  lookup(@Body() body:{slugs?:unknown}|null|undefined) { return this.catalog.lookup(body?.slugs); }
 
   @ApiOkResponse({
     schema: {

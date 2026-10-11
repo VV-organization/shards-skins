@@ -27,7 +27,7 @@ const weaponTypes: Array<[RegExp, string]> = [
   [/^(?:MAC-10|MP5-SD|MP7|MP9|P90|PP-Bizon|UMP-45)\b/i, "Пистолет-пулемет"],
   [/^(?:MAG-7|Nova|Sawed-Off|XM1014)\b/i, "Дробовик"],
   [/^(?:M249|Negev)\b/i, "Пулемет"],
-  [/^★ .*Gloves\b|Gloves\b/i, "Перчатки"],
+  [/^★ .*Gloves\b|Gloves\b|Hand Wraps\b/i, "Перчатки"],
   [/^★ |Knife\b|Bayonet\b|Karambit\b|Daggers\b/i, "Нож"],
   [/^Sticker\b/i, "Наклейка"],
   [/^Music Kit\b/i, "Музыкальный набор"],
@@ -74,7 +74,7 @@ function cs2Details(productType: string, condition: string | null): CatalogProdu
     ],
     fulfillment: {
       title: "Данные Steam Trade",
-      description: "Предмет покупается через SIH и передается по Steam Trade после оплаты внутренними Coins.",
+      description: "Предмет покупается через SIH и передается по Steam Trade после оплаты балансом Shards.",
       requirements: [
         "Для оформления игрового предмета требуется Steam-сессия.",
         "Перед покупкой укажите действующий Steam Trade URL.",
@@ -93,7 +93,7 @@ function gameDetails(game: CatalogGame, productType: string): CatalogProductDeta
     ],
     fulfillment: {
       title: "Данные Steam Trade",
-      description: "Предмет покупается через SIH и передается по Steam Trade после оплаты внутренними Coins.",
+      description: "Предмет покупается через SIH и передается по Steam Trade после оплаты балансом Shards.",
       requirements: [
         "Для оформления игрового предмета требуется Steam-сессия.",
         "Перед покупкой укажите действующий Steam Trade URL.",
@@ -190,6 +190,6 @@ export function createSihCatalogProjection(command: {
       ...(metadata?.tags ?? []).map((tag) => tag.toLocaleLowerCase("ru-RU")),
       ...command.marketHashName.toLocaleLowerCase("ru-RU").split(/[^a-zа-яё0-9-]+/iu).filter(Boolean),
     ],
-    details: gameDetails(command.game, productType),
+    details: command.game === "cs2" ? cs2Details(productType, conditionFromMarketHashName(command.marketHashName)) : gameDetails(command.game, productType),
   };
 }

@@ -1,3 +1,4 @@
+import { normalizeSkin } from "./catalog-normalization";
 import { Inject, Injectable } from "@nestjs/common";
 
 import { DatabaseService } from "../../common/database/database.service";
@@ -55,6 +56,7 @@ export class CatalogSupplierSyncService {
     if (command.game !== "cs2") throw new Error("CATALOG_GAME_UNSUPPORTED");
     const observedAt = assertObservedAt(command.observedAt ?? new Date());
     const items = await command.client.getItems({ game: command.game });
+    if (items.length === 0 || items.some(item => !item.marketHashName.trim() || item.priceMicrousd <= 0n || !Number.isSafeInteger(item.availableQuantity) || item.availableQuantity < 0)) throw new Error("CATALOG_SYNC_INVALID_SNAPSHOT");
     if (items.some((item) => item.game !== command.game)) throw new Error("CATALOG_SYNC_GAME_MISMATCH");
 
     return this.database.transaction(async (tx) => {
@@ -223,7 +225,8 @@ export class CatalogSupplierSyncService {
         marketHashName: listing.market_hash_name,
         ...(metadata === undefined ? {} : { metadata }),
       });
-      const publicEnabled = publicGame
+      const normalized = normalizeSkin(listing.market_hash_name, metadata);
+      const publicEnabled = normalized.categoryId !== null && publicGame
         && metadata !== undefined
         && metadata.imageUrl !== null
         && metadata.imageUrl !== undefined
@@ -348,6 +351,7 @@ export class CatalogSupplierSyncService {
           ],
         );
       }
+      await tx.query(`UPDATE catalog_products SET category_id=$1, condition_code=$2, weapon=$3, stattrak=$4, ever_published=ever_published OR $5 WHERE supplier_provider='sih' AND supplier_item_id=$6 AND lower(game)=$7`,[normalized.categoryId,normalized.condition,normalized.weapon,normalized.stattrak,publicEnabled,listing.market_hash_name,game]);
       if (publicEnabled) promotedProductCount += 1;
     }
 

@@ -1,5 +1,5 @@
 export type CatalogProductKind = "steam" | "skins" | "apple_gift_card";
-export type CatalogAvailability = "available" | "on-request";
+export type CatalogAvailability = "available" | "on-request" | "unavailable";
 export type CatalogFulfillmentMode = "automatic" | "steam-trade" | "manual";
 export type CatalogSort = "relevance" | "price_asc" | "price_desc" | "newest" | "name_asc" | "name_desc";
 
@@ -54,6 +54,7 @@ export type CoinPriceDto = {
 };
 
 export type CatalogProductDto = Omit<CatalogProduct, "priceCoins"> & {
+  categoryId: string; condition: string; weapon: string; stattrak: boolean; marketHashName: string; priceRevision: string; pricingSettingId: string;
   price: CoinPriceDto;
 };
 
@@ -91,6 +92,7 @@ export type CatalogListDto = {
 };
 
 export type CatalogListQuery = {
+  categoryId?:string; stattrak?:string;
   q?: string;
   category?: string;
   game?: string;

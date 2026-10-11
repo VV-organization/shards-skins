@@ -11,7 +11,6 @@ const catalog = JSON.parse(readFileSync(new URL("../src/data/catalog.json", impo
     imageUrl: string;
     categoryId: string;
     condition: string;
-    float: number | null;
     priceMinor: number;
     source: { name: string; currency: string; rublesPerUnit: number };
   }>;
@@ -31,7 +30,7 @@ test("catalog products contain the fields required by the storefront", () => {
     assert.ok(categoryIds.has(product.categoryId));
     assert.ok(product.condition);
     assert.ok(Number.isFinite(product.priceMinor) && product.priceMinor > 0);
-    assert.ok(product.float === null || (product.float >= 0 && product.float <= 1));
+    assert.equal(Object.hasOwn(product,"float"),false);
     assert.ok(product.source.name);
     assert.ok(product.source.currency);
     assert.ok(Number.isFinite(product.source.rublesPerUnit) && product.source.rublesPerUnit > 0);

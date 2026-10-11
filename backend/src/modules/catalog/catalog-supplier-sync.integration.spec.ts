@@ -177,4 +177,14 @@ describe.skipIf(!databaseUrl)("catalog supplier sync persistence", () => {
     const sync = app.get(CatalogSupplierSyncService);
     await expect(sync.syncSihGame({game: "rust", client: {getItems: () => Promise.reject(new Error("unexpected supplier call"))}})).rejects.toThrow("CATALOG_GAME_UNSUPPORTED");
   });
+  it("rejects an empty or malformed snapshot before replacing the last good catalog", async()=>{
+    const sync=app.get(CatalogSupplierSyncService);
+    const item:SihSupplierItem={availableQuantity:1,game:"cs2",imageUrl:null,marketHashName:"AK-47 | Redline (Field-Tested)",priceMicrousd:1000000n};
+    await sync.syncSihGame({game:"cs2",client:{getItems:()=>Promise.resolve([item])}});
+    await expect(sync.syncSihGame({game:"cs2",client:{getItems:()=>Promise.resolve([])}})).rejects.toThrow();
+    await expect(sync.syncSihGame({game:"cs2",client:{getItems:()=>Promise.resolve([{...item,priceMicrousd:-1n}])}})).rejects.toThrow();
+    const result=await pool.query<{active:boolean}>("SELECT active FROM supplier_listings WHERE market_hash_name=$1",[item.marketHashName]);
+    expect(result.rows[0]?.active).toBe(true);
+  });
+
 });

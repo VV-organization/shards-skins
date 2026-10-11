@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { CatalogService } from "./catalog.service";
-import type { CatalogPricingService } from "./catalog-pricing.service";
 
 type QueryResult<Row> = { rows: Row[] };
 
@@ -65,11 +64,8 @@ describe("CatalogService", () => {
         return Promise.resolve({ rows: [] });
       },
     };
-    const pricing = {
-      quoteSupplierPrice: () => Promise.reject(new Error("supplier pricing must not be used for manual Apple gift cards")),
-    } as unknown as CatalogPricingService;
 
-    return new CatalogService(database as never, pricing);
+    return new CatalogService(database as never);
   }
 
   it("keeps the default public catalog constrained to skins", async () => {

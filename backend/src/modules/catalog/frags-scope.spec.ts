@@ -22,7 +22,7 @@ describe("Shards product boundary", () => {
   });
   it("scopes even direct slug queries to CS2 skins", async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
-    const service = new CatalogService({ query } as never, {} as never);
+    const service = new CatalogService({ query } as never);
     await expect(service.getBySlug("foreign-product")).rejects.toThrow();
     expect(query.mock.calls[0]?.[0]).toContain("catalog_products.kind = 'skins'");
     expect(query.mock.calls[0]?.[0]).toContain("lower(catalog_products.game) = 'cs2'");
