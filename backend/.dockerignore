@@ -4,3 +4,10 @@ node_modules
 *.tsbuildinfo
 dist
 secrets
+
+.git
+.github
+coverage
+*.log
+secrets
+backups

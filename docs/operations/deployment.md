@@ -1,12 +1,38 @@
-# Изолированный запуск Shards
+# Stage deploy Shards Market — стандарт Finext
 
-Локальная реализация не активирует провайдеров. `compose.yml` — подготовленная конфигурация: все сервисы требуют явного профиля `app`, нет auto-deploy и внешнего runner. Используются собственные сеть/volumes проекта `shards`; порты API/UI привязаны к localhost. TLS reverse proxy настраивается для собственного домена. `/api/*` идёт через Next к `api:5199`; OpenID PUBLIC_BASE_URL должен оканчиваться `/api`, frontend origin — без пути.
+Единственный stage deploy: `docker-compose.yaml` + `.github/workflows/deploy.yaml`, по multi-service шаблону `../deploy-templates`. Next.js работает как Node SSR, не как static SPA. `compose.local.yml` предназначен только для локальной разработки/тестов.
 
-1. Подготовить собственные `.env` и `secrets/` вне Git, права 0700/0600 с доступом UID контейнера. DATABASE_URL указывает на `postgres:5432/shards`, REDIS_URL — `redis:6379/0`; пароль БД совпадает с файлом postgres-password. Создать отдельные COOKIE_HMAC_SECRET и DATA_ENCRYPTION_SECRET (не менее 32 случайных символов). Не менять ключ шифрования при обычном рестарте.
-2. Собрать образы. Сделать backup перед миграциями. Поднять только postgres/redis; выполнить миграции один раз: `docker compose --profile app run --rm api npm run db:migrate`. Не запускать destructive integration tests против deployment DB.
-3. Запустить API/UI/фоновые процессы с тремя финансовыми флагами false. В compose флаги берутся из окружения команды Compose или root `.env`, а не из backend env_file: проверять итоговую конфигурацию без публикации секретов. SMTP/VV/каталог требуют собственные credentials, ни один чужой секрет не переносится.
-4. Проверить `/health/live`, `/health/ready`, `/storefront/config`; protected `/admin/integration/health/operations` с X-Admin-Token. Убедиться, что публичные API не принимают необъявленные денежные параметры и каталог содержит только разрешённые CS2 SKU.
-5. Настроить отдельный сбор логов всех workers. Каталог обновляется раз в 5 минут при TTL доступности 15 минут. Reconciliation обходит платежи и wallet каждые 60 секунд, fulfillment — каждые 10 секунд; SMTP/VV имеют собственные циклы и lease recovery.
-6. Активация — отдельно по provider-acceptance.md. `SHARDS_CHECKOUT_ENABLED`, `SHARDS_PAYMENTS_ENABLED`, `SHARDS_FULFILLMENT_ENABLED` по умолчанию false. Checkout дополнительно требует единственную активную pricing-setting с metadata.fxVerified=true; выставлять только после подтверждения источника/даты FX. ArcPay production требует allowlist HTTPS origins возвратного checkout URL.
+## Контракт сервера
 
-Отказ от релиза: откатить образ совместимого кода, выключить новые финансовые команды, сохранить БД и reconciliation. Деструктивный откат миграций удалением схемы недопустим. Live deployment, опубликованные assets и реальные исходы провайдеров в этом репозитории не подтверждены.
+- Ветка: `main`; self-hosted runner label: `shardsmarket-stage`.
+- Серверный env: `~/.envs/shardsmarket/.env` (0600), образец: корневой `.env.example`.
+- Compose project: `shardsmarket`; default network, без external networks/container_name/named volumes.
+- Данные: `/opt/shardsmarket/volumes/postgres` и `/opt/shardsmarket/volumes/redis`. Подготовить права для пользователей соответствующих контейнеров. Не переименовывать эти пути после появления рабочих данных.
+- Frontend: `127.0.0.1:3000` → container `5198`; API: `127.0.0.1:3001` → container `5199`. Оба процесса слушают `0.0.0.0` внутри Docker. DB/Redis наружу не опубликованы.
+- Внешние TLS/DNS/reverse proxy настраиваются отдельно. Публичный домен направляется на frontend:3000; Next проксирует `/api/*` к `api:5199`. `PUBLIC_BASE_URL` оканчивается `/api`, `PUBLIC_FRONTEND_ORIGIN` и `CORS_ORIGINS` — origin без пути.
+
+## Runtime env и секреты
+
+Обязательные переменные: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL`, `COOKIE_HMAC_SECRET`, `DATA_ENCRYPTION_SECRET`, `PUBLIC_BASE_URL`, `PUBLIC_FRONTEND_ORIGIN`, `CORS_ORIGINS`. Cookie/encryption secrets — собственные случайные значения не короче 32 символов. Пароль в `DATABASE_URL` должен быть URL-encoded; host — `postgres`, DB/user/password должны совпадать с POSTGRES_*.
+
+Финансовые флаги `SHARDS_CHECKOUT_ENABLED`, `SHARDS_PAYMENTS_ENABLED`, `SHARDS_FULFILLMENT_ENABLED` по умолчанию false; `ARC_PAY_PROVIDER_MODE=disabled`. Остальные необязательные настройки перечислены в `.env.example`. Сохранять encryption key при рестартах и восстановлении базы.
+
+Секреты провайдеров задаются runtime-переменными без `_FILE`: `ARC_PAY_SECRET_KEY`, `ARC_PAY_WEBHOOK_SIGNING_SECRET`, `STEAM_WEB_API_KEY`, `SIH_API_KEY`, `SIH_STEAM_REFILL_API_KEY`, `ADMIN_API_TOKEN`, `PURELYMAIL_SMTP_PASSWORD`, `SLACK_ORDERS_WEBHOOK_URL`, `VV_ADMIN_WEBHOOK_SECRET`, `VV_ADMIN_INTEGRATION_SECRET`. Backend entrypoint создаёт временные файлы с правами 0600 внутри контейнера и передаёт существующим клиентам соответствующие `_FILE` пути. Секреты не требуются при build, не копируются в image и не требуют host bind mount. Для локального запуска без контейнера по-прежнему используется `backend/.env.example` с `_FILE` настройками.
+
+## Порядок запуска
+
+Workflow строго выполняет checkout → копирование `.env` и chmod → `docker compose build` → `docker compose up -d` → удаление `.env` через `if: always()`. Concurrency `shardsmarket-stage` исключает два одновременных деплоя. Отдельных status/health шагов, `down` или `--no-cache` нет. Существующий CI lint/test/build сохранён отдельно.
+
+Compose сам поднимает PostgreSQL, ждёт его healthcheck, выполняет одноразовый `migrate` (`restart: "no"`), затем запускает API и workers. Каждый backend process имеет собственный build context. Frontend ждёт healthy API; API проверяет `/health/ready` внутри контейнера. В первый запуск отсутствие/ошибка миграций блокирует зависимые процессы.
+
+Перед первым запуском подготовить каталог данных, собственный env и backup-процедуру. Если уже существовали данные старого compose project `shards` в named volumes, выполнить backup/restore в новые host paths **до** переключения: Compose сам их не переносит. Старый `compose.yml` удалён; не запускать старую и новую конфигурации параллельно.
+
+Новый коммит в `main`, отправленный в remote, запускает deploy workflow при наличии runner. Само добавление workflow не является фактом деплоя. Активация денег/поставщиков выполняется отдельно по [provider-acceptance.md](provider-acceptance.md).
+
+При откате сохранить БД и принятые операции: выключить новые финансовые команды, продолжить reconciliation и вернуть совместимый образ. Не удалять схему и persistent data. Каталог обновляется раз в 5 минут; payment/wallet reconciliation — раз в 60 секунд, fulfillment имеет отдельный цикл, SMTP/VV — собственные outbox workers.
+
+## Локальная проверка конфигурации (2026-10-11)
+
+`docker compose config` с безопасным тестовым env прошёл; проверены project name, host ports, bind volumes, restart policy и собственный build каждого процесса. `docker compose build` успешно собрал все восемь application images. Docker entrypoint проверен на тестовых значениях: секрет передаётся в файл 0600, исходная переменная убирается из окружения дочернего процесса, runtime работает от UID 1000, `/app/.env` отсутствует. Backend lint/build и `git diff --check` проходят. Временный корневой `.env` удалён после проверки. На отдельной пустой disposable PostgreSQL БД выполнены миграции из Docker image, API readiness с Redis вернул ok, финансовые capabilities остались false. Проверена цепочка frontend container → Next `/api` proxy → API → PostgreSQL/Redis. Временные контейнеры, сеть и БД удалены; рабочие серверы и данные не использовались.
+
+Сам workflow не запускался, push/remote deploy и изменения сервера не выполнялись. Это проверка конфигурации и локальных образов; наличие runner, stage env, домена и реальное состояние сервера не проверялись.

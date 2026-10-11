@@ -3,3 +3,10 @@ node_modules
 .env*
 test-results
 playwright-report
+
+.git
+.github
+coverage
+*.log
+secrets
+backups

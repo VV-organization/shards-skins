@@ -19,6 +19,10 @@ npm run dev:api
 
 По умолчанию покупки, платежи и выдача выключены. Локальная база не содержит живого каталога и финансовых данных. Для настоящей авторизации, OTP, синхронизации каталога и провайдеров нужны собственные настройки. Browser fixtures — отдельный тестовый сервер, не режим коммерческого API.
 
+## Stage deploy
+
+Единственный stage deploy — `docker-compose.yaml` и `.github/workflows/deploy.yaml` по стандарту Finext. Runner: `shardsmarket-stage`, ветка: `main`, env: `~/.envs/shardsmarket/.env` (образец в корне). Host-порты: frontend 3000, API 3001. Подготовка сервера и секретов: [deployment.md](docs/operations/deployment.md). Отправка изменений в `main` запускает workflow; этот локальный этап сервер не изменяет.
+
 ## Проверки
 
 ```sh

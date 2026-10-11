@@ -22,6 +22,9 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/drizzle ./drizzle
 COPY --from=build /app/src ./src
 
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/shards-entrypoint
+ENTRYPOINT ["shards-entrypoint"]
+
 USER node
 EXPOSE 5199
 CMD ["node", "dist/main.js"]

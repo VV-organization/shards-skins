@@ -1,0 +1,138 @@
+name: shardsmarket
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - /opt/shardsmarket/volumes/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - /opt/shardsmarket/volumes/redis:/data
+  migrate:
+    build:
+      context: ./backend
+    restart: "no"
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 5199
+      REDIS_URL: redis://redis:6379/0
+    command: ['npm', 'run', 'db:migrate']
+    depends_on:
+      postgres:
+        condition: service_healthy
+  api:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 5199
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+    ports:
+      - "127.0.0.1:3001:5199"
+    healthcheck:
+      test: ['CMD', 'node', '-e', 'fetch("http://127.0.0.1:5199/health/ready").then(r=>r.json()).then(r=>process.exit(r.status==="ok"?0:1)).catch(()=>process.exit(1))']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+  fulfillment:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 5199
+      REDIS_URL: redis://redis:6379/0
+    command: ['node', 'dist/fulfillment-worker.js']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+  notifications:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 5199
+      REDIS_URL: redis://redis:6379/0
+    command: ['node', 'dist/notifications-worker.js']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+  vv-admin:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 5199
+      REDIS_URL: redis://redis:6379/0
+    command: ['node', 'dist/vv-admin-dispatcher-worker.js']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+  catalog:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 5199
+      REDIS_URL: redis://redis:6379/0
+    command: ['node', 'dist/catalog-sync-worker.js']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+  reconciliation:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 5199
+      REDIS_URL: redis://redis:6379/0
+    command: ['sh', '-c', 'while true; do node dist/payments-reconcile.js --limit=40; node dist/wallet-reconcile.js --limit=100; sleep 60; done']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:3000:5198"
+    depends_on:
+      api:
+        condition: service_healthy

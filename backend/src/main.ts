@@ -13,7 +13,7 @@ export async function bootstrap(): Promise<void> {
     app.enableCors({ origin: config.corsOrigins, credentials: true });
   }
 
-  await app.listen(config.port);
+  await app.listen(config.port, "0.0.0.0");
 }
 
 void bootstrap();
