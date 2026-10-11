@@ -1,3 +1,4 @@
+import { SteamCustomerGuard } from "../sessions/steam-customer.guard";
 import { Controller, Get, Inject, UseGuards } from "@nestjs/common";
 import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
 
@@ -41,7 +42,7 @@ const walletTransactionsSchema = {
 };
 
 @ApiTags("Wallet")
-@UseGuards(CustomerSessionGuard)
+@UseGuards(CustomerSessionGuard, SteamCustomerGuard)
 @Controller("wallet")
 export class WalletController {
   constructor(@Inject(WalletService) private readonly wallet: WalletService) {}

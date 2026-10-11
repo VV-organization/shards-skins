@@ -1,3 +1,4 @@
+import { SteamCustomerGuard } from "../sessions/steam-customer.guard";
 import { Body, Controller, Delete, Get, Inject, Param, Put, UseGuards } from "@nestjs/common";
 import { ApiBody, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 
@@ -42,7 +43,7 @@ const cartSchema = {
 };
 
 @ApiTags("Cart")
-@UseGuards(CustomerSessionGuard)
+@UseGuards(CustomerSessionGuard, SteamCustomerGuard)
 @Controller("cart")
 export class CartController {
   constructor(@Inject(CartService) private readonly cart: CartService) {}

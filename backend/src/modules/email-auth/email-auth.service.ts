@@ -4,6 +4,7 @@ import { BadRequestException, Inject, Injectable, Optional, UnauthorizedExceptio
 
 import { DatabaseService } from "../../common/database/database.service";
 import { NotificationOutboxService } from "../notifications/notification-outbox.service";
+import { digestToken } from "../sessions/session-cookies";
 import { SessionsService } from "../sessions/sessions.service";
 import { UsersService } from "../users/users.service";
 
@@ -28,7 +29,12 @@ export type VerifiedEmailAuth = {
   userId: string;
 };
 
+type ChallengePurpose = "sign_in" | "link_email";
+
 type StoredChallenge = {
+  purpose: ChallengePurpose;
+  targetUserId: string | null;
+  targetSessionDigest: string | null;
   attemptCount: number;
   cancelledAt: Date | null;
   codeDigest: string;
@@ -79,10 +85,15 @@ export class EmailAuthService {
     this.runtime = runtime;
   }
 
-  async requestChallenge(emailInput: string): Promise<EmailVerificationChallenge> {
+  async requestChallenge(emailInput: string, options: { purpose: ChallengePurpose; presentedSessionToken: string | null } = { purpose: "sign_in", presentedSessionToken: null }): Promise<EmailVerificationChallenge> {
     const email = normalizeEmail(emailInput);
     const now = this.runtime.now();
-    const existing = await this.findLatestActiveChallenge(email, now);
+    const current = options.presentedSessionToken ? await this.sessions.authenticate(options.presentedSessionToken) : null;
+    if (options.purpose === "link_email" && !current) throw new UnauthorizedException("Session is required for linking email");
+    if (options.purpose === "sign_in" && current) throw new BadRequestException("Use link_email for the current account");
+    const targetUserId = options.purpose === "link_email" ? current?.userId ?? null : null;
+    const targetSessionDigest = options.purpose === "link_email" && options.presentedSessionToken ? digestToken(options.presentedSessionToken) : null;
+    const existing = await this.findLatestActiveChallenge(email, now, options.purpose, targetSessionDigest);
     if (existing !== null && existing.resendAvailableAt.getTime() > now.getTime()) {
       return { id: existing.id, resendAvailableAt: existing.resendAvailableAt.toISOString() };
     }
@@ -92,6 +103,7 @@ export class EmailAuthService {
     const code = this.runtime.createCode();
     if (!/^\d{6}$/.test(code)) throw new Error("EMAIL_OTP_GENERATOR_INVALID");
     const challenge: StoredChallenge = {
+      purpose: options.purpose, targetUserId, targetSessionDigest,
       id,
       email,
       codeDigest: digestOtp(id, code),
@@ -106,11 +118,11 @@ export class EmailAuthService {
       await this.database.query(
         `
           INSERT INTO email_verification_challenges (
-            id, email, purpose, code_digest, expires_at, attempt_count, resend_available_at
+            id, email, purpose, code_digest, expires_at, attempt_count, resend_available_at, target_user_id, target_session_digest
           )
-          VALUES ($1, $2, 'passwordless_sign_in', $3, $4, 0, $5)
+          VALUES ($1, $2, $6, $3, $4, 0, $5, $7, $8)
         `,
-        [challenge.id, challenge.email, challenge.codeDigest, challenge.expiresAt, challenge.resendAvailableAt],
+        [challenge.id, challenge.email, challenge.codeDigest, challenge.expiresAt, challenge.resendAvailableAt, challenge.purpose, targetUserId, targetSessionDigest],
       );
     } else {
       this.challenges.set(challenge.id, challenge);
@@ -157,9 +169,13 @@ export class EmailAuthService {
     const currentCustomer = command.presentedSessionToken
       ? await this.sessions.authenticate(command.presentedSessionToken)
       : null;
+    if (challenge.purpose === "link_email" && (!currentCustomer || currentCustomer.userId !== challenge.targetUserId || !command.presentedSessionToken || digestToken(command.presentedSessionToken) !== challenge.targetSessionDigest)) {
+      throw new UnauthorizedException("Email challenge belongs to a different session");
+    }
+    if (challenge.purpose === "sign_in" && currentCustomer) throw new UnauthorizedException("Sign-in challenge cannot replace an active account");
     const consumed = await this.consumeChallenge(challenge.id, now);
     if (!consumed) throw new UnauthorizedException("Email verification code is invalid or expired");
-    const user = await this.users.upsertEmailUser(challenge.email, currentCustomer?.userId);
+    const user = await this.users.upsertEmailUser(challenge.email, challenge.targetUserId ?? undefined);
     const session = await this.sessions.createSession(user.id, command.presentedSessionToken);
     return {
       email: challenge.email,
@@ -169,9 +185,12 @@ export class EmailAuthService {
     };
   }
 
-  private async findLatestActiveChallenge(email: string, now: Date): Promise<StoredChallenge | null> {
+  private async findLatestActiveChallenge(email: string, now: Date, purpose: ChallengePurpose, targetSessionDigest: string | null): Promise<StoredChallenge | null> {
     if (this.database.isConfigured()) {
       const result = await this.database.query<{
+        purpose: ChallengePurpose;
+        target_user_id: string | null;
+        target_session_digest: string | null;
         attempt_count: number;
         cancelled_at: Date | null;
         code_digest: string;
@@ -182,27 +201,31 @@ export class EmailAuthService {
         resend_available_at: Date;
       }>(
         `
-          SELECT id, email, code_digest, attempt_count, expires_at, resend_available_at, consumed_at, cancelled_at
+          SELECT id, email, purpose, target_user_id, target_session_digest, code_digest, attempt_count, expires_at, resend_available_at, consumed_at, cancelled_at
           FROM email_verification_challenges
           WHERE email = $1
+            AND purpose = $3 AND target_session_digest IS NOT DISTINCT FROM $4
             AND consumed_at IS NULL
             AND cancelled_at IS NULL
             AND expires_at > $2
           ORDER BY created_at DESC, id DESC
           LIMIT 1
         `,
-        [email, now],
+        [email, now, purpose, targetSessionDigest],
       );
       return this.rowToChallenge(result.rows[0]);
     }
     return [...this.challenges.values()]
-      .filter((challenge) => challenge.email === email && challenge.consumedAt === null && challenge.cancelledAt === null && challenge.expiresAt > now)
+      .filter((challenge) => challenge.email === email && challenge.purpose === purpose && challenge.targetSessionDigest === targetSessionDigest && challenge.consumedAt === null && challenge.cancelledAt === null && challenge.expiresAt > now)
       .sort((left, right) => right.id.localeCompare(left.id))[0] ?? null;
   }
 
   private async findChallenge(id: string): Promise<StoredChallenge | null> {
     if (this.database.isConfigured()) {
       const result = await this.database.query<{
+        purpose: ChallengePurpose;
+        target_user_id: string | null;
+        target_session_digest: string | null;
         attempt_count: number;
         cancelled_at: Date | null;
         code_digest: string;
@@ -213,7 +236,7 @@ export class EmailAuthService {
         resend_available_at: Date;
       }>(
         `
-          SELECT id, email, code_digest, attempt_count, expires_at, resend_available_at, consumed_at, cancelled_at
+          SELECT id, email, purpose, target_user_id, target_session_digest, code_digest, attempt_count, expires_at, resend_available_at, consumed_at, cancelled_at
           FROM email_verification_challenges
           WHERE id = $1
           LIMIT 1
@@ -226,6 +249,9 @@ export class EmailAuthService {
   }
 
   private rowToChallenge(row: {
+    purpose: ChallengePurpose;
+    target_user_id: string | null;
+    target_session_digest: string | null;
     attempt_count: number;
     cancelled_at: Date | null;
     code_digest: string;
@@ -237,6 +263,7 @@ export class EmailAuthService {
   } | undefined): StoredChallenge | null {
     if (row === undefined) return null;
     return {
+      purpose: row.purpose, targetUserId: row.target_user_id, targetSessionDigest: row.target_session_digest,
       id: row.id,
       email: row.email,
       codeDigest: row.code_digest,

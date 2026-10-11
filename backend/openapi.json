@@ -1284,7 +1284,6 @@
                 "type": "object",
                 "required": [
                   "amountRub",
-                  "email",
                   "steamLogin"
                 ],
                 "properties": {
@@ -1292,12 +1291,6 @@
                     "type": "integer",
                     "minimum": 50,
                     "maximum": 9433
-                  },
-                  "email": {
-                    "type": "string",
-                    "format": "email",
-                    "minLength": 3,
-                    "maxLength": 254
                   },
                   "steamLogin": {
                     "type": "string",
@@ -3941,6 +3934,33 @@
       "post": {
         "operationId": "EmailAuthController_requestChallenge",
         "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "purpose"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "enum": [
+                      "sign_in",
+                      "link_email"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "202": {
             "description": "",
@@ -3974,9 +3994,47 @@
       "post": {
         "operationId": "EmailAuthController_verifyChallenge",
         "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "code"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "pattern": "^[0-9]{6}$"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "email",
+                    "userId"
+                  ],
+                  "properties": {
+                    "email": {
+                      "type": "string"
+                    },
+                    "userId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [

@@ -51,7 +51,7 @@ describe("EmailAuthService", () => {
       steamId64: "76561198000000001",
     });
     const steamSession = await sessions.createSession(steamUser.id, null);
-    const challenge = await service.requestChallenge(" Buyer@Example.com ");
+    const challenge = await service.requestChallenge(" Buyer@Example.com ", { purpose: "link_email", presentedSessionToken: steamSession.token });
 
     const completed = await service.verifyChallenge({
       challengeId: challenge.id,
@@ -96,4 +96,24 @@ describe("EmailAuthService", () => {
       presentedSessionToken: null,
     })).rejects.toMatchObject({ status: 401 });
   });
+  it("never switches the Steam owner when linking an email that belongs to another account", async () => {
+    const { service, sessions, users } = createService();
+    const emailUser = await users.upsertEmailUser("taken@example.com");
+    const steamUser = await users.upsertSteamUser({ claimedIdentifier:"https://steamcommunity.com/openid/id/76561198000000001", providerEndpoint:"https://steamcommunity.com/openid/login", responseNonce:"fixture", steamId64:"76561198000000001" });
+    const session = await sessions.createSession(steamUser.id,null);
+    const challenge = await service.requestChallenge("taken@example.com", {purpose:"link_email",presentedSessionToken:session.token});
+    await expect(service.verifyChallenge({challengeId:challenge.id,code:"123456",presentedSessionToken:session.token})).rejects.toMatchObject({status:409});
+    expect((await sessions.authenticate(session.token))?.userId).toBe(steamUser.id);
+    expect((await users.requireUser(emailUser.id)).email?.address).toBe("taken@example.com");
+  });
+  it("rejects link verification after logout or replacement of its session", async () => {
+    const { service, sessions, users } = createService();
+    const user = await users.upsertEmailUser("owner@example.com");
+    const session = await sessions.createSession(user.id,null);
+    const challenge = await service.requestChallenge("new@example.com", {purpose:"link_email",presentedSessionToken:session.token});
+    const replacement = await sessions.createSession(user.id,session.token);
+    await expect(service.verifyChallenge({challengeId:challenge.id,code:"123456",presentedSessionToken:replacement.token})).rejects.toMatchObject({status:401});
+    expect((await users.requireUser(user.id)).email?.address).toBe("owner@example.com");
+  });
+
 });

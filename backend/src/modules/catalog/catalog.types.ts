@@ -84,7 +84,7 @@ export type CatalogListDto = {
     coinRate: {
       fiatCurrency: "RUB";
       fiatMinor: 100;
-      coinMinor: 150;
+      coinMinor: 160;
       display: string;
     };
   };

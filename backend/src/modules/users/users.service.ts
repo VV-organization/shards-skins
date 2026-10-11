@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 
 import { DatabaseService } from "../../common/database/database.service";
 import type { VerifiedSteamIdentity } from "./steam-identity";
@@ -114,6 +114,18 @@ export class UsersService {
   async upsertEmailUser(emailInput: string, targetUserId?: string): Promise<CustomerUser> {
     const email = normalizeEmail(emailInput);
     if (this.database.isConfigured()) {
+      if (targetUserId !== undefined) {
+        await this.requireUser(targetUserId);
+        await this.database.transaction(async (client) => {
+          await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`email:${email}`]);
+          await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`email-owner:${targetUserId}`]);
+          const prior = await client.query<{email:string}>("SELECT email FROM email_identities WHERE user_id=$1",[targetUserId]);
+          if (prior.rows[0] && prior.rows[0].email !== email) throw new ConflictException({code:"ACCOUNT_EMAIL_EXISTS", message:"У аккаунта уже есть подтверждённая почта"});
+          const linked = await client.query<{user_id:string}>(`INSERT INTO email_identities (email,user_id,verified_at) VALUES ($1,$2,clock_timestamp()) ON CONFLICT (email) DO UPDATE SET verified_at=clock_timestamp(),updated_at=clock_timestamp() WHERE email_identities.user_id=EXCLUDED.user_id RETURNING user_id`, [email,targetUserId]);
+          if (!linked.rows[0]) throw new ConflictException({code:"EMAIL_ALREADY_LINKED", message:"Эта почта привязана к другому аккаунту"});
+        });
+        return this.requireUser(targetUserId);
+      }
       const userId = `user_email_${createHash("sha256").update(email, "utf8").digest("hex").slice(0, 32)}`;
       const result = await this.database.query<{ user_id: string }>(
         `
@@ -157,13 +169,15 @@ export class UsersService {
           SELECT user_id FROM upserted_identity
           LIMIT 1
         `,
-        [userId, email, targetUserId ?? null],
+        [userId, email, null],
       );
       const row = result.rows[0];
       if (!row) throw new Error("Email user was not stored");
       return this.requireUser(row.user_id);
     }
 
+    const owner = this.idsByEmail.get(email);
+    if (targetUserId !== undefined && owner !== undefined && owner !== targetUserId) throw new ConflictException({code:"EMAIL_ALREADY_LINKED", message:"Эта почта привязана к другому аккаунту"});
     const userId = this.idsByEmail.get(email) ?? targetUserId ?? `user_email_${createHash("sha256").update(email, "utf8").digest("hex").slice(0, 32)}`;
     const existing = this.usersById.get(userId);
     const next: CustomerUser = {
@@ -175,62 +189,6 @@ export class UsersService {
     this.usersById.set(userId, next);
     this.idsByEmail.set(email, userId);
     return next;
-  }
-
-  async findOrCreateEmailUser(emailInput: string): Promise<CustomerUser> {
-    const email = normalizeEmail(emailInput);
-    if (this.database.isConfigured()) {
-      const userId = `user_email_${createHash("sha256").update(email, "utf8").digest("hex").slice(0, 32)}`;
-      const result = await this.database.query<{ user_id: string; email: string }>(
-        `
-          WITH existing_identity AS (
-            SELECT users.id, users.steam_id64
-            FROM email_identities
-            JOIN users ON users.id = email_identities.user_id
-            WHERE email_identities.email = $1
-              AND users.disabled = false
-            LIMIT 1
-          ), inserted_email_user AS (
-            INSERT INTO users (id, steam_id64)
-            SELECT $2, NULL
-            WHERE NOT EXISTS (SELECT 1 FROM existing_identity)
-            ON CONFLICT (id) DO UPDATE
-            SET updated_at = clock_timestamp()
-            RETURNING id, steam_id64
-          ), selected_user AS (
-            SELECT id, steam_id64
-            FROM existing_identity
-            UNION ALL
-            SELECT id, steam_id64
-            FROM inserted_email_user
-            WHERE NOT EXISTS (SELECT 1 FROM existing_identity)
-          ), upserted_identity AS (
-            INSERT INTO email_identities (email, user_id, verified_at)
-            SELECT $1, selected_user.id, clock_timestamp()
-            FROM selected_user
-            ON CONFLICT (email) DO UPDATE
-            SET verified_at = clock_timestamp(),
-                updated_at = clock_timestamp()
-            RETURNING user_id, email
-          )
-          SELECT user_id, email
-          FROM upserted_identity
-          LIMIT 1
-        `,
-        [email, userId],
-      );
-      const row = result.rows[0];
-      if (!row) throw new Error("Email user was not stored");
-      const user = await this.requireUser(row.user_id);
-      return {
-        ...user,
-        email: { address: row.email, verified: true },
-      };
-    }
-
-    const existingUserId = this.idsByEmail.get(email);
-    if (existingUserId) return this.requireUser(existingUserId);
-    return this.upsertEmailUser(email);
   }
 
   async requireUser(userId: string): Promise<CustomerUser> {

@@ -76,7 +76,7 @@ describe("AuthModule", () => {
     expect(sessionCookieHeader).toContain("__Host-shards_session=");
     expect(sessionCookieHeader).toContain("HttpOnly");
     expect(sessionCookieHeader).toContain("Secure");
-    expect(sessionCookieHeader).toContain("SameSite=None");
+    expect(sessionCookieHeader).toContain("SameSite=Lax");
 
     const authCookieRaw = start.headers["set-cookie"] as unknown;
     const authCookieHeader = Array.isArray(authCookieRaw) ? authCookieRaw.join("\n") : String(authCookieRaw);

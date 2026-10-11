@@ -43,11 +43,11 @@ export function clearSecureCookie(name: string, sameSite: CookieSameSite = "Lax"
 }
 
 export function secureCustomerSessionCookie(value: string, maximumAgeSeconds: number): string {
-  return secureCookie(CUSTOMER_SESSION_COOKIE, value, maximumAgeSeconds, "None");
+  return secureCookie(CUSTOMER_SESSION_COOKIE, value, maximumAgeSeconds, "Lax");
 }
 
 export function clearCustomerSessionCookie(): string {
-  return clearSecureCookie(CUSTOMER_SESSION_COOKIE, "None");
+  return clearSecureCookie(CUSTOMER_SESSION_COOKIE, "Lax");
 }
 
 export function createCsrfToken(sessionToken: string, secret: Buffer): string {

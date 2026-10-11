@@ -291,7 +291,7 @@ function catalogPricingDto(): CatalogListDto["pricing"] {
     coinRate: {
       fiatCurrency: "RUB",
       fiatMinor: 100,
-      coinMinor: 150,
+      coinMinor: 160,
       display: "1 RUB = 1.6 Shards",
     },
   };

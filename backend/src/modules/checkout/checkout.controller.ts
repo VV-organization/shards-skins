@@ -1,3 +1,4 @@
+import { SteamCustomerGuard } from "../sessions/steam-customer.guard";
 import { Body, Controller, Headers, Inject, Post, UseGuards } from "@nestjs/common";
 import { ApiBody, ApiCreatedResponse, ApiHeader, ApiTags } from "@nestjs/swagger";
 
@@ -68,7 +69,7 @@ export class CheckoutController {
       },
     },
   })
-  @UseGuards(CustomerSessionGuard, CsrfGuard)
+  @UseGuards(CustomerSessionGuard, SteamCustomerGuard, CsrfGuard)
   @Post()
   create(
     @CurrentCustomerContext() customer: CurrentCustomer,
@@ -112,7 +113,7 @@ export class CheckoutController {
       },
     },
   })
-  @UseGuards(CustomerSessionGuard, CsrfGuard)
+  @UseGuards(CustomerSessionGuard, SteamCustomerGuard, CsrfGuard)
   @Post("cart")
   async createFromServerCart(
     @CurrentCustomerContext() customer: CurrentCustomer,

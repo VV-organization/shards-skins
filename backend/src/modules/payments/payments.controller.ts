@@ -15,16 +15,8 @@ type CreateTopUpSessionBody = {
 
 type CreateSteamRefillSessionBody = {
   amountRub: number;
-  email: string;
   steamLogin: string;
 };
-
-function assertEmail(value: unknown): string {
-  if (typeof value !== "string") throw new BadRequestException("Email is invalid");
-  const email = value.trim().toLocaleLowerCase("ru-RU");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new BadRequestException("Email is invalid");
-  return email;
-}
 
 const topUpSessionSchema = {
   type: "object",
@@ -98,11 +90,11 @@ export class PaymentsController {
     @Headers(IDEMPOTENCY_KEY_HEADER) idempotencyKey: string | undefined,
     @Body() body: CreateTopUpSessionBody,
   ): Promise<TopUpSessionDto> {
-    return this.payments.createTopUpSession({
+    return this.requireSteamTopUp(customer.userId).then(() => this.payments.createTopUpSession({
       userId: customer.userId,
       idempotencyKey: idempotencyKey ?? "",
       coinAmountMinor: body.coinAmountMinor,
-    });
+    }));
   }
 
   @ApiOkResponse({ schema: steamRefillSessionSchema })
@@ -115,21 +107,23 @@ export class PaymentsController {
     required: true,
     schema: {
       type: "object",
-      required: ["amountRub", "email", "steamLogin"],
+      required: ["amountRub", "steamLogin"],
       properties: {
         amountRub: { type: "integer", minimum: 50, maximum: 9433 },
-        email: { type: "string", format: "email", minLength: 3, maxLength: 254 },
         steamLogin: { type: "string", minLength: 3, maxLength: 64 },
       },
     },
   })
   @HttpCode(200)
+  @UseGuards(CustomerSessionGuard, CsrfGuard)
   @Post("steam-refill/sessions")
   async createSteamRefillSession(
+    @CurrentCustomerContext() customer: CurrentCustomer,
     @Headers(IDEMPOTENCY_KEY_HEADER) idempotencyKey: string | undefined,
     @Body() body: CreateSteamRefillSessionBody,
   ): Promise<SteamRefillSessionDto> {
-    const user = await this.users.findOrCreateEmailUser(assertEmail(body.email));
+    const user = await this.users.requireUser(customer.userId);
+    if (!user.email?.verified) throw new BadRequestException({ code: "VERIFIED_EMAIL_REQUIRED", message: "Подтвердите почту" });
     return this.payments.createSteamRefillSession({
       userId: user.id,
       idempotencyKey: idempotencyKey ?? "",
@@ -137,4 +131,9 @@ export class PaymentsController {
       steamLogin: body.steamLogin,
     });
   }
+  private async requireSteamTopUp(userId: string): Promise<void> {
+    const user = await this.users.requireUser(userId);
+    if (!user.steam.connected) throw new BadRequestException({code:"STEAM_IDENTITY_REQUIRED",message:"Войдите через Steam"});
+  }
+
 }

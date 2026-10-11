@@ -432,18 +432,12 @@ describe("OpenAPI contract", () => {
     }));
     expect(session?.requestBody?.required).toBe(true);
     expect(session?.requestBody?.content?.["application/json"]?.schema).toMatchObject({
-      required: ["amountRub", "email", "steamLogin"],
+      required: ["amountRub", "steamLogin"],
       properties: {
         amountRub: {
           type: "integer",
           minimum: 50,
           maximum: 9433,
-        },
-        email: {
-          type: "string",
-          format: "email",
-          minLength: 3,
-          maxLength: 254,
         },
         steamLogin: {
           type: "string",

@@ -82,7 +82,7 @@ describe.skipIf(!databaseUrl)("Arc Pay SBP hosted checkout with existing Shards 
     orders.clear(); rejectCreation = false; creationRequests = 0; incompletePage = null;
     beforeCreateResponse = undefined;
     await pool.query("DELETE FROM payment_webhook_events; DELETE FROM payment_provider_attempts; DELETE FROM steam_refill_payments; DELETE FROM top_up_payments;");
-    userId = (await app.get(UsersService).findOrCreateEmailUser(`arc-pay-${randomUUID()}@example.test`)).id;
+    userId = (await app.get(UsersService).upsertEmailUser(`arc-pay-${randomUUID()}@example.test`)).id;
   });
   afterAll(async () => {
     globalThis.fetch = originalFetch;

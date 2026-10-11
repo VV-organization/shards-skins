@@ -588,6 +588,8 @@ export const emailVerificationChallenges = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     email: text("email").notNull(),
     purpose: text("purpose").notNull(),
+    targetUserId: text("target_user_id"),
+    targetSessionDigest: text("target_session_digest"),
     codeDigest: text("code_digest").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     attemptCount: integer("attempt_count").default(0).notNull(),

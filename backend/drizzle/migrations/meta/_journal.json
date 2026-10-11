@@ -204,6 +204,13 @@
       "when": 1791734280336,
       "tag": "0028_shards_pricing",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791734602599,
+      "tag": "0029_shards_email_binding",
+      "breakpoints": true
     }
   ]
 }

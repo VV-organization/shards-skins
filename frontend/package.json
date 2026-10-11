@@ -14,7 +14,9 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
-    "build:pages": "node scripts/build-pages.mjs"
+    "build:pages": "node scripts/build-pages.mjs",
+    "api:sync": "node scripts/sync-api.mjs",
+    "api:check": "node scripts/sync-api.mjs --check"
   },
   "dependencies": {
     "next": "16.3.5",

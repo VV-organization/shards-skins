@@ -71,7 +71,7 @@ export class AuthService {
     const browserToken = randomBytes(32).toString("base64url");
     const returnTo = sanitizeReturnTo(returnToInput);
     const baseUrl = new URL(process.env.PUBLIC_BASE_URL ?? "https://shards.local");
-    const callbackUrl = new URL("/auth/steam/callback", baseUrl);
+    const callbackUrl = new URL("auth/steam/callback", `${baseUrl.toString().replace(/\/$/, "")}/`);
     callbackUrl.searchParams.set("state", state);
 
     if (this.database.isConfigured()) {
@@ -113,7 +113,7 @@ export class AuthService {
     }
 
     const baseUrl = new URL(process.env.PUBLIC_BASE_URL ?? "https://shards.local");
-    const expectedReturnTo = new URL("/auth/steam/callback", baseUrl);
+    const expectedReturnTo = new URL("auth/steam/callback", `${baseUrl.toString().replace(/\/$/, "")}/`);
     expectedReturnTo.searchParams.set("state", state);
     const parsed = parseOpenIdCallback({
       expectedReturnTo,

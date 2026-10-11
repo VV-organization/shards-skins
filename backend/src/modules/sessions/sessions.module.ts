@@ -1,3 +1,4 @@
+import { SteamCustomerGuard } from "./steam-customer.guard";
 import { Module } from "@nestjs/common";
 
 import { DatabaseModule } from "../../common/database/database.module";
@@ -10,7 +11,7 @@ import { SessionsService } from "./sessions.service";
 @Module({
   imports: [DatabaseModule, UsersModule],
   controllers: [SessionsController],
-  providers: [SessionsService, CustomerSessionGuard, CsrfGuard],
-  exports: [SessionsService, CustomerSessionGuard, CsrfGuard],
+  providers: [SteamCustomerGuard, SessionsService, CustomerSessionGuard, CsrfGuard],
+  exports: [UsersModule, SteamCustomerGuard, SessionsService, CustomerSessionGuard, CsrfGuard],
 })
 export class SessionsModule {}
