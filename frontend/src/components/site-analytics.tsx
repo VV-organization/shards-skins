@@ -3,22 +3,21 @@ import Script from 'next/script';
 import {usePathname} from 'next/navigation';
 import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
 import {publicAnalyticsUrl,googleBootstrap,yandexBootstrap,type AnalyticsConfig} from '@/lib/analytics';
-type TrackingWindow=Window&{gtag?:(...args:unknown[])=>void;ym?:(...args:unknown[])=>void};
+type TrackingWindow=Window&{ym?:(...args:unknown[])=>void};
 const subscribe=()=>()=>{};
 const serverSnapshot=()=>false;
 const browserSnapshot=()=>window.location.origin==='https://shardsmarket.com';
 export function SiteAnalytics({config}:{config:AnalyticsConfig|null}){
  const pathname=usePathname(),onDomain=useSyncExternalStore(subscribe,browserSnapshot,serverSnapshot);
  const url=onDomain?publicAnalyticsUrl('https://shardsmarket.com'+pathname):null;
- const [gaReady,setGaReady]=useState(false),[ymReady,setYmReady]=useState(false);
- const gaPrevious=useRef<string|null>(null),ymPrevious=useRef<string|null>(null);
+ const [ymReady,setYmReady]=useState(false);
+ const ymPrevious=useRef<string|null>(null);
  useEffect(()=>{
   if(!config)return;
   const win=window as TrackingWindow;
   if(config.googleId)(win as unknown as Record<string,unknown>)[`ga-disable-${config.googleId}`]=!url;
-  if(url&&gaReady&&config.googleId&&gaPrevious.current!==url){win.gtag?.('event','page_view',{page_location:url,page_referrer:gaPrevious.current??'',page_title:document.title});gaPrevious.current=url;}
   if(url&&ymReady&&config.yandexId&&ymPrevious.current!==url){win.ym?.(config.yandexId,'hit',url,{title:document.title,referer:ymPrevious.current??''});ymPrevious.current=url;}
- },[config,url,gaReady,ymReady]);
+ },[config,url,ymReady]);
  useEffect(()=>{
   if(!config||!onDomain)return;
   // Keep public and private pages in separate documents in BOTH directions.
@@ -33,7 +32,7 @@ export function SiteAnalytics({config}:{config:AnalyticsConfig|null}){
  },[config,url,onDomain]);
  if(!config||!url)return null;
  return <>
-  {config.googleId&&<><Script id="shards-ga-init" strategy="afterInteractive">{googleBootstrap(config.googleId,url)}</Script><Script id="shards-ga-loader" src={`https://www.googletagmanager.com/gtag/js?id=${config.googleId}`} strategy="afterInteractive" onReady={()=>setGaReady(true)}/></>}
+  {config.googleId&&<><Script id="shards-ga-init" strategy="afterInteractive">{googleBootstrap(config.googleId)}</Script><Script id="shards-ga-loader" src={`https://www.googletagmanager.com/gtag/js?id=${config.googleId}`} strategy="afterInteractive"/></>}
   {config.yandexId&&<Script id="shards-ym-init" strategy="afterInteractive" onReady={()=>setYmReady(true)}>{yandexBootstrap(config.yandexId,config.webvisor,url)}</Script>}
  </>;
 }

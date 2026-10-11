@@ -29,17 +29,16 @@ in production on `https://shardsmarket.com`, on the home, catalog and legal
 pages. Account, cart, payment and auth pages do not load counters. Navigation
 across public/private boundaries in either direction opens a fresh document,
 ending Webvisor and keeping browser Back from restoring private DOM in a tracked document.
-Forms containing Steam login, email and OTP are masked. Manual page views omit
-query strings, fragments and external referrers.
+Forms containing Steam login, email and OTP are masked. Yandex manual page views
+omit query strings, fragments and external referrers.
 
-Before setting `ANALYTICS_GA_MANUAL_PAGEVIEWS_CONFIRMED=true`, disable automatic
-page views based on browser history in the GA4 web stream's Enhanced Measurement
-settings. Until confirmed, GA remains disabled independently of Yandex.
-`send_page_view:false` alone does not disable automatic history events; see
-[Google's page-view documentation](https://developers.google.com/analytics/devguides/collection/ga4/views).
-Local browser tests intercept both loaders: they verify one application page-view
-per public route and no tracker in the private document, not real delivery to
-the analytics dashboards.
+GA4 uses the same integration as Frags and Skindrop: standard `gtag('config', id)`
+initialization and Enhanced Measurement for SPA history changes. The application
+sends no manual GA4 `page_view` events and requires no manual-pageview confirmation
+flag. GA4 collects public page URLs through its standard automatic measurement.
+Local browser tests intercept both loaders: they verify a single GA initialization,
+no duplicate application page views, Yandex route hits and no tracker in private
+documents. Real provider delivery must be checked separately.
 
 Workflow строго выполняет checkout → копирование `.env` и chmod → `docker compose build` → `docker compose up -d` → удаление `.env` через `if: always()`. Concurrency `shardsmarket-stage` исключает два одновременных деплоя. Отдельных status/health шагов, `down` или `--no-cache` нет. Существующий CI lint/test/build сохранён отдельно.
 

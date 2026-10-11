@@ -9,7 +9,7 @@ test('VV-162 section order, copy, deferred skins and legal shells',async({page})
  await expect(page.locator('header a[aria-label="Отложенные"]')).toHaveAttribute('href','/catalog?saved=1');
  for(const [url,title] of [['/privacy','Политика конфиденциальности'],['/terms','Пользовательское соглашение']]){await page.goto(url);await expect(page.getByRole('heading',{name:title})).toBeVisible();await expect(page.locator('meta[name=robots]')).toHaveAttribute('content','noindex, follow');await expect(page.locator('main p')).toHaveCount(0);}
 });
-test('analytics sanitizes public SPA hits and is absent in a fresh private document',async({page})=>{
+test('analytics initializes automatic GA once without manual duplicates and isolates private documents',async({page})=>{
  // The target origin is simulated locally; never contact the real site/counters.
  await page.route('https://shardsmarket.com/**',async route=>{const url=new URL(route.request().url());const response=await route.fetch({url:'http://127.0.0.1:5198'+url.pathname+url.search});await route.fulfill({response});});
  let googleLoads=0,ymLoads=0;
@@ -17,16 +17,17 @@ test('analytics sanitizes public SPA hits and is absent in a fresh private docum
  await page.route('https://mc.yandex.ru/**',route=>{ymLoads++;return route.fulfill({contentType:'application/javascript',body:'/* intercepted Metrika loader */'});});
  await page.emulateMedia({reducedMotion:'reduce'});await page.goto('https://shardsmarket.com/?session=DO_NOT_SEND');
  const pageViews=()=>page.evaluate(()=>((window as unknown as {dataLayer?:IArguments[]}).dataLayer??[]).map(args=>Array.from(args)).filter(args=>args[0]==='event'&&args[1]==='page_view'));
- await expect.poll(async()=>(await pageViews()).length).toBe(1);expect(JSON.stringify(await pageViews())).not.toContain('DO_NOT_SEND');
+ const configurations=()=>page.evaluate(()=>((window as unknown as {dataLayer?:IArguments[]}).dataLayer??[]).map(args=>Array.from(args)).filter(args=>args[0]==='config'));
+ await expect.poll(configurations).toEqual([['config','G-XWF1ZMQBL1']]);expect(await pageViews()).toEqual([]);
  await expect(page.locator('#steam form')).toHaveClass(/ym-hide-content/);
- await page.locator('.hero-actions a[href="/catalog"]').click();await expect(page).toHaveURL('https://shardsmarket.com/catalog');await expect.poll(async()=>(await pageViews()).length).toBe(2);
+ await page.locator('.hero-actions a[href="/catalog"]').click();await expect(page).toHaveURL('https://shardsmarket.com/catalog');expect(await pageViews()).toEqual([]);await expect.poll(configurations).toEqual([['config','G-XWF1ZMQBL1']]);
  expect(googleLoads).toBe(1);expect(ymLoads).toBe(1);
  await page.locator('header a[href="/cart"]').click();await expect(page).toHaveURL('https://shardsmarket.com/cart');await expect.poll(()=>page.evaluate(()=>typeof (window as unknown as {dataLayer?:unknown}).dataLayer)).toBe('undefined');
  expect(googleLoads).toBe(1);expect(ymLoads).toBe(1);
  // A document originating on a private page must not gain trackers that survive Back.
  await page.locator('header a[href="/catalog"]').click();
  await expect(page).toHaveURL('https://shardsmarket.com/catalog');
- await expect.poll(async()=>(await pageViews()).length).toBe(1);
+ await expect.poll(configurations).toEqual([['config','G-XWF1ZMQBL1']]);expect(await pageViews()).toEqual([]);
  await page.goBack();await expect(page).toHaveURL('https://shardsmarket.com/cart');
  await expect.poll(()=>page.evaluate(()=>typeof (window as unknown as {dataLayer?:unknown}).dataLayer)).toBe('undefined');
 });
