@@ -461,6 +461,8 @@ export const cartBundles = pgTable("cart_bundles", {
 export const orders = pgTable(
   "orders",
   {
+    checkoutQuoteId: uuid("checkout_quote_id"),
+    responseSnapshot: jsonb("response_snapshot"),
     id: uuid("id").defaultRandom().primaryKey(),
     userId: text("user_id").notNull(),
     idempotencyKey: text("idempotency_key").notNull(),
@@ -472,6 +474,7 @@ export const orders = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
+    uniqueIndex("orders_checkout_quote_uidx").on(table.checkoutQuoteId),
     uniqueIndex("orders_user_idempotency_uidx").on(table.userId, table.idempotencyKey),
     index("orders_user_created_idx").on(table.userId, table.createdAt),
     index("orders_status_idx").on(table.status),
@@ -481,6 +484,7 @@ export const orders = pgTable(
 export const orderLines = pgTable(
   "order_lines",
   {
+    commerceSnapshot: jsonb("commerce_snapshot"),
     id: uuid("id").defaultRandom().primaryKey(),
     orderId: uuid("order_id").notNull(),
     lineIndex: integer("line_index").notNull(),
@@ -505,6 +509,7 @@ export const orderLines = pgTable(
 export const fulfillmentCommands = pgTable(
   "fulfillment_commands",
   {
+    providerOperationId: uuid("provider_operation_id").defaultRandom().notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
     orderId: uuid("order_id").notNull(),
     orderLineId: uuid("order_line_id").notNull(),
@@ -522,6 +527,7 @@ export const fulfillmentCommands = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
+    uniqueIndex("fulfillment_commands_operation_uidx").on(table.providerOperationId),
     uniqueIndex("fulfillment_commands_order_line_type_uidx").on(table.orderLineId, table.commandType),
     uniqueIndex("fulfillment_commands_provider_idempotency_uidx").on(table.provider, table.idempotencyKey),
     index("fulfillment_commands_order_idx").on(table.orderId),

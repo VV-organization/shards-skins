@@ -232,6 +232,13 @@
       "when": 1791736905778,
       "tag": "0032_shards_commerce_quotes",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1791737435309,
+      "tag": "0033_shards_order_snapshots",
+      "breakpoints": true
     }
   ]
 }

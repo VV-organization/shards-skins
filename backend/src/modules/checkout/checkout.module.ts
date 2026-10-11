@@ -1,3 +1,5 @@
+import {QuotesModule} from "../quotes/quotes.module";
+import {QuotedCheckoutService} from "./quoted-checkout.service";
 import { BundlesModule } from "../bundles/bundles.module";
 import { Module } from "@nestjs/common";
 
@@ -13,9 +15,9 @@ import { CheckoutController } from "./checkout.controller";
 import { CheckoutService } from "./checkout.service";
 
 @Module({
-  imports: [BundlesModule, AppConfigModule, DatabaseModule, CatalogModule, FulfillmentModule, UsersModule, WalletModule, SessionsModule, CartModule],
+  imports: [QuotesModule, BundlesModule, AppConfigModule, DatabaseModule, CatalogModule, FulfillmentModule, UsersModule, WalletModule, SessionsModule, CartModule],
   controllers: [CheckoutController],
-  providers: [CheckoutService],
-  exports: [CheckoutService],
+  providers: [QuotedCheckoutService, CheckoutService],
+  exports: [QuotedCheckoutService, CheckoutService],
 })
 export class CheckoutModule {}

@@ -6,7 +6,7 @@ describe("OpenAPI contract", () => {
   it("documents checkout request body and idempotency header", async () => {
     const document = JSON.parse(await createOpenApiJson()) as {
       paths: {
-        "/checkout"?: {
+        "/checkout/cart"?: {
           post?: {
             parameters?: Array<{ name: string; in: string; required?: boolean }>;
             requestBody?: {
@@ -25,7 +25,7 @@ describe("OpenAPI contract", () => {
       };
     };
 
-    const checkout = document.paths["/checkout"]?.post;
+    const checkout = document.paths["/checkout/cart"]?.post;
     expect(checkout?.parameters).toContainEqual(expect.objectContaining({
       name: "idempotency-key",
       in: "header",
@@ -33,16 +33,10 @@ describe("OpenAPI contract", () => {
     }));
     expect(checkout?.requestBody?.required).toBe(true);
     expect(checkout?.requestBody?.content?.["application/json"]?.schema).toMatchObject({
-      required: ["items", "acceptedTotalCoinMinor"],
+      required: ["quoteId", "cartVersion"],
       properties: {
-        acceptedTotalCoinMinor: {
-          type: "integer",
-          minimum: 1,
-        },
-        items: {
-          type: "array",
-          minItems: 1,
-        },
+        cartVersion: { type: "integer", minimum: 0 },
+        quoteId: { type: "string" },
       },
     });
   });
@@ -108,13 +102,8 @@ describe("OpenAPI contract", () => {
       required: true,
     }));
     expect(document.paths["/checkout/cart"]?.post?.requestBody?.content?.["application/json"]?.schema).toMatchObject({
-      required: ["acceptedTotalCoinMinor"],
-      properties: {
-        acceptedTotalCoinMinor: {
-          type: "integer",
-          minimum: 1,
-        },
-      },
+      required: ["quoteId", "cartVersion"],
+      properties: { quoteId: {type:"string"}, cartVersion: {type:"integer",minimum:0} },
     });
   });
 

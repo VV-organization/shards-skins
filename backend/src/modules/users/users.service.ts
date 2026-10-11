@@ -17,7 +17,7 @@ export type CustomerUser = {
   };
 };
 
-type EncryptedSteamTradeCredential = {
+export type EncryptedSteamTradeCredential = {
   partner: string;
   ciphertext: string;
   nonce: string;
@@ -45,7 +45,7 @@ function encryptCredential(credential: SteamTradeCredential): EncryptedSteamTrad
   };
 }
 
-function decryptCredential(envelope: EncryptedSteamTradeCredential): SteamTradeCredential {
+export function decryptCredential(envelope: EncryptedSteamTradeCredential): SteamTradeCredential {
   const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), Buffer.from(envelope.nonce, "base64url"));
   decipher.setAuthTag(Buffer.from(envelope.authTag, "base64url"));
   const plaintext = Buffer.concat([

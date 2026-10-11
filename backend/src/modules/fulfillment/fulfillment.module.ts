@@ -30,6 +30,6 @@ import { FulfillmentService } from "./fulfillment.service";
     FulfillmentHistoryService,
     FulfillmentService,
   ],
-  exports: [FulfillmentHistoryService, FulfillmentService],
+  exports: [SihClient, FulfillmentHistoryService, FulfillmentService],
 })
 export class FulfillmentModule {}
