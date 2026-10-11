@@ -1,0 +1,202 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1785148482309,
+      "tag": "0000_init_idempotency_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785149236461,
+      "tag": "0001_identity_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785156662670,
+      "tag": "0002_catalog_products",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785176711163,
+      "tag": "0003_supplier_listings",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785178418107,
+      "tag": "0004_pricing_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785225519000,
+      "tag": "0005_catalog_supplier_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785281330000,
+      "tag": "0006_wallet_checkout",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785283120000,
+      "tag": "0007_server_cart",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785285200000,
+      "tag": "0008_payments_top_up",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785313861000,
+      "tag": "0009_fulfillment_commands",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785315956000,
+      "tag": "0010_fulfillment_provider_attempts",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785322400000,
+      "tag": "0011_fulfillment_command_line_type_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1785488569000,
+      "tag": "0012_disable_non_cs2_seed_skins",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1785494081489,
+      "tag": "0013_catalog_supplier_item_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1785508800000,
+      "tag": "0014_catalog_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1786463606447,
+      "tag": "0015_apple-gift-cards",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1786640340000,
+      "tag": "0016_vv-admin-integration-outbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786715700000,
+      "tag": "0017_delete_duplicate_apple_gift_card_variants",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1786717500000,
+      "tag": "0018_price_apple_gift_cards_by_fx",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1786721400000,
+      "tag": "0019_sync_apple_gift_cards_from_plati",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1786726800000,
+      "tag": "0020_rename_apple_gift_card_regions",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788720000000,
+      "tag": "0021_steam_refill_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1788728400000,
+      "tag": "0022_payment_attempt_parent_check",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788956277091,
+      "tag": "0023_steam_refill_fee_terms",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790790000000,
+      "tag": "0024_frags_cs2_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790790000001,
+      "tag": "0025_frags_seed_presentation",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790790000002,
+      "tag": "0026_frags_bundles",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1790899200000,
+      "tag": "0027_frags_sih_markup_25",
+      "breakpoints": true
+    }
+  ]
+}

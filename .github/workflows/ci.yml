@@ -1,0 +1,21 @@
+name: Shards CI
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - run: npm --prefix backend ci
+      - run: npm --prefix frontend ci
+      - run: npm run verify
+      - run: docker compose -f compose.local.yml up -d --wait postgres-test
+      - run: npm --prefix backend run test:integration
+        env:
+          SHARDS_TEST_DATABASE_URL: postgres://shards_test:shards_test_local_only@127.0.0.1:55440/shards_test

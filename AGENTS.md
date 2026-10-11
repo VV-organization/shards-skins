@@ -1,28 +1,9 @@
-# Shards — правила проекта
-- В пользовательском интерфейсе не писать «демо», «локальный кабинет», про отсутствие интеграций и технические подключения. Использовать естественные тексты о действиях пользователя; ошибки описывать через фактический результат операции, без имитации успешной оплаты или Steam-входа.
-- Не ставить точки в конце заголовков и строк многострочных заголовков.
-- При отличии от Drops оценивать визуальную композицию и похожесть блоков в браузере. Структуру и состав элементов каталога, покупки, двух пополнений сразу после первого экрана и кабинета сохранять; для них допустимы только визуальные изменения. Перестраивать сценарии можно только у дополнительных механик.
-- Покупка подарочных карт Apple удалена по запросу пользователя; не возвращать блок и ссылки на него.
-- Название проекта и внутренняя валюта — Shards. Курс: 1 ₽ = 1,6 Shards; пересчёт в целых минимальных единицах, с округлением половины вверх. При изменении валюты сохранять рублёвую стоимость товаров.
-- Выполнить семь этапов project-prompts.md, пользователь уже поручил реализацию после промптов.
-- Соседние проекты читать, не менять. Не копировать секреты, .git, .env и конфигурацию публикации.
-- Структура Flare; визуальные источники только Spectra Lab и Butter.
-- Новые GitHub-репозитории — public VV-organization/<name>, если пользователь явно не просит private.
-- Любое добавление → видимое нижнее подтверждение со ссылкой на корзину и закрытием, внутри dialog при quick view, aria-live.
-- Добавленный товар имеет рабочую ссылку «Перейти в корзину» на карточке, в quick view, на товаре и в комплекте.
-- Проверять add → confirmation → cart → item, duplicate prevention, reload, mobile и keyboard.
-- В соседних карточках и панелях выравнивать однотипные основные кнопки по общей горизонтали; при разной высоте содержимого прижимать блок действий к общему низу ряда. Проверять визуально на desktop и mobile.
-- Центрировать изображения товаров во всех вариантах карточек через единый стиль изображения; проверять каталог, подборки и мобильные карточки.
-- Все выпадающие списки оформлять единым компонентом в стилистике сайта, включая сортировку, сравнение и дуэт; проверять клавиатуру, выбранное значение, закрытие и границы экрана на мобильном.
-- Анимация появления охватывает каждый видимый объект, включая подписи, цены, иконки, поля, линии, декоративные слои и динамические состояния. Сначала изучать движение референсов; проверять реальное изменение стилей во времени в браузере, а не только наличие классов. Сохранять reduced-motion и доступность с клавиатуры.
-- Не выдавать локальный кабинет за Steam-сессию, не имитировать оплату, остатки, отзывы и выдачу.
+# Shards commerce
 
-<!-- BEGIN:nextjs-agent-rules -->
-
-# This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->
+- Preserve the designer frontend composition, typography, colors, assets, animation and responsive behavior. Approved changes: remove skin float, real authentication, wallet-only skin checkout, direct Steam payment and honest operation states.
+- Follow docs/superpowers/specs/2026-10-11-shards-commerce-design.md and the corresponding implementation plan. User authorized implementation on 2026-10-11.
+- Skin purchases use internal Shards only. Direct Steam refill never changes the Shards wallet. Rate: 1 RUB = 1.6 Shards, integer minor units.
+- Read adjacent repositories only. Never copy secrets, .env files, production data, Git metadata or deployment configuration.
+- Real provider payments, fulfillment, production changes and deployment require separate authorization. New money-moving features default disabled.
+- Node 24. Run relevant unit/integration tests, typecheck, lint, build and API contract checks. Destructive DB tests use SHARDS_TEST_DATABASE_URL and only isolated local shards_test owned by shards_test.
+- frontend/AGENTS.md applies to visual and Next.js work. Current user-approved commerce spec supersedes historical prototype instructions.

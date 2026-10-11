@@ -1,0 +1,3946 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/health/live": {
+      "get": {
+        "operationId": "HealthController_live",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "service"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok"
+                      ]
+                    },
+                    "service": {
+                      "type": "string",
+                      "enum": [
+                        "shards-api"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "HealthController_ready",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "service",
+                    "dependencies"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok",
+                        "degraded"
+                      ]
+                    },
+                    "service": {
+                      "type": "string",
+                      "enum": [
+                        "shards-api"
+                      ]
+                    },
+                    "dependencies": {
+                      "type": "object",
+                      "required": [
+                        "postgres",
+                        "redis"
+                      ],
+                      "properties": {
+                        "postgres": {
+                          "type": "string",
+                          "enum": [
+                            "ok",
+                            "not_configured",
+                            "unavailable"
+                          ]
+                        },
+                        "redis": {
+                          "type": "string",
+                          "enum": [
+                            "ok",
+                            "not_configured",
+                            "unavailable"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/health/capabilities": {
+      "get": {
+        "operationId": "HealthController_capabilities",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "checkoutEnabled",
+                    "coinsTopUpEnabled",
+                    "skinFulfillmentEnabled",
+                    "steamRefillEnabled",
+                    "reasons"
+                  ],
+                  "properties": {
+                    "checkoutEnabled": {
+                      "type": "boolean"
+                    },
+                    "coinsTopUpEnabled": {
+                      "type": "boolean"
+                    },
+                    "skinFulfillmentEnabled": {
+                      "type": "boolean"
+                    },
+                    "steamRefillEnabled": {
+                      "type": "boolean"
+                    },
+                    "reasons": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/admin/operations/overview": {
+      "get": {
+        "operationId": "AdminController_overview",
+        "parameters": [
+          {
+            "name": "X-Admin-Token",
+            "in": "header",
+            "description": "Backend-only admin token loaded from ADMIN_API_TOKEN_FILE.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "generatedAt",
+                    "payments",
+                    "orders",
+                    "fulfillment",
+                    "webhooks"
+                  ],
+                  "properties": {
+                    "generatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "payments": {
+                      "type": "object",
+                      "required": [
+                        "manualReview"
+                      ],
+                      "properties": {
+                        "manualReview": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "userId",
+                              "status",
+                              "provider",
+                              "providerStatus",
+                              "coinAmountMinor",
+                              "fiatAmountMinor",
+                              "fiatCurrency",
+                              "manualReviewReason",
+                              "createdAt",
+                              "updatedAt"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "userId": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "provider": {
+                                "type": "string"
+                              },
+                              "providerStatus": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "coinAmountMinor": {
+                                "type": "integer"
+                              },
+                              "fiatAmountMinor": {
+                                "type": "integer"
+                              },
+                              "fiatCurrency": {
+                                "type": "string"
+                              },
+                              "manualReviewReason": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "orders": {
+                      "type": "object",
+                      "required": [
+                        "problem"
+                      ],
+                      "properties": {
+                        "problem": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "userId",
+                              "status",
+                              "totalCoinMinor",
+                              "lineCount",
+                              "openLineCount",
+                              "createdAt",
+                              "updatedAt"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "userId": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "totalCoinMinor": {
+                                "type": "integer"
+                              },
+                              "lineCount": {
+                                "type": "integer"
+                              },
+                              "openLineCount": {
+                                "type": "integer"
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "fulfillment": {
+                      "type": "object",
+                      "required": [
+                        "commands"
+                      ],
+                      "properties": {
+                        "commands": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "orderId",
+                              "orderLineId",
+                              "provider",
+                              "commandType",
+                              "status",
+                              "lastErrorCode",
+                              "lastAttemptOperation",
+                              "lastAttemptStatus",
+                              "createdAt",
+                              "updatedAt"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "orderId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "orderLineId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "provider": {
+                                "type": "string"
+                              },
+                              "commandType": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "lastErrorCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "lastAttemptOperation": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "lastAttemptStatus": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "webhooks": {
+                      "type": "object",
+                      "required": [
+                        "problem"
+                      ],
+                      "properties": {
+                        "problem": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "provider",
+                              "providerEventId",
+                              "status",
+                              "signatureStatus",
+                              "receivedAt",
+                              "processedAt"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "provider": {
+                                "type": "string"
+                              },
+                              "providerEventId": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "signatureStatus": {
+                                "type": "string"
+                              },
+                              "receivedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "processedAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/operations/payments/reconcile": {
+      "post": {
+        "operationId": "AdminController_reconcilePayments",
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "description": "Unique admin operation key. Reusing the same key with the same body returns duplicate without rerunning provider reconciliation.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Admin-Token",
+            "in": "header",
+            "description": "Backend-only admin token loaded from ADMIN_API_TOKEN_FILE.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reason"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 500
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "idempotencyKey",
+                    "result"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "processed",
+                        "duplicate"
+                      ]
+                    },
+                    "idempotencyKey": {
+                      "type": "string"
+                    },
+                    "result": {
+                      "oneOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "required": [
+                            "checked",
+                            "credited",
+                            "errors",
+                            "failed",
+                            "ignored",
+                            "manualReview",
+                            "steamRefillsCreated",
+                            "unmatched"
+                          ],
+                          "properties": {
+                            "checked": {
+                              "type": "integer"
+                            },
+                            "credited": {
+                              "type": "integer"
+                            },
+                            "errors": {
+                              "type": "integer"
+                            },
+                            "failed": {
+                              "type": "integer"
+                            },
+                            "ignored": {
+                              "type": "integer"
+                            },
+                            "manualReview": {
+                              "type": "integer"
+                            },
+                            "steamRefillsCreated": {
+                              "type": "integer"
+                            },
+                            "unmatched": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/operations/fulfillment/reconcile": {
+      "post": {
+        "operationId": "AdminController_reconcileFulfillment",
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "description": "Unique admin operation key. Reusing the same key with the same body returns duplicate without rerunning SIH reconciliation.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Admin-Token",
+            "in": "header",
+            "description": "Backend-only admin token loaded from ADMIN_API_TOKEN_FILE.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reason"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 500
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "idempotencyKey",
+                    "result"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "processed",
+                        "duplicate"
+                      ]
+                    },
+                    "idempotencyKey": {
+                      "type": "string"
+                    },
+                    "result": {
+                      "oneOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "required": [
+                            "checked",
+                            "commands",
+                            "errors",
+                            "reconciled"
+                          ],
+                          "properties": {
+                            "checked": {
+                              "type": "integer"
+                            },
+                            "commands": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "required": [
+                                  "commandId",
+                                  "providerStatus"
+                                ],
+                                "properties": {
+                                  "commandId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "providerStatus": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            },
+                            "errors": {
+                              "type": "integer"
+                            },
+                            "reconciled": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/fulfillment/me/trades": {
+      "get": {
+        "operationId": "FulfillmentHistoryController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "events"
+                  ],
+                  "properties": {
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "createdAt",
+                          "direction",
+                          "title",
+                          "itemId",
+                          "orderNumber",
+                          "status"
+                        ],
+                        "properties": {
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "direction": {
+                            "type": "string",
+                            "enum": [
+                              "purchase",
+                              "withdrawal"
+                            ]
+                          },
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "itemId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "orderNumber": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "pending",
+                              "processing",
+                              "trade_protection",
+                              "completed"
+                            ]
+                          },
+                          "title": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Fulfillment"
+        ]
+      }
+    },
+    "/session/me": {
+      "get": {
+        "operationId": "SessionsController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "steam"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "steam": {
+                      "type": "object",
+                      "required": [
+                        "connected"
+                      ],
+                      "properties": {
+                        "connected": {
+                          "type": "boolean"
+                        },
+                        "steamId64": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "email": {
+                      "type": "object",
+                      "required": [
+                        "address",
+                        "verified"
+                      ],
+                      "properties": {
+                        "address": {
+                          "type": "string"
+                        },
+                        "verified": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
+    "/session/csrf": {
+      "get": {
+        "operationId": "SessionsController_csrf",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "token"
+                  ],
+                  "properties": {
+                    "token": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
+    "/session/logout": {
+      "post": {
+        "operationId": "SessionsController_logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Sessions"
+        ]
+      }
+    },
+    "/wallet/me/transactions": {
+      "get": {
+        "operationId": "WalletController_transactions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "transactions"
+                  ],
+                  "properties": {
+                    "transactions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "amountCoinMinor",
+                          "balanceAfterCoinMinor",
+                          "createdAt",
+                          "direction",
+                          "id",
+                          "reason",
+                          "status"
+                        ],
+                        "properties": {
+                          "amountCoinMinor": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "balanceAfterCoinMinor": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "direction": {
+                            "type": "string",
+                            "enum": [
+                              "credit",
+                              "debit"
+                            ]
+                          },
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "orderId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "reason": {
+                            "type": "string",
+                            "enum": [
+                              "top_up",
+                              "purchase"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "completed"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/wallet/me": {
+      "get": {
+        "operationId": "WalletController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "postedCoinMinor",
+                    "heldCoinMinor",
+                    "availableCoinMinor"
+                  ],
+                  "properties": {
+                    "postedCoinMinor": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "heldCoinMinor": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "availableCoinMinor": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Wallet"
+        ]
+      }
+    },
+    "/payments/top-up/sessions": {
+      "post": {
+        "operationId": "PaymentsController_createTopUpSession",
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "description": "Unique customer-scoped top-up session key.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "coinAmountMinor"
+                ],
+                "properties": {
+                  "coinAmountMinor": {
+                    "type": "integer",
+                    "minimum": 10000,
+                    "maximum": 10000000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "userId",
+                    "status",
+                    "provider",
+                    "coinAmountMinor",
+                    "fiatAmountMinor",
+                    "fiatCurrency",
+                    "rate",
+                    "checkoutUrl"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "userId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "provider_configuration_required",
+                        "provider_creation_pending",
+                        "checkout_pending",
+                        "paid",
+                        "failed",
+                        "manual_review"
+                      ]
+                    },
+                    "provider": {
+                      "type": "string",
+                      "enum": [
+                        "arc_pay"
+                      ]
+                    },
+                    "coinAmountMinor": {
+                      "type": "integer",
+                      "minimum": 10000,
+                      "maximum": 10000000
+                    },
+                    "fiatAmountMinor": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "fiatCurrency": {
+                      "type": "string",
+                      "enum": [
+                        "RUB"
+                      ]
+                    },
+                    "rate": {
+                      "type": "object",
+                      "required": [
+                        "fiatMinor",
+                        "coinMinor"
+                      ],
+                      "properties": {
+                        "fiatMinor": {
+                          "type": "integer",
+                          "enum": [
+                            100
+                          ]
+                        },
+                        "coinMinor": {
+                          "type": "integer",
+                          "enum": [
+                            150
+                          ]
+                        }
+                      }
+                    },
+                    "checkoutUrl": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/steam-refill/sessions": {
+      "post": {
+        "operationId": "PaymentsController_createSteamRefillSession",
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "description": "Unique customer-scoped Steam refill payment session key.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "amountRub",
+                  "email",
+                  "steamLogin"
+                ],
+                "properties": {
+                  "amountRub": {
+                    "type": "integer",
+                    "minimum": 50,
+                    "maximum": 9433
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "minLength": 3,
+                    "maxLength": 254
+                  },
+                  "steamLogin": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 64
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "userId",
+                    "status",
+                    "provider",
+                    "amountRubMinor",
+                    "feeRubMinor",
+                    "fiatAmountMinor",
+                    "fiatCurrency",
+                    "steamLogin",
+                    "checkoutUrl"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "userId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "provider_configuration_required",
+                        "provider_creation_pending",
+                        "checkout_pending",
+                        "paid",
+                        "failed",
+                        "manual_review"
+                      ]
+                    },
+                    "provider": {
+                      "type": "string",
+                      "enum": [
+                        "arc_pay"
+                      ]
+                    },
+                    "amountRubMinor": {
+                      "type": "integer",
+                      "minimum": 5000,
+                      "maximum": 943300
+                    },
+                    "feeRubMinor": {
+                      "type": "integer",
+                      "minimum": 250,
+                      "maximum": 47165
+                    },
+                    "fiatAmountMinor": {
+                      "type": "integer",
+                      "minimum": 5250,
+                      "maximum": 990465
+                    },
+                    "fiatCurrency": {
+                      "type": "string",
+                      "enum": [
+                        "RUB"
+                      ]
+                    },
+                    "steamLogin": {
+                      "type": "string"
+                    },
+                    "checkoutUrl": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/webhooks/arc-pay": {
+      "post": {
+        "operationId": "PaymentsWebhookController_handleArcPayWebhook",
+        "parameters": [
+          {
+            "name": "Webhook-Timestamp",
+            "in": "header",
+            "description": "Unix timestamp included in the payment provider signed payload.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Webhook-Signature",
+            "in": "header",
+            "description": "payment provider HMAC signature in `t=<unix>,v1=<hex>` format. Fake mode also accepts X-Arc-Pay-Signature.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Webhook-Id",
+            "in": "header",
+            "description": "Provider webhook idempotency id. In fake mode this may also be present in the JSON payload.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "processed",
+                        "duplicate",
+                        "ignored",
+                        "unmatched",
+                        "rejected"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/me/history": {
+      "get": {
+        "operationId": "PaymentHistoryController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentHistoryDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/auth/steam/start": {
+      "get": {
+        "operationId": "AuthController_startSteam",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/steam/callback": {
+      "get": {
+        "operationId": "AuthController_steamCallback",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/me/steam-trade-url": {
+      "put": {
+        "operationId": "UsersController_putSteamTradeUrl",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/me/steam-trade-url/status": {
+      "get": {
+        "operationId": "UsersController_steamTradeUrlStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "configured"
+                  ],
+                  "properties": {
+                    "configured": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/catalog": {
+      "get": {
+        "operationId": "CatalogController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "facets",
+                    "pricing",
+                    "pagination"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "slug",
+                          "kind",
+                          "category",
+                          "productType",
+                          "title",
+                          "description",
+                          "price",
+                          "availability",
+                          "fulfillmentMode",
+                          "createdAt",
+                          "popularity",
+                          "meta",
+                          "keywords",
+                          "details"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "skins"
+                            ]
+                          },
+                          "category": {
+                            "type": "string"
+                          },
+                          "game": {
+                            "type": "string"
+                          },
+                          "productType": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "price": {
+                            "type": "object",
+                            "required": [
+                              "currency",
+                              "amountMinor",
+                              "scale",
+                              "display"
+                            ],
+                            "properties": {
+                              "currency": {
+                                "type": "string",
+                                "enum": [
+                                  "COINS"
+                                ]
+                              },
+                              "amountMinor": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "scale": {
+                                "type": "integer",
+                                "enum": [
+                                  2
+                                ]
+                              },
+                              "display": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "availability": {
+                            "type": "string",
+                            "enum": [
+                              "available",
+                              "on-request"
+                            ]
+                          },
+                          "fulfillmentMode": {
+                            "type": "string",
+                            "enum": [
+                              "automatic",
+                              "steam-trade",
+                              "manual"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "popularity": {
+                            "type": "integer"
+                          },
+                          "image": {
+                            "type": "string"
+                          },
+                          "imageAlt": {
+                            "type": "string"
+                          },
+                          "meta": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "keywords": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "details": {
+                            "type": "object",
+                            "required": [
+                              "specifications",
+                              "fulfillment"
+                            ],
+                            "properties": {
+                              "specifications": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "required": [
+                                    "label",
+                                    "value"
+                                  ],
+                                  "properties": {
+                                    "label": {
+                                      "type": "string"
+                                    },
+                                    "value": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              },
+                              "fulfillment": {
+                                "type": "object",
+                                "required": [
+                                  "title",
+                                  "description",
+                                  "requirements"
+                                ],
+                                "properties": {
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "requirements": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "facets": {
+                      "type": "object",
+                      "required": [
+                        "kinds",
+                        "games",
+                        "productTypes",
+                        "conditions",
+                        "fulfillmentModes",
+                        "availability"
+                      ],
+                      "properties": {
+                        "kinds": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "title"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "games": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "title"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "productTypes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "title"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "conditions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "title"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "fulfillmentModes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "title"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "availability": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "title"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "required": [
+                        "limit",
+                        "offset",
+                        "total",
+                        "hasMore"
+                      ],
+                      "properties": {
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "offset": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "hasMore": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "pricing": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Catalog"
+        ]
+      }
+    },
+    "/catalog/{slug}": {
+      "get": {
+        "operationId": "CatalogController_getBySlug",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "slug",
+                    "kind",
+                    "category",
+                    "productType",
+                    "title",
+                    "description",
+                    "price",
+                    "availability",
+                    "fulfillmentMode",
+                    "createdAt",
+                    "popularity",
+                    "meta",
+                    "keywords",
+                    "details"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "skins"
+                      ]
+                    },
+                    "category": {
+                      "type": "string"
+                    },
+                    "game": {
+                      "type": "string"
+                    },
+                    "productType": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "price": {
+                      "type": "object",
+                      "required": [
+                        "currency",
+                        "amountMinor",
+                        "scale",
+                        "display"
+                      ],
+                      "properties": {
+                        "currency": {
+                          "type": "string",
+                          "enum": [
+                            "COINS"
+                          ]
+                        },
+                        "amountMinor": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "scale": {
+                          "type": "integer",
+                          "enum": [
+                            2
+                          ]
+                        },
+                        "display": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "availability": {
+                      "type": "string",
+                      "enum": [
+                        "available",
+                        "on-request"
+                      ]
+                    },
+                    "fulfillmentMode": {
+                      "type": "string",
+                      "enum": [
+                        "automatic",
+                        "steam-trade",
+                        "manual"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "popularity": {
+                      "type": "integer"
+                    },
+                    "image": {
+                      "type": "string"
+                    },
+                    "imageAlt": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "keywords": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "details": {
+                      "type": "object",
+                      "required": [
+                        "specifications",
+                        "fulfillment"
+                      ],
+                      "properties": {
+                        "specifications": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "label",
+                              "value"
+                            ],
+                            "properties": {
+                              "label": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "fulfillment": {
+                          "type": "object",
+                          "required": [
+                            "title",
+                            "description",
+                            "requirements"
+                          ],
+                          "properties": {
+                            "title": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "requirements": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Catalog"
+        ]
+      }
+    },
+    "/cart": {
+      "get": {
+        "operationId": "CartController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "bundles",
+                    "totalCoinMinor"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "productId",
+                          "productSlug",
+                          "kind",
+                          "title",
+                          "quantity",
+                          "unitPriceCoinMinor",
+                          "lineTotalCoinMinor",
+                          "recipient"
+                        ],
+                        "properties": {
+                          "productId": {
+                            "type": "string"
+                          },
+                          "productSlug": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "skins",
+                              "steam",
+                              "apple_gift_card"
+                            ]
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50
+                          },
+                          "unitPriceCoinMinor": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "lineTotalCoinMinor": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "recipient": {
+                            "type": "object"
+                          }
+                        }
+                      }
+                    },
+                    "bundles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "title",
+                          "items",
+                          "originalTotalCoinMinor",
+                          "totalCoinMinor",
+                          "discountPercent",
+                          "availability"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "enum": [
+                              "mono",
+                              "chroma",
+                              "metal"
+                            ]
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "id",
+                                "slug",
+                                "kind",
+                                "category",
+                                "productType",
+                                "title",
+                                "description",
+                                "price",
+                                "availability",
+                                "fulfillmentMode",
+                                "createdAt",
+                                "popularity",
+                                "meta",
+                                "keywords",
+                                "details"
+                              ],
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "slug": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "skins"
+                                  ]
+                                },
+                                "category": {
+                                  "type": "string"
+                                },
+                                "game": {
+                                  "type": "string"
+                                },
+                                "productType": {
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "price": {
+                                  "type": "object",
+                                  "required": [
+                                    "currency",
+                                    "amountMinor",
+                                    "scale",
+                                    "display"
+                                  ],
+                                  "properties": {
+                                    "currency": {
+                                      "type": "string",
+                                      "enum": [
+                                        "COINS"
+                                      ]
+                                    },
+                                    "amountMinor": {
+                                      "type": "integer",
+                                      "minimum": 1
+                                    },
+                                    "scale": {
+                                      "type": "integer",
+                                      "enum": [
+                                        2
+                                      ]
+                                    },
+                                    "display": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "availability": {
+                                  "type": "string",
+                                  "enum": [
+                                    "available",
+                                    "on-request"
+                                  ]
+                                },
+                                "fulfillmentMode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "automatic",
+                                    "steam-trade",
+                                    "manual"
+                                  ]
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "popularity": {
+                                  "type": "integer"
+                                },
+                                "image": {
+                                  "type": "string"
+                                },
+                                "imageAlt": {
+                                  "type": "string"
+                                },
+                                "meta": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "keywords": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "details": {
+                                  "type": "object",
+                                  "required": [
+                                    "specifications",
+                                    "fulfillment"
+                                  ],
+                                  "properties": {
+                                    "specifications": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "required": [
+                                          "label",
+                                          "value"
+                                        ],
+                                        "properties": {
+                                          "label": {
+                                            "type": "string"
+                                          },
+                                          "value": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "fulfillment": {
+                                      "type": "object",
+                                      "required": [
+                                        "title",
+                                        "description",
+                                        "requirements"
+                                      ],
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "requirements": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "originalTotalCoinMinor": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "totalCoinMinor": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "discountPercent": {
+                            "type": "integer",
+                            "enum": [
+                              5
+                            ]
+                          },
+                          "availability": {
+                            "type": "string",
+                            "enum": [
+                              "available",
+                              "on-request"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "totalCoinMinor": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Cart"
+        ]
+      },
+      "delete": {
+        "operationId": "CartController_clear",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "bundles",
+                    "totalCoinMinor"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "productId",
+                          "productSlug",
+                          "kind",
+                          "title",
+                          "quantity",
+                          "unitPriceCoinMinor",
+                          "lineTotalCoinMinor",
+                          "recipient"
+                        ],
+                        "properties": {
+                          "productId": {
+                            "type": "string"
+                          },
+                          "productSlug": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "skins",
+                              "steam",
+                              "apple_gift_card"
+                            ]
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50
+                          },
+                          "unitPriceCoinMinor": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "lineTotalCoinMinor": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "recipient": {
+                            "type": "object"
+                          }
+                        }
+                      }
+                    },
+                    "bundles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "title",
+                          "items",
+                          "originalTotalCoinMinor",
+                          "totalCoinMinor",
+                          "discountPercent",
+                          "availability"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "enum": [
+                              "mono",
+                              "chroma",
+                              "metal"
+                            ]
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "id",
+                                "slug",
+                                "kind",
+                                "category",
+                                "productType",
+                                "title",
+                                "description",
+                                "price",
+                                "availability",
+                                "fulfillmentMode",
+                                "createdAt",
+                                "popularity",
+                                "meta",
+                                "keywords",
+                                "details"
+                              ],
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "slug": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "skins"
+                                  ]
+                                },
+                                "category": {
+                                  "type": "string"
+                                },
+                                "game": {
+                                  "type": "string"
+                                },
+                                "productType": {
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "price": {
+                                  "type": "object",
+                                  "required": [
+                                    "currency",
+                                    "amountMinor",
+                                    "scale",
+                                    "display"
+                                  ],
+                                  "properties": {
+                                    "currency": {
+                                      "type": "string",
+                                      "enum": [
+                                        "COINS"
+                                      ]
+                                    },
+                                    "amountMinor": {
+                                      "type": "integer",
+                                      "minimum": 1
+                                    },
+                                    "scale": {
+                                      "type": "integer",
+                                      "enum": [
+                                        2
+                                      ]
+                                    },
+                                    "display": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "availability": {
+                                  "type": "string",
+                                  "enum": [
+                                    "available",
+                                    "on-request"
+                                  ]
+                                },
+                                "fulfillmentMode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "automatic",
+                                    "steam-trade",
+                                    "manual"
+                                  ]
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "popularity": {
+                                  "type": "integer"
+                                },
+                                "image": {
+                                  "type": "string"
+                                },
+                                "imageAlt": {
+                                  "type": "string"
+                                },
+                                "meta": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "keywords": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "details": {
+                                  "type": "object",
+                                  "required": [
+                                    "specifications",
+                                    "fulfillment"
+                                  ],
+                                  "properties": {
+                                    "specifications": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "required": [
+                                          "label",
+                                          "value"
+                                        ],
+                                        "properties": {
+                                          "label": {
+                                            "type": "string"
+                                          },
+                                          "value": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "fulfillment": {
+                                      "type": "object",
+                                      "required": [
+                                        "title",
+                                        "description",
+                                        "requirements"
+                                      ],
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "requirements": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "originalTotalCoinMinor": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "totalCoinMinor": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "discountPercent": {
+                            "type": "integer",
+                            "enum": [
+                              5
+                            ]
+                          },
+                          "availability": {
+                            "type": "string",
+                            "enum": [
+                              "available",
+                              "on-request"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "totalCoinMinor": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Cart"
+        ]
+      }
+    },
+    "/cart/items/{productSlug}": {
+      "put": {
+        "operationId": "CartController_setItem",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "quantity"
+                ],
+                "properties": {
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50
+                  },
+                  "recipient": {
+                    "type": "object",
+                    "properties": {
+                      "steamLogin": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "bundles",
+                    "totalCoinMinor"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "productId",
+                          "productSlug",
+                          "kind",
+                          "title",
+                          "quantity",
+                          "unitPriceCoinMinor",
+                          "lineTotalCoinMinor",
+                          "recipient"
+                        ],
+                        "properties": {
+                          "productId": {
+                            "type": "string"
+                          },
+                          "productSlug": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "skins",
+                              "steam",
+                              "apple_gift_card"
+                            ]
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50
+                          },
+                          "unitPriceCoinMinor": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "lineTotalCoinMinor": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "recipient": {
+                            "type": "object"
+                          }
+                        }
+                      }
+                    },
+                    "bundles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "title",
+                          "items",
+                          "originalTotalCoinMinor",
+                          "totalCoinMinor",
+                          "discountPercent",
+                          "availability"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "enum": [
+                              "mono",
+                              "chroma",
+                              "metal"
+                            ]
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "id",
+                                "slug",
+                                "kind",
+                                "category",
+                                "productType",
+                                "title",
+                                "description",
+                                "price",
+                                "availability",
+                                "fulfillmentMode",
+                                "createdAt",
+                                "popularity",
+                                "meta",
+                                "keywords",
+                                "details"
+                              ],
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "slug": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "skins"
+                                  ]
+                                },
+                                "category": {
+                                  "type": "string"
+                                },
+                                "game": {
+                                  "type": "string"
+                                },
+                                "productType": {
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "price": {
+                                  "type": "object",
+                                  "required": [
+                                    "currency",
+                                    "amountMinor",
+                                    "scale",
+                                    "display"
+                                  ],
+                                  "properties": {
+                                    "currency": {
+                                      "type": "string",
+                                      "enum": [
+                                        "COINS"
+                                      ]
+                                    },
+                                    "amountMinor": {
+                                      "type": "integer",
+                                      "minimum": 1
+                                    },
+                                    "scale": {
+                                      "type": "integer",
+                                      "enum": [
+                                        2
+                                      ]
+                                    },
+                                    "display": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "availability": {
+                                  "type": "string",
+                                  "enum": [
+                                    "available",
+                                    "on-request"
+                                  ]
+                                },
+                                "fulfillmentMode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "automatic",
+                                    "steam-trade",
+                                    "manual"
+                                  ]
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "popularity": {
+                                  "type": "integer"
+                                },
+                                "image": {
+                                  "type": "string"
+                                },
+                                "imageAlt": {
+                                  "type": "string"
+                                },
+                                "meta": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "keywords": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "details": {
+                                  "type": "object",
+                                  "required": [
+                                    "specifications",
+                                    "fulfillment"
+                                  ],
+                                  "properties": {
+                                    "specifications": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "required": [
+                                          "label",
+                                          "value"
+                                        ],
+                                        "properties": {
+                                          "label": {
+                                            "type": "string"
+                                          },
+                                          "value": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "fulfillment": {
+                                      "type": "object",
+                                      "required": [
+                                        "title",
+                                        "description",
+                                        "requirements"
+                                      ],
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "requirements": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "originalTotalCoinMinor": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "totalCoinMinor": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "discountPercent": {
+                            "type": "integer",
+                            "enum": [
+                              5
+                            ]
+                          },
+                          "availability": {
+                            "type": "string",
+                            "enum": [
+                              "available",
+                              "on-request"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "totalCoinMinor": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Cart"
+        ]
+      },
+      "delete": {
+        "operationId": "CartController_removeItem",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "bundles",
+                    "totalCoinMinor"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "productId",
+                          "productSlug",
+                          "kind",
+                          "title",
+                          "quantity",
+                          "unitPriceCoinMinor",
+                          "lineTotalCoinMinor",
+                          "recipient"
+                        ],
+                        "properties": {
+                          "productId": {
+                            "type": "string"
+                          },
+                          "productSlug": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "skins",
+                              "steam",
+                              "apple_gift_card"
+                            ]
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50
+                          },
+                          "unitPriceCoinMinor": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "lineTotalCoinMinor": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "recipient": {
+                            "type": "object"
+                          }
+                        }
+                      }
+                    },
+                    "bundles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "title",
+                          "items",
+                          "originalTotalCoinMinor",
+                          "totalCoinMinor",
+                          "discountPercent",
+                          "availability"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "enum": [
+                              "mono",
+                              "chroma",
+                              "metal"
+                            ]
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "id",
+                                "slug",
+                                "kind",
+                                "category",
+                                "productType",
+                                "title",
+                                "description",
+                                "price",
+                                "availability",
+                                "fulfillmentMode",
+                                "createdAt",
+                                "popularity",
+                                "meta",
+                                "keywords",
+                                "details"
+                              ],
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "slug": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "skins"
+                                  ]
+                                },
+                                "category": {
+                                  "type": "string"
+                                },
+                                "game": {
+                                  "type": "string"
+                                },
+                                "productType": {
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "price": {
+                                  "type": "object",
+                                  "required": [
+                                    "currency",
+                                    "amountMinor",
+                                    "scale",
+                                    "display"
+                                  ],
+                                  "properties": {
+                                    "currency": {
+                                      "type": "string",
+                                      "enum": [
+                                        "COINS"
+                                      ]
+                                    },
+                                    "amountMinor": {
+                                      "type": "integer",
+                                      "minimum": 1
+                                    },
+                                    "scale": {
+                                      "type": "integer",
+                                      "enum": [
+                                        2
+                                      ]
+                                    },
+                                    "display": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "availability": {
+                                  "type": "string",
+                                  "enum": [
+                                    "available",
+                                    "on-request"
+                                  ]
+                                },
+                                "fulfillmentMode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "automatic",
+                                    "steam-trade",
+                                    "manual"
+                                  ]
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "popularity": {
+                                  "type": "integer"
+                                },
+                                "image": {
+                                  "type": "string"
+                                },
+                                "imageAlt": {
+                                  "type": "string"
+                                },
+                                "meta": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "keywords": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "details": {
+                                  "type": "object",
+                                  "required": [
+                                    "specifications",
+                                    "fulfillment"
+                                  ],
+                                  "properties": {
+                                    "specifications": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "required": [
+                                          "label",
+                                          "value"
+                                        ],
+                                        "properties": {
+                                          "label": {
+                                            "type": "string"
+                                          },
+                                          "value": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "fulfillment": {
+                                      "type": "object",
+                                      "required": [
+                                        "title",
+                                        "description",
+                                        "requirements"
+                                      ],
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "requirements": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "originalTotalCoinMinor": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "totalCoinMinor": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "discountPercent": {
+                            "type": "integer",
+                            "enum": [
+                              5
+                            ]
+                          },
+                          "availability": {
+                            "type": "string",
+                            "enum": [
+                              "available",
+                              "on-request"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "totalCoinMinor": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Cart"
+        ]
+      }
+    },
+    "/checkout": {
+      "post": {
+        "operationId": "CheckoutController_create",
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "description": "Unique customer-scoped checkout command key.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "items",
+                  "acceptedTotalCoinMinor"
+                ],
+                "properties": {
+                  "acceptedTotalCoinMinor": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "productSlug",
+                        "quantity"
+                      ],
+                      "properties": {
+                        "productSlug": {
+                          "type": "string"
+                        },
+                        "bundleId": {
+                          "type": "string",
+                          "enum": [
+                            "mono",
+                            "chroma",
+                            "metal"
+                          ]
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 50
+                        },
+                        "recipient": {
+                          "type": "object",
+                          "properties": {
+                            "steamLogin": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "userId",
+                    "status",
+                    "totalCoinMinor",
+                    "recipientSnapshots",
+                    "lines"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "userId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "held"
+                      ]
+                    },
+                    "totalCoinMinor": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "recipientSnapshots": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Checkout"
+        ]
+      }
+    },
+    "/checkout/cart": {
+      "post": {
+        "operationId": "CheckoutController_createFromServerCart",
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "description": "Unique customer-scoped checkout command key.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "acceptedTotalCoinMinor"
+                ],
+                "properties": {
+                  "acceptedTotalCoinMinor": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "userId",
+                    "status",
+                    "totalCoinMinor",
+                    "recipientSnapshots",
+                    "lines"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "userId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "held"
+                      ]
+                    },
+                    "totalCoinMinor": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "recipientSnapshots": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Checkout"
+        ]
+      }
+    },
+    "/inventory/me": {
+      "get": {
+        "operationId": "InventoryController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "orderId",
+                          "productSlug",
+                          "title",
+                          "unitPriceCoinMinor",
+                          "acquiredAt",
+                          "status",
+                          "actions"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "orderId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "productSlug": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "unitPriceCoinMinor": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "acquiredAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "owned"
+                            ]
+                          },
+                          "actions": {
+                            "type": "object",
+                            "required": [
+                              "sellToSite",
+                              "withdrawToSteam"
+                            ],
+                            "properties": {
+                              "sellToSite": {
+                                "type": "object",
+                                "required": [
+                                  "enabled",
+                                  "reason"
+                                ],
+                                "properties": {
+                                  "enabled": {
+                                    "type": "boolean"
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "enum": [
+                                      "available",
+                                      "not_supported",
+                                      "steam_trade_url_required"
+                                    ]
+                                  }
+                                }
+                              },
+                              "withdrawToSteam": {
+                                "type": "object",
+                                "required": [
+                                  "enabled",
+                                  "reason"
+                                ],
+                                "properties": {
+                                  "enabled": {
+                                    "type": "boolean"
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "enum": [
+                                      "available",
+                                      "not_supported",
+                                      "steam_trade_url_required"
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Inventory"
+        ]
+      }
+    },
+    "/.well-known/vv-admin/manifest.json": {
+      "get": {
+        "operationId": "IntegrationController_manifest",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "VV Admin Integration Protocol v1 manifest."
+          }
+        },
+        "tags": [
+          "Integration"
+        ]
+      }
+    },
+    "/admin/integration/readiness": {
+      "get": {
+        "operationId": "IntegrationController_readiness",
+        "parameters": [
+          {
+            "name": "X-Admin-Token",
+            "in": "header",
+            "description": "Backend-only admin token loaded from ADMIN_API_TOKEN_FILE.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Shards integration readiness for VV Admin."
+          }
+        },
+        "tags": [
+          "Integration"
+        ]
+      }
+    },
+    "/admin/integration/health/redis": {
+      "get": {
+        "operationId": "IntegrationController_redisHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Integration"
+        ]
+      }
+    },
+    "/admin/integration/health/top-up": {
+      "get": {
+        "operationId": "IntegrationController_topUpHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Integration"
+        ]
+      }
+    },
+    "/admin/integration/health/checkout": {
+      "get": {
+        "operationId": "IntegrationController_checkoutHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Integration"
+        ]
+      }
+    },
+    "/admin/integration/health/quote-storage": {
+      "get": {
+        "operationId": "IntegrationController_quoteStorageHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Integration"
+        ]
+      }
+    },
+    "/admin/integration/health/steam-refill": {
+      "get": {
+        "operationId": "IntegrationController_steamRefillHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Integration"
+        ]
+      }
+    },
+    "/admin/integration/health/catalog-visible": {
+      "get": {
+        "operationId": "IntegrationController_visibleCatalogHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Integration"
+        ]
+      }
+    },
+    "/admin/integration/health/catalog/{game}": {
+      "get": {
+        "operationId": "IntegrationController_catalogGameHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Integration"
+        ]
+      }
+    },
+    "/admin/integration/scenarios/checkout-payment-reached/run": {
+      "post": {
+        "operationId": "IntegrationController_runCheckoutPaymentReached",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Integration"
+        ]
+      }
+    },
+    "/orders/me": {
+      "get": {
+        "operationId": "OrdersController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "orders"
+                  ],
+                  "properties": {
+                    "orders": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "userId",
+                          "status",
+                          "totalCoinMinor",
+                          "recipientSnapshots",
+                          "createdAt",
+                          "lines"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "userId": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "held",
+                              "fulfilled",
+                              "partially_fulfilled",
+                              "failed",
+                              "manual_review"
+                            ]
+                          },
+                          "totalCoinMinor": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "recipientSnapshots": {
+                            "type": "array",
+                            "items": {
+                              "type": "object"
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "lines": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "id",
+                                "fulfillmentStage",
+                                "productSlug",
+                                "kind",
+                                "title",
+                                "quantity",
+                                "unitPriceCoinMinor",
+                                "recipientSnapshot"
+                              ],
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "fulfillmentStage": {
+                                  "type": "string",
+                                  "enum": [
+                                    "pending",
+                                    "trade_offer_sent",
+                                    "trade_protection",
+                                    "delivered",
+                                    "failed",
+                                    "needs_review"
+                                  ]
+                                },
+                                "productSlug": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "steam",
+                                    "skins"
+                                  ]
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "quantity": {
+                                  "type": "integer",
+                                  "enum": [
+                                    1
+                                  ]
+                                },
+                                "unitPriceCoinMinor": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "recipientSnapshot": {
+                                  "type": "object"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/auth/email/challenges": {
+      "post": {
+        "operationId": "EmailAuthController_requestChallenge",
+        "parameters": [],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "resendAvailableAt"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "resendAvailableAt": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "EmailAuth"
+        ]
+      }
+    },
+    "/auth/email/challenges/{challengeId}/verify": {
+      "post": {
+        "operationId": "EmailAuthController_verifyChallenge",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "EmailAuth"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Shards API",
+    "description": "Backend-owned API contract for Shards digital-goods storefront.",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "schemas": {
+      "PaymentHistoryItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "steam_refill",
+              "coins_top_up"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "provider_configuration_required",
+              "provider_creation_pending",
+              "checkout_pending",
+              "paid",
+              "failed",
+              "manual_review"
+            ]
+          },
+          "amountMinor": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "RUB"
+            ]
+          },
+          "orderId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "fulfillmentStatus": {
+            "type": "string",
+            "enum": [
+              "held",
+              "fulfilled",
+              "partially_fulfilled",
+              "failed",
+              "manual_review"
+            ],
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "amountMinor",
+          "currency",
+          "orderId",
+          "fulfillmentStatus",
+          "createdAt"
+        ]
+      },
+      "PaymentHistoryDto": {
+        "type": "object",
+        "properties": {
+          "payments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentHistoryItemDto"
+            }
+          }
+        },
+        "required": [
+          "payments"
+        ]
+      }
+    }
+  }
+}

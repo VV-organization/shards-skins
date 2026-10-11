@@ -1,0 +1,31 @@
+name: shards-local
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: shards
+      POSTGRES_USER: shards
+      POSTGRES_PASSWORD: shards_local_only
+    ports: ['127.0.0.1:55439:5432']
+    volumes: ['shards-postgres:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U shards -d shards']
+      interval: 2s
+      retries: 20
+  postgres-test:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: shards_test
+      POSTGRES_USER: shards_test
+      POSTGRES_PASSWORD: shards_test_local_only
+    ports: ['127.0.0.1:55440:5432']
+    tmpfs: ['/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U shards_test -d shards_test']
+      interval: 2s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    ports: ['127.0.0.1:56389:6379']
+volumes:
+  shards-postgres:

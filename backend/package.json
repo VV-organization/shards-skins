@@ -1,0 +1,71 @@
+{
+  "name": "shards-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --import tsx --watch src/main.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit --incremental false",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "smoke:commerce": "vitest run --config vitest.integration.config.ts src/smoke/commerce-flow.integration.spec.ts",
+    "acceptance:readiness": "tsx src/provider-acceptance-readiness.ts",
+    "acceptance:sih-catalog": "vitest run --config vitest.integration.config.ts src/modules/providers/sih/sih.sandbox.integration.spec.ts",
+    "catalog:promote-sih": "tsx src/catalog-promote-sih.ts",
+    "catalog:sync-all-games": "tsx src/catalog-sync-all-games.ts",
+    "catalog:sync-metadata": "tsx src/catalog-sync-metadata.ts",
+    "catalog:sync-sih": "tsx src/catalog-sync-sih.ts",
+    "catalog:sync-cs2-images": "tsx src/catalog-sync-cs2-images.ts",
+    "catalog:worker": "tsx src/catalog-sync-worker.ts",
+    "fulfillment:worker": "tsx src/fulfillment-worker.ts",
+    "notifications:worker": "tsx src/notifications-worker.ts",
+    "vv-admin:dispatcher": "tsx src/vv-admin-dispatcher-worker.ts",
+    "payments:reconcile": "tsx src/payments-reconcile.ts",
+    "wallet:reconcile": "tsx src/wallet-reconcile.ts",
+    "openapi:generate": "tsx src/openapi.ts",
+    "openapi:check": "tsx src/openapi.ts --check",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node --env-file-if-exists=.env node_modules/drizzle-kit/bin.cjs migrate",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build && npm run openapi:check"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/platform-express": "^11.1.6",
+    "@nestjs/swagger": "^11.2.0",
+    "bullmq": "^5.58.0",
+    "drizzle-orm": "0.45.2",
+    "ioredis": "^5.7.0",
+    "nodemailer": "^9.0.5",
+    "pg": "^8.16.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "^4.0.10"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@nestjs/testing": "^11.1.6",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.19.9",
+    "@types/nodemailer": "^8.0.1",
+    "@types/pg": "^8.15.5",
+    "@types/supertest": "^6.0.3",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^9.32.0",
+    "supertest": "^7.1.4",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.38.0",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "overrides": {
+    "brace-expansion": "5.0.8",
+    "js-yaml": "5.2.2"
+  }
+}
