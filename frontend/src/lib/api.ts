@@ -27,6 +27,7 @@ export class ApiClient {
     const scope=JSON.stringify([this.owner,purpose,intent]);
     let key=this.keys.get(scope);if(!key){key=crypto.randomUUID();this.keys.set(scope,key);}return key;
   }
+  pendingCommand(intent:string) {return this.owner?this.journal.pending(this.owner,intent):null;}
   async command<T>(intent:string,method:JournalCommand['method'],path:string,body:unknown):Promise<T> {
     const owner=this.owner;if(!owner)throw new ApiError(401,{code:'SESSION_REQUIRED'});
     const command=this.journal.begin(owner,intent,method,path,body);

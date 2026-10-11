@@ -88,19 +88,19 @@ function fulfillmentStage(row: OrderLineRow): OrderHistoryLineFulfillmentStage {
   const providerStatus = nestedString(row.latest_response_snapshot, ["status"]);
   const protectionStatus = nestedString(row.latest_response_snapshot, ["protection", "status"]);
   if (providerStatus === "finished" && protectionStatus === "processing") return "trade_protection";
-  if (row.line_status === "supplier_sent") return "trade_offer_sent";
+  if (row.line_status === "supplier_sent" || providerStatus === "sent") return "trade_offer_sent";
   return "pending";
 }
 
 function steamRefillPaymentHistoryStatus(status: SteamRefillPaymentHistoryRow["status"]): OrderHistoryStatus {
-  if (status === "paid") return "fulfilled";
+  if (status === "paid") return "held";
   if (status === "failed") return "failed";
   if (status === "manual_review" || status === "provider_configuration_required") return "manual_review";
   return "held";
 }
 
 function steamRefillPaymentFulfillmentStage(status: SteamRefillPaymentHistoryRow["status"]): OrderHistoryLineFulfillmentStage {
-  if (status === "paid") return "delivered";
+  if (status === "paid") return "pending";
   if (status === "failed") return "failed";
   if (status === "manual_review" || status === "provider_configuration_required") return "needs_review";
   return "pending";
@@ -195,7 +195,7 @@ export class OrdersService {
             SELECT fulfillment_provider_attempts.response_snapshot
             FROM fulfillment_provider_attempts
             WHERE fulfillment_provider_attempts.command_id = fulfillment_command.id
-              AND fulfillment_provider_attempts.status = 'succeeded'
+              AND fulfillment_provider_attempts.status IN ('succeeded', 'submitted', 'completed')
             ORDER BY fulfillment_provider_attempts.created_at DESC, fulfillment_provider_attempts.id DESC
             LIMIT 1
           ) AS latest_attempt ON true

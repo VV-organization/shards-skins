@@ -6,7 +6,7 @@ import type {ApiResponses} from '../generated/api-types';
 import type {Product} from './types';
 export type DuoQuote=ApiResponses['/duo/quotes']['post'];
 type Options=ApiResponses['/duo/options']['get'];
-export function useDuoOptions(slot:'knife'|'gloves',initial:Product|undefined){
+export function useDuoOptions(slot:'knife'|'gloves',initial:Product|undefined,owner:string|null=null){
  const [items,setItems]=useState<Product[]>([]),[selection,setSelection]=useState<Product|undefined>(initial);
  const [cursor,setCursor]=useState<string|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const busy=useRef(false),selectedByUser=useRef(false),generation=useRef(0),next=useRef<string|null>(null);
@@ -20,13 +20,13 @@ export function useDuoOptions(slot:'knife'|'gloves',initial:Product|undefined){
    next.current=data.nextCursor;setCursor(data.nextCursor);
   }catch{if(epoch===generation.current)setError('Не удалось загрузить варианты');}finally{if(epoch===generation.current){busy.current=false;setLoading(false);}}
  }
- useEffect(()=>{generation.current++;busy.current=false;void load(true);return()=>{generation.current++;};},[slot]); // eslint-disable-line react-hooks/exhaustive-deps
+ useEffect(()=>{generation.current++;busy.current=false;void load(true);return()=>{generation.current++;};},[slot,owner]); // eslint-disable-line react-hooks/exhaustive-deps
  function select(id:string){selectedByUser.current=true;setSelection(items.find(p=>p.id===id)??selection);}
  const options=selection&&!items.some(p=>p.id===selection.id)?[selection,...items]:items;
  return {items:options,selection,select,loading,error,hasMore:cursor!==null,loadMore:()=>void load(items.length===0)};
 }
-export function useDuoQuote(knife:string|undefined,glove:string|undefined,budget:number|null){
- const key=JSON.stringify([knife,glove,budget]);
+export function useDuoQuote(knife:string|undefined,glove:string|undefined,budget:number|null,owner:string|null=null){
+ const key=JSON.stringify([knife,glove,budget,owner]);
  const [revision,setRevision]=useState(0);
  const [result,setResult]=useState<{key:string;revision:number;quote:DuoQuote|null;error:string}>({key:'',revision:-1,quote:null,error:''});
  const [expired,setExpired]=useState<string|null>(null);

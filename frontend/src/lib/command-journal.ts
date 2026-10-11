@@ -11,6 +11,7 @@ export class CommandJournal {
   return this.fallback.get(owner)??{};
  }
  private write(owner:string,value:Record<string,JournalCommand>){this.fallback.set(owner,value);try{this.storage().setItem(this.storageKey(owner),JSON.stringify(value));}catch{}}
+ pending(owner:string,intent:string):JournalCommand|null {return this.read(owner)[intent]??null;}
  begin(owner:string,intent:string,method:JournalCommand['method'],path:string,body:unknown):JournalCommand {
   const all=this.read(owner);const prior=all[intent];
   if(prior&&prior.method===method&&prior.path===path&&typeof prior.key==='string')return prior;
