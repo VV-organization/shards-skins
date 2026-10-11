@@ -1,4 +1,4 @@
-import {expect,it} from 'vitest';
+import {describe,expect,it} from 'vitest';
 import type {ExecutionContext} from '@nestjs/common';
 import {CommerceEnabledGuard} from './commerce-enabled.guard';
 import {loadAppConfig} from './app-config';
@@ -10,4 +10,18 @@ it('does not accept direct Steam payments while new fulfillment is disabled',()=
  expect(guard.canActivate(context('POST','/payments/top-up/sessions'))).toBe(true);
  expect(guard.canActivate(context('POST','/payments/webhooks/arc-pay'))).toBe(true);
  expect(guard.canActivate(context('GET','/payments/sessions/id'))).toBe(true);
+});
+
+describe('new operations gate', () => {
+  it('blocks new checkout and payment sessions until explicitly enabled', () => {
+    const gate = new CommerceEnabledGuard(loadAppConfig({}));
+    for (const path of ['/checkout/cart','/checkout','/payments/top-up/sessions','/payments/steam-refill/sessions']) {
+      expect(() => gate.canActivate(context('POST',path))).toThrow();
+    }
+  });
+  it('keeps callbacks and status reads operational when new submissions are disabled', () => {
+    const gate = new CommerceEnabledGuard(loadAppConfig({}));
+    expect(gate.canActivate(context('POST','/payments/webhooks/arc-pay'))).toBe(true);
+    expect(gate.canActivate(context('GET','/payments/sessions/example'))).toBe(true);
+  });
 });

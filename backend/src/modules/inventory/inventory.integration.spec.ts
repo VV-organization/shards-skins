@@ -188,7 +188,7 @@ describe.skipIf(!databaseUrl)("inventory projection", () => {
       });
   });
 
-  it("creates an idempotent backend withdrawal request for an owned skin item", async () => {
+  it("does not expose a second withdrawal for an already delivered skin", async () => {
     await users.saveSteamTradeCredential(userId, { partner: "39734273", token: "secretToken" });
     const order = await pool.query<{ id: string }>(
       `
@@ -233,79 +233,9 @@ describe.skipIf(!databaseUrl)("inventory projection", () => {
     const sessionCookie = `${CUSTOMER_SESSION_COOKIE}=${session.token}`;
     const csrfToken = sessions.createCsrfToken(session.token);
 
-    const created = await request(app?.getHttpServer() as Parameters<typeof request>[0])
-      .post(`/inventory/me/items/${itemId}/withdrawals`)
-      .set("Cookie", sessionCookie)
-      .set("x-csrf-token", csrfToken)
-      .set("idempotency-key", "withdraw-owned-skin")
-      .send({})
-      .expect(200);
-
     await request(app?.getHttpServer() as Parameters<typeof request>[0])
-      .post(`/inventory/me/items/${itemId}/withdrawals`)
-      .set("Cookie", sessionCookie)
-      .set("x-csrf-token", csrfToken)
-      .set("idempotency-key", "withdraw-owned-skin")
-      .send({})
-      .expect(200)
-      .expect(({ body }) => {
-        expect(body).toEqual(created.body);
-      });
-
-    const commands = await pool.query<{ command_type: string; provider: string; status: string }>(
-      `
-        SELECT command_type, provider, status
-        FROM fulfillment_commands
-        WHERE order_line_id = $1
-        ORDER BY command_type ASC
-      `,
-      [itemId],
-    );
-    expect(commands.rows).toEqual([
-      { command_type: "sih_skin_purchase", provider: "sih", status: "completed" },
-      { command_type: "steam_inventory_withdrawal", provider: "steam_trade", status: "pending" },
-    ]);
-    expect(JSON.stringify(created.body)).not.toContain("secret");
-    expect(created.body).toMatchObject({
-      itemId,
-      orderId,
-      orderNumber: `VLT-${orderId.replace(/-/g, "").slice(0, 8).toUpperCase()}`,
-      status: "pending",
-      title: "Desert Eagle | Printstream",
-    });
-
-    await request(app?.getHttpServer() as Parameters<typeof request>[0])
-      .get("/inventory/me")
-      .set("Cookie", sessionCookie)
-      .expect(200)
-      .expect(({ body }) => {
-        expect(body).toEqual({ items: [] });
-      });
-
-    await request(app?.getHttpServer() as Parameters<typeof request>[0])
-      .get("/fulfillment/me/trades")
-      .set("Cookie", sessionCookie)
-      .expect(200)
-      .expect(({ body }) => {
-        expect(body).toMatchObject({
-          events: [
-            {
-              direction: "withdrawal",
-              itemId,
-              orderNumber: `VLT-${orderId.replace(/-/g, "").slice(0, 8).toUpperCase()}`,
-              status: "pending",
-              title: "Desert Eagle | Printstream",
-            },
-            {
-              direction: "purchase",
-              itemId,
-              orderNumber: `VLT-${orderId.replace(/-/g, "").slice(0, 8).toUpperCase()}`,
-              status: "completed",
-              title: "Desert Eagle | Printstream",
-            },
-          ],
-        });
-        expect(JSON.stringify(body)).not.toContain("secret");
-      });
+      .post(`/inventory/me/items/${itemId}/withdrawals`).set("Cookie",sessionCookie).set("x-csrf-token",csrfToken).set("idempotency-key","removed-withdrawal").send({}).expect(404);
+    const commands=await pool.query<{command_type:string}>('SELECT command_type FROM fulfillment_commands WHERE order_line_id=$1',[itemId]);
+    expect(commands.rows).toEqual([{command_type:'sih_skin_purchase'}]);
   });
 });

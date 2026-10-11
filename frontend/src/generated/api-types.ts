@@ -506,7 +506,7 @@ delete: {"version": number;
 "id": string;
 "itemId": string;
 "orderNumber": string;
-"status": "pending" | "processing" | "trade_protection" | "completed";
+"status": "pending" | "processing" | "trade_protection" | "completed" | "failed" | "needs_review";
 "title": string;}>;};};
 "/wallet/me/transactions": {get: {"transactions": Array<{"amountCoinMinor": number;
 "balanceAfterCoinMinor": number;

@@ -1,7 +1,9 @@
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+import { SessionsService } from "../sessions/sessions.service";
 
 import { AuthModule } from "./auth.module";
 import { OPENID_NAMESPACE, STEAM_OPENID_ENDPOINT } from "./steam-openid";
@@ -103,16 +105,20 @@ describe("AuthModule", () => {
     const csrfBody = csrf.body as { token: string };
     expect(csrfBody.token).toMatch(/^v1\.[A-Za-z0-9_-]{43}$/);
 
+    const revoke = vi.spyOn(app.get(SessionsService), "revoke");
     await request(httpServer)
       .post("/session/logout")
       .set("Cookie", sessionCookie)
       .expect(403);
+    expect(revoke).not.toHaveBeenCalled();
+    await request(httpServer).get("/session/me").set("Cookie", sessionCookie).expect(200);
 
     await request(httpServer)
       .post("/session/logout")
       .set("Cookie", sessionCookie)
       .set("x-csrf-token", csrfBody.token)
       .expect(204);
+    expect(revoke).toHaveBeenCalledTimes(1);
 
     await request(httpServer)
       .get("/session/me")

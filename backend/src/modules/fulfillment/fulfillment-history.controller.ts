@@ -21,7 +21,7 @@ const fulfillmentTradeHistorySchema = {
           id: { type: "string", format: "uuid" },
           itemId: { type: "string", format: "uuid" },
           orderNumber: { type: "string" },
-          status: { type: "string", enum: ["pending", "processing", "trade_protection", "completed"] },
+          status: { type: "string", enum: ["pending", "processing", "trade_protection", "completed", "failed", "needs_review"] },
           title: { type: "string" },
         },
       },

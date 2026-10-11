@@ -13,7 +13,7 @@ import { SessionsService } from '../sessions/sessions.service';
 const databaseUrl=process.env.SHARDS_TEST_DATABASE_URL;
 describe.skipIf(!databaseUrl)('durable email ownership binding',()=>{
   let app:INestApplication;let pool:Pool;
-  beforeAll(async()=>{process.env.DATABASE_URL=databaseUrl;pool=new Pool({connectionString:databaseUrl});app=(await Test.createTestingModule({imports:[AppModule]}).overrideProvider(APP_CONFIG).useValue(loadAppConfig({...process.env, SHARDS_PAYMENTS_ENABLED:"true"})).overrideProvider(EmailAuthRuntimeProvider).useValue({createCode:()=> '123456',now:()=>new Date()}).compile()).createNestApplication();await app.init();});
+  beforeAll(async()=>{process.env.DATABASE_URL=databaseUrl;pool=new Pool({connectionString:databaseUrl});app=(await Test.createTestingModule({imports:[AppModule]}).overrideProvider(APP_CONFIG).useValue(loadAppConfig({...process.env, SHARDS_PAYMENTS_ENABLED:"true",SHARDS_FULFILLMENT_ENABLED:"true"})).overrideProvider(EmailAuthRuntimeProvider).useValue({createCode:()=> '123456',now:()=>new Date()}).compile()).createNestApplication();await app.init();});
   afterAll(async()=>{await app.close();await pool.end();delete process.env.DATABASE_URL;});
   it('persists linking purpose, rejects foreign email and keeps the original session',async()=>{
     const users=app.get(UsersService);const sessions=app.get(SessionsService);const email=app.get(EmailAuthService);

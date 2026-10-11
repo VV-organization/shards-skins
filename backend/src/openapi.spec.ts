@@ -375,7 +375,7 @@ describe("OpenAPI contract", () => {
     const item = document.paths["/fulfillment/me/trades"]?.get?.responses?.["200"]?.content?.["application/json"]?.schema?.properties?.events?.items;
     expect(item?.required).toEqual(["id", "createdAt", "direction", "title", "itemId", "orderNumber", "status"]);
     expect(item?.properties?.direction?.enum).toEqual(["purchase", "withdrawal"]);
-    expect(item?.properties?.status?.enum).toEqual(["pending", "processing", "trade_protection", "completed"]);
+    expect(item?.properties?.status?.enum).toEqual(["pending", "processing", "trade_protection", "completed", "failed", "needs_review"]);
   });
 
   it("documents direct RUB Steam refill payment sessions", async () => {

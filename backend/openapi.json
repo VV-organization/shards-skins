@@ -3958,7 +3958,9 @@
                               "pending",
                               "processing",
                               "trade_protection",
-                              "completed"
+                              "completed",
+                              "failed",
+                              "needs_review"
                             ]
                           },
                           "title": {

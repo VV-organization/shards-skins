@@ -387,13 +387,13 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
           'topup-admin-reconcile-hash',
           'arc_pay',
           'checkout_pending',
-          150000,
+          160000,
           100000,
           'RUB',
           100,
-          150,
+          160,
           '019facdb-b116-7434-b27c-debea8fb1c42',
-          '{}'::jsonb
+          '{"environment":"sandbox","purpose":"wallet_topup"}'::jsonb
         )
       `,
       [topUpId],
@@ -641,6 +641,8 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
       `,
       [createAttemptId, commandId, orderId, orderLineId, createAttemptId],
     );
+    await pool.query("UPDATE fulfillment_commands SET available_at=now()+interval '1 day' WHERE id<>$1",[commandId]);
+    await pool.query(`UPDATE fulfillment_commands SET provider_operation_id=$2,payload_snapshot=$3::jsonb,dispatched_at=now() WHERE id=$1`,[commandId,createAttemptId,JSON.stringify({schemaVersion:1,game:'cs2',marketHashName:'Desert Eagle | Printstream (Minimal Wear)',supplierCostCapMicrousd:'1011000',recipientSnapshot:{steamId64:'76561198000000011'}})]);
     app = await createApp();
 
     await request(app.getHttpServer() as Parameters<typeof request>[0])
@@ -663,7 +665,7 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
         checked: 1,
         commands: [{
           commandId,
-          providerStatus: "sent",
+          status: "submitted",
         }],
         errors: 0,
         reconciled: 1,
@@ -697,8 +699,8 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
         SELECT
           (SELECT status FROM fulfillment_commands WHERE id = $1) AS command_status,
           (SELECT status FROM order_lines WHERE id = $2) AS line_status,
-          (SELECT count(*) FROM fulfillment_provider_attempts WHERE command_id = $1 AND operation = 'get_order') AS get_order_attempts,
-          (SELECT response_snapshot FROM fulfillment_provider_attempts WHERE command_id = $1 AND operation = 'get_order' LIMIT 1) AS response_snapshot,
+          (SELECT count(*) FROM fulfillment_provider_attempts WHERE command_id = $1 AND operation = 'review') AS get_order_attempts,
+          (SELECT response_snapshot FROM fulfillment_provider_attempts WHERE command_id = $1 AND operation = 'review' LIMIT 1) AS response_snapshot,
           (SELECT count(*) FROM idempotency_keys WHERE scope = 'admin:fulfillment:reconcile' AND id = 'admin-reconcile-sih-skins-1' AND status = 'completed') AS idempotency_rows,
           (SELECT count(*) FROM audit_events WHERE action = 'admin.fulfillment.reconcile' AND target_id = 'admin-reconcile-sih-skins-1') AS audit_rows,
           (SELECT metadata FROM audit_events WHERE action = 'admin.fulfillment.reconcile' AND target_id = 'admin-reconcile-sih-skins-1' LIMIT 1) AS audit_metadata
@@ -709,7 +711,7 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
       command_status: "submitted",
       get_order_attempts: "1",
       idempotency_rows: "1",
-      line_status: "supplier_sent",
+      line_status: "supplier_submitted",
       audit_rows: "1",
     });
     expect(persisted.rows[0]?.response_snapshot).toMatchObject({
@@ -725,7 +727,7 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
         checked: 1,
         commands: [{
           commandId,
-          providerStatus: "sent",
+          status: "submitted",
         }],
         errors: 0,
         reconciled: 1,

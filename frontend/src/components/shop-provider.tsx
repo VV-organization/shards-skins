@@ -126,7 +126,7 @@ export function ShopProvider({catalog,children}:{catalog:Catalog;children:ReactN
   async function submitEmail(){
     setAuthBusy(true);setAuthError("");
     try {
-      if(challenge){await api.post(`/auth/email/challenges/${challenge}/verify`,{code},{anonymous:!user});await refreshSession();setLoginDialog(false);setChallenge(null);setCode("");}
+      if(challenge){await api.post(`/auth/email/challenges/${challenge}/verify`,{code},{anonymous:!user});api.reset();await refreshSession();setLoginDialog(false);setChallenge(null);setCode("");}
       else {const result=await api.post<{id:string}>("/auth/email/challenges",{email,purpose:user?"link_email":"sign_in"},{anonymous:!user});setChallenge(result.id);}
     } catch(error){setAuthError(errorMessage(error));}finally{setAuthBusy(false);}
   }

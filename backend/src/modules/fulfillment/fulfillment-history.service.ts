@@ -7,7 +7,7 @@ type Queryable = {
   query: <Row extends QueryResultRow = QueryResultRow>(text: string, values?: readonly unknown[]) => Promise<QueryResult<Row>>;
 };
 
-export type FulfillmentTradeEventStatus = "completed" | "pending" | "processing" | "trade_protection";
+export type FulfillmentTradeEventStatus = "completed" | "pending" | "processing" | "trade_protection" | "failed" | "needs_review";
 
 export type FulfillmentTradeEventDto = {
   createdAt: string;
@@ -50,6 +50,8 @@ function nestedString(value: Record<string, unknown> | null, path: readonly stri
 }
 
 function eventStatus(lineStatus: string, commandStatus: string, latestResponseSnapshot: Record<string, unknown> | null): FulfillmentTradeEventStatus {
+  if(lineStatus==="supplier_failed")return "failed";
+  if(lineStatus==="manual_review"||lineStatus==="protection_failed"||commandStatus==="manual_review")return "needs_review";
   if (lineStatus === "supplier_finished") return "completed";
   if (lineStatus === "held" || commandStatus === "pending") return "pending";
   if (

@@ -28,11 +28,12 @@ export class ApiClient {
     let key=this.keys.get(scope);if(!key){key=crypto.randomUUID();this.keys.set(scope,key);}return key;
   }
   pendingCommand(intent:string) {return this.owner?this.journal.pending(this.owner,intent):null;}
-  async command<T>(intent:string,method:JournalCommand['method'],path:string,body:unknown):Promise<T> {
+  async command<T>(intent:string,method:JournalCommand['method'],path:string,body:unknown,validate?:(value:T)=>boolean):Promise<T> {
     const owner=this.owner;if(!owner)throw new ApiError(401,{code:'SESSION_REQUIRED'});
     const command=this.journal.begin(owner,intent,method,path,body);
     try {
       const result=await this.request<T>(command.method,command.path,command.body,{idempotencyKey:command.key});
+      if(validate&&!validate(result))throw new Error('Не удалось прочитать результат операции');
       this.journal.complete(owner,intent);return result;
     } catch(error) {
       // A definitive client rejection did not commit. Network/5xx outcomes remain replayable.
@@ -60,7 +61,7 @@ export class ApiClient {
       if(options.idempotencyKey)headers['Idempotency-Key']=options.idempotencyKey;
       current();
       const response=await this.fetcher(`/api${path}`,{method,headers,credentials:'same-origin',cache:'no-store',signal,...(body===undefined?{}:{body:JSON.stringify(body)})});
-      const data:unknown=response.status===204?undefined:await response.json().catch(()=>({message:'Не удалось прочитать ответ сервера'}));
+      const data:unknown=response.status===204?undefined:await response.json().catch(()=>{if(response.ok)throw new Error('Не удалось прочитать ответ сервера');return {message:'Не удалось прочитать ответ сервера'};});
       current();
       if(!response.ok)throw new ApiError(response.status,data&&typeof data==='object'&&!Array.isArray(data)?data as Record<string,unknown>:{});
       return data as T;

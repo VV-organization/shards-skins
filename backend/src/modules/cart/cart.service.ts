@@ -4,7 +4,6 @@ import { DatabaseService } from '../../common/database/database.service';
 import { normalizeIdempotencyKey } from '../../common/idempotency/idempotency-key';
 import { CatalogService } from '../catalog/catalog.service';
 import type { CatalogProductDto } from '../catalog/catalog.types';
-import type { CheckoutCartItem } from '../checkout/checkout.service';
 
 export type CartClient = Pick<DatabaseService, 'query'>;
 export type LockedCart = { id: string; version: number };
@@ -121,17 +120,4 @@ export class CartService {
       canCheckout: items.length > 0 && items.every(item => item.availability !== 'unavailable') };
   }
 
-  // Retained for the old checkout adapter until the atomic quoted checkout replaces it.
-  async getCheckoutItems(userId: string): Promise<CheckoutCartItem[]> {
-    return (await this.getCart(userId)).items.map(item => ({ productSlug: item.productSlug, quantity: 1 }));
-  }
-  async clearPurchasedCart(userId: string, orderId: string): Promise<void> {
-    await this.database.transaction(async client => {
-      const cart = await this.lockCart(client, userId);
-      const result = await client.query(`DELETE FROM cart_items c USING orders o WHERE c.cart_id=$1 AND o.id=$2
-        AND o.user_id=$3 AND c.updated_at <= o.created_at AND EXISTS
-        (SELECT 1 FROM order_lines l WHERE l.order_id=o.id AND l.product_slug=c.product_slug)`, [cart.id, orderId, userId]);
-      if (result.rowCount) await client.query('UPDATE carts SET version=version+1,updated_at=clock_timestamp() WHERE id=$1', [cart.id]);
-    });
-  }
 }

@@ -21,7 +21,7 @@ function usePayment(kind:'top-up'|'steam-refill',body:unknown,valid:boolean){
   if(!pending&&(!pricing.quote||pricing.expired)){pricing.refresh();return;}
   setBusy(true);
   try{
-   const result=await api.command<{id:string;checkoutUrl:string|null}>(`payment:${kind}`,'POST',`/payments/${kind}/sessions`,pending?.body??{quoteId:pricing.quote!.quoteId,acceptedFiatMinor:pricing.quote!.fiatAmountMinor});
+   const result=await api.command<{id:string;checkoutUrl:string|null}>(`payment:${kind}`,'POST',`/payments/${kind}/sessions`,pending?.body??{quoteId:pricing.quote!.quoteId,acceptedFiatMinor:pricing.quote!.fiatAmountMinor},result=>typeof result?.id==='string'&&!!result.id&&(result.checkoutUrl===null||typeof result.checkoutUrl==='string'));
    setLastSession(result.id);
    const returnPath=`/payments/return?session=${encodeURIComponent(result.id)}`;
    if(result.checkoutUrl){const url=new URL(result.checkoutUrl);if(url.protocol!=='https:')throw new Error('Invalid checkout URL');window.location.assign(url.href);}else router.push(returnPath);
@@ -44,7 +44,7 @@ export function BalanceForm({initialAmount='1 000'}:{initialAmount?:string}){
 export function SteamForm(){
  const id=useId();const [amount,setAmount]=useDraft('steam-amount','1 000'),[steamLogin,setSteamLogin]=useDraft('steam-login','');
  const minor=parseAmount(amount),preview=minor!==null?steamQuote(minor):null;
- const valid=minor!==null&&minor>=5000&&minor<=943300&&minor%100===0&&/^[a-zA-Z0-9_]{3,64}$/.test(steamLogin.trim());
+ const valid=minor!==null&&minor>=5000&&minor<=943300&&minor%100===0&&/^[a-zA-Z0-9_-]{3,64}$/.test(steamLogin.trim());
  const payment=usePayment('steam-refill',{amountRub:minor===null?null:minor/100,steamLogin:steamLogin.trim()},valid);
  const quote=payment.pricing.quote;
  return <form onSubmit={e=>{e.preventDefault();void payment.submit();}}>
