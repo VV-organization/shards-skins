@@ -20,14 +20,16 @@ try{
   await new Promise(resolve=>setTimeout(resolve,1000));
  }
  if(!ready)throw new Error('Designer server did not start');
- browser=await chromium.launch();const page=await browser.newPage();
- await page.emulateMedia({reducedMotion:'reduce'});
+ browser=await chromium.launch();
  for(const [width,height] of [[1440,900],[768,1024],[390,844],[320,780]]){
-  await page.setViewportSize({width,height});
+  const page=await browser.newPage({viewport:{width,height},reducedMotion:'reduce'});
   for(const [name,path] of [['home','/'],['catalog','/catalog']]){
    await page.goto('http://127.0.0.1:5298'+path,{waitUntil:'networkidle'});await page.evaluate(()=>document.fonts.ready);
+   await page.evaluate(()=>Promise.all(Array.from(document.images).filter(image=>{const r=image.getBoundingClientRect();return r.top<innerHeight&&r.bottom>0;}).map(image=>image.decode())));
+   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
    await page.screenshot({path:resolve(output,name+'-'+width+'.png'),fullPage:true});
   }
+  await page.close();
  }
  writeFileSync(resolve(output,'provenance.json'),JSON.stringify({revision,platform:process.platform,browser:browser.version()},null,2));
 }finally{if(browser)await browser.close();server.kill('SIGTERM');}
