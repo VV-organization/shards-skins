@@ -23,4 +23,10 @@ test('analytics sanitizes public SPA hits and is absent in a fresh private docum
  expect(googleLoads).toBe(1);expect(ymLoads).toBe(1);
  await page.locator('header a[href="/cart"]').click();await expect(page).toHaveURL('https://shardsmarket.com/cart');await expect.poll(()=>page.evaluate(()=>typeof (window as unknown as {dataLayer?:unknown}).dataLayer)).toBe('undefined');
  expect(googleLoads).toBe(1);expect(ymLoads).toBe(1);
+ // A document originating on a private page must not gain trackers that survive Back.
+ await page.locator('header a[href="/catalog"]').click();
+ await expect(page).toHaveURL('https://shardsmarket.com/catalog');
+ await expect.poll(async()=>(await pageViews()).length).toBe(1);
+ await page.goBack();await expect(page).toHaveURL('https://shardsmarket.com/cart');
+ await expect.poll(()=>page.evaluate(()=>typeof (window as unknown as {dataLayer?:unknown}).dataLayer)).toBe('undefined');
 });

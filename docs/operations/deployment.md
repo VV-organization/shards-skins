@@ -27,7 +27,8 @@ Runtime configuration: `ANALYTICS_ENABLED=true`, `ANALYTICS_GA_ID=G-XWF1ZMQBL1`,
 `ANALYTICS_YANDEX_ID=113586674`, `ANALYTICS_WEBVISOR=true`. Counters load only
 in production on `https://shardsmarket.com`, on the home, catalog and legal
 pages. Account, cart, payment and auth pages do not load counters. Navigation
-from a public page into those areas opens a fresh document, ending Webvisor.
+across public/private boundaries in either direction opens a fresh document,
+ending Webvisor and keeping browser Back from restoring private DOM in a tracked document.
 Forms containing Steam login, email and OTP are masked. Manual page views omit
 query strings, fragments and external referrers.
 

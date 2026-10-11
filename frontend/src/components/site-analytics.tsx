@@ -20,17 +20,17 @@ export function SiteAnalytics({config}:{config:AnalyticsConfig|null}){
   if(url&&ymReady&&config.yandexId&&ymPrevious.current!==url){win.ym?.(config.yandexId,'hit',url,{title:document.title,referer:ymPrevious.current??''});ymPrevious.current=url;}
  },[config,url,gaReady,ymReady]);
  useEffect(()=>{
-  if(!config||!url)return;
-  // A private page gets a new document with no third-party scripts. This also
-  // ends Webvisor before account/cart/payment details can enter the DOM.
+  if(!config||!onDomain)return;
+  // Keep public and private pages in separate documents in BOTH directions.
+  // Otherwise private -> public -> Back can restore private DOM with Webvisor.
   const leavePublic=(event:MouseEvent)=>{
    if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
    const anchor=(event.target as Element|null)?.closest('a');if(!anchor||anchor.target==='_blank'||anchor.hasAttribute('download'))return;
    const target=new URL(anchor.href,window.location.href);
-   if(target.origin===window.location.origin&&!publicAnalyticsUrl(target.href)){event.preventDefault();window.location.assign(target.href);}
+   if(target.origin===window.location.origin&&!!publicAnalyticsUrl(target.href)!==!!url){event.preventDefault();window.location.assign(target.href);}
   };
   document.addEventListener('click',leavePublic,true);return ()=>document.removeEventListener('click',leavePublic,true);
- },[config,url]);
+ },[config,url,onDomain]);
  if(!config||!url)return null;
  return <>
   {config.googleId&&<><Script id="shards-ga-init" strategy="afterInteractive">{googleBootstrap(config.googleId,url)}</Script><Script id="shards-ga-loader" src={`https://www.googletagmanager.com/gtag/js?id=${config.googleId}`} strategy="afterInteractive" onReady={()=>setGaReady(true)}/></>}
