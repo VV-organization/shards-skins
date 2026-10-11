@@ -1,8 +1,9 @@
 import {readFileSync,writeFileSync} from 'node:fs';
 import {chromium} from '@playwright/test';
+const baseline=process.platform==='darwin'?'../docs/testing/visual-baseline':'../.qa/visual-baseline-platform';
 const browser=await chromium.launch(),page=await browser.newPage(),results=[];
 for(const width of [1440,768,390,320])for(const name of ['home','catalog']){
- const source=`../docs/testing/visual-baseline/${name}-${width}.png`,current=`../.qa/visual-current/${name}-${width}.png`;
+ const source=`${baseline}/${name}-${width}.png`,current=`../.qa/visual-current/${name}-${width}.png`;
  const result=await page.evaluate(async({a,b})=>{
   const load=async src=>{const i=new Image();i.src=src;await i.decode();return i;};const [old,next]=await Promise.all([load(a),load(b)]);
   const w=Math.min(old.width,next.width),h=Math.min(old.height,next.height);

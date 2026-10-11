@@ -6,6 +6,11 @@ describe.skipIf(!databaseUrl)('VV-162 versioned markup',()=>{
  let pool:Pool;
  beforeAll(()=>{pool=new Pool({connectionString:databaseUrl});});
  afterAll(async()=>{await pool.end();});
+ it('keeps legacy demo rows for history without publishing their missing artwork',async()=>{
+  const result=await pool.query<{id:string;public_enabled:boolean;ever_published:boolean}>("SELECT id,public_enabled,ever_published FROM catalog_products WHERE id IN ('ak-redline','awp-asiimov','m4-printstream','deagle-printstream')");
+  expect(result.rows).toHaveLength(4);
+  expect(result.rows.every(row=>!row.public_enabled&&row.ever_published)).toBe(true);
+ });
  it('uses twenty percent for new prices and retains the historical setting',async()=>{
   const active=await pool.query('SELECT * FROM pricing_settings WHERE scope=$1 AND superseded_at IS NULL',['sih-skins']);
   expect(active.rows).toHaveLength(1);expect(active.rows[0]).toMatchObject({markup_bps:2000,coin_rate_numerator:8,coin_rate_denominator:5,metadata:{fxVerified:false}});

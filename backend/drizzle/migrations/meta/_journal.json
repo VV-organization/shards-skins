@@ -260,6 +260,13 @@
       "when": 1791738444687,
       "tag": "0036_vv162_markup",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1791738445687,
+      "tag": "0037_hide_legacy_demo_catalog",
+      "breakpoints": true
     }
   ]
 }

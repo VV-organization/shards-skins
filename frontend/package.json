@@ -19,7 +19,8 @@
     "api:check": "node scripts/sync-api.mjs --check",
     "test:e2e": "playwright test",
     "visual:source": "node scripts/check-designer-assets.mjs",
-    "visual:compare": "node scripts/compare-visual.mjs"
+    "visual:compare": "node scripts/compare-visual.mjs",
+    "visual:baseline": "node scripts/capture-designer-baseline.mjs"
   },
   "dependencies": {
     "next": "16.3.8",
