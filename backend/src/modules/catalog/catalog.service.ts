@@ -356,8 +356,13 @@ export class CatalogService {
     return {items:products.map(productDto)};
   }
 
+  async duoOptions(slot: 'knife'|'gloves', after?: {price:number;id:string}): Promise<CatalogProductDto[]> {
+    return (await this.loadProducts({categoryId:slot,sort:'price_asc',limit:61,availableOnly:true,...(after?{after}: {})})).map(productDto);
+  }
+
   private async loadProducts(command: {
     categoryId?: string; stattrak?: string; weapon?: string;
+    after?: {price:number;id:string}; availableOnly?: boolean;
     category?: CatalogProductKind;
     conditions?: string[];
     game?: CatalogGame;
@@ -378,6 +383,11 @@ export class CatalogService {
     if (command.maxPriceCoinMinor !== undefined) {
       params.push(command.maxPriceCoinMinor);
       where.push(`${effectivePriceCoinMinorSql} <= $${params.length}`);
+    }
+    if (command.availableOnly) where.push("supplier_listings.active AND supplier_listings.available_quantity > 0 AND supplier_listings.price_microusd > 0 AND supplier_listings.last_seen_at > clock_timestamp() - interval '15 minutes'");
+    if (command.after) {
+      params.push(command.after.price, command.after.id);
+      where.push(`(${effectivePriceCoinMinorSql},catalog_products.id) > ($${params.length-1}::bigint,$${params.length}::text)`);
     }
     const limit = Math.min(command.limit ?? maxCatalogLimit, maxCatalogLimit * 4);
     params.push(limit);

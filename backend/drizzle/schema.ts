@@ -760,3 +760,17 @@ export const cartCommands = pgTable("cart_commands", {
   response: jsonb("response").notNull(),
   createdAt: timestamp("created_at",{withTimezone:true}).defaultNow().notNull(),
 },table=>[uniqueIndex("cart_commands_user_key_uidx").on(table.userId,table.idempotencyKey)]);
+
+export const commerceQuotes = pgTable('commerce_quotes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  purpose: text('purpose').notNull(),
+  userId: text('user_id'),
+  payload: jsonb('payload').notNull(),
+  createdAt: timestamp('created_at',{withTimezone:true}).defaultNow().notNull(),
+  expiresAt: timestamp('expires_at',{withTimezone:true}).notNull(),
+  consumedEntityId: uuid('consumed_entity_id'),
+  consumedAt: timestamp('consumed_at',{withTimezone:true}),
+},table=>[index('commerce_quotes_expires_idx').on(table.expiresAt)]);
+export const commerceQuoteLimits = pgTable('commerce_quote_limits', {
+  key: text('key').primaryKey(), windowStartedAt: timestamp('window_started_at',{withTimezone:true}).defaultNow().notNull(), count: integer('count').notNull(),
+});

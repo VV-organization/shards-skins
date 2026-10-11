@@ -8,6 +8,7 @@ import {api,ApiError,errorMessage} from "@/lib/api";
 import {clearPendingIntent,readPendingIntent,savePendingIntent,revisionsMatch} from "@/lib/pending-intent";
 import {mapProduct,type CatalogApiProduct} from "@/lib/catalog-adapter";
 import type {ApiResponses} from "@/generated/api-types";
+import type {DuoQuote} from "@/lib/use-duo";
 import {Modal} from "./modal";
 import {Icon} from "./icon";
 
@@ -26,7 +27,7 @@ function useStored(key:string, fallback:string) {
 }
 export type SessionUser={id:string;steam:{connected:boolean;steamId64?:string};email?:{address:string;verified:boolean}};
 type CartResponse=ApiResponses["/cart"]["get"];
-type Shop = Catalog & {cartVersion:number;cartLoading:boolean;cartError:string;refreshCart:()=>Promise<void>;user:SessionUser|null;sessionLoading:boolean;sessionError:string;refreshSession:()=>Promise<void>;tradeConfigured:boolean;cart:Product[];notice:{label:string;count:number}|null;dismissNotice:()=>void;add:(product:Product)=>void;addMany:(products:Product[])=>void;favorites:string[];toggleFavorite:(id:string)=>void;remove:(id:string)=>void;loggedIn:boolean;login:(mode?:"steam"|"email")=>void;logout:()=>void;tradeUrl:string;saveTradeUrl:(url:string)=>Promise<void>;previewProduct:Product|null;setPreviewProduct:(p:Product|null)=>void};
+type Shop = Catalog & {cartVersion:number;cartLoading:boolean;cartError:string;refreshCart:()=>Promise<void>;user:SessionUser|null;sessionLoading:boolean;sessionError:string;refreshSession:()=>Promise<void>;tradeConfigured:boolean;cart:Product[];notice:{label:string;count:number}|null;dismissNotice:()=>void;add:(product:Product)=>void;addMany:(products:Product[],quote:DuoQuote)=>void;favorites:string[];toggleFavorite:(id:string)=>void;remove:(id:string)=>void;loggedIn:boolean;login:(mode?:"steam"|"email")=>void;logout:()=>void;tradeUrl:string;saveTradeUrl:(url:string)=>Promise<void>;previewProduct:Product|null;setPreviewProduct:(p:Product|null)=>void};
 const ShopContext=createContext<Shop|null>(null);
 export function useShop(){const value=useContext(ShopContext);if(!value)throw new Error("Missing shop");return value;}
 export function ShopProvider({catalog,children}:{catalog:Catalog;children:ReactNode}) {
@@ -44,13 +45,14 @@ export function ShopProvider({catalog,children}:{catalog:Catalog;children:ReactN
   const [cartLoading,setCartLoading]=useState(false);
   const [cartError,setCartError]=useState("");
   const [resumeProducts,setResumeProducts]=useState<Product[]|null>(null);
+  const [resumeQuote,setResumeQuote]=useState<DuoQuote|null>(null);
   const resuming=useRef(false);
   const cartQueue=useRef(Promise.resolve());
   function acceptCart(result:CartResponse){
     if(result.version<version.current)return;
     version.current=result.version;setCartVersion(result.version);setCart(result.items.map(item=>mapProduct(item.product)));
   }
-  function resetCart(){version.current=0;setCartVersion(0);setCart([]);setCartError("");setResumeProducts(null);}
+  function resetCart(){version.current=0;setCartVersion(0);setCart([]);setCartError("");setResumeProducts(null);setResumeQuote(null);}
   async function refreshCart(){setCartLoading(true);try{acceptCart(await api.get<CartResponse>("/cart"));setCartError("");}finally{setCartLoading(false);}}
   function queueCart(work:()=>Promise<void>){
     const intendedOwner=owner.current;
@@ -68,6 +70,10 @@ export function ShopProvider({catalog,children}:{catalog:Catalog;children:ReactN
     const result=await api.command<CartResponse>(`cart:add:${product.id}`,"PUT",`/cart/items/${encodeURIComponent(product.id)}`,{quantity:1,expectedCartVersion:version.current});
     acceptCart(result);setNotice({label:product.name,count:1});
   }
+  async function addDuo(quote:DuoQuote){
+    const result=await api.command<CartResponse>(`cart:duo:${quote.id}`,"POST","/cart/duo",{quoteId:quote.id,expectedCartVersion:version.current});
+    acceptCart(result);setNotice({label:quote.items.map(p=>p.title).join(" + "),count:2});
+  }
   async function resumeIntent(){
     const intent=readPendingIntent(sessionStorage);if(!intent||resuming.current)return;
     resuming.current=true;
@@ -76,6 +82,12 @@ export function ShopProvider({catalog,children}:{catalog:Catalog;children:ReactN
       const products=result.items.map(mapProduct);
       if(intent.kind==="item"&&products.length===1&&products[0].availability==="available"&&revisionsMatch(intent,products.map(p=>({slug:p.id,priceRevision:p.priceRevision})))){
         await addSingle(products[0]);clearPendingIntent(sessionStorage);
+      }else if(intent.kind==="duo"&&intent.budgetRubMinor!==undefined&&products.length===2&&products.every(p=>p.availability==="available")){
+        const knife=products.find(p=>p.categoryId==="knife"),glove=products.find(p=>p.categoryId==="gloves");
+        if(!knife||!glove){setResumeProducts(products);return;}
+        const quote=await api.post<DuoQuote>("/duo/quotes",{knifeSlug:knife.id,gloveSlug:glove.id,budgetRubMinor:intent.budgetRubMinor},{anonymous:true});
+        if(quote.withinBudget&&revisionsMatch(intent,quote.items.map(p=>({slug:p.slug,priceRevision:p.priceRevision})))){await addDuo(quote);clearPendingIntent(sessionStorage);}
+        else{setResumeProducts(quote.items.map(mapProduct));setResumeQuote(quote);}
       }else setResumeProducts(products);
     }catch{setCartError("Не удалось восстановить выбранный предмет. Повторите действие в каталоге.");}
     finally{resuming.current=false;}
@@ -118,18 +130,26 @@ export function ShopProvider({catalog,children}:{catalog:Catalog;children:ReactN
 
   const [logoutDialog,setLogoutDialog]=useState(false);
   const [previewProduct,setPreviewProduct]=useState<Product|null>(null);
-  function requireLogin(products:Product[]){
+  function requireLogin(products:Product[],budgetRubMinor?:number){
     if(user?.steam.connected)return false;
-    savePendingIntent(sessionStorage,{kind:products.length===2?"duo":"item",slugs:products.map(p=>p.id),displayedRevisions:products.map(p=>({slug:p.id,priceRevision:p.priceRevision}))});
+    savePendingIntent(sessionStorage,{kind:products.length===2?"duo":"item",slugs:products.map(p=>p.id),displayedRevisions:products.map(p=>({slug:p.id,priceRevision:p.priceRevision})),...(budgetRubMinor===undefined?{}:{budgetRubMinor})});
     setLoginMode("steam");setLoginDialog(true);return true;
   }
   function add(product:Product){if(requireLogin([product]))return;queueCart(()=>addSingle(product));}
-  function addMany(products:Product[]){if(requireLogin(products))return;setCartError("Не удалось добавить дуэт. Обновите подборку и попробуйте снова.");}
+  function addMany(products:Product[],quote:DuoQuote){if(requireLogin(products,quote.budgetRubMinor))return;queueCart(()=>addDuo(quote));}
   function remove(id:string){queueCart(async()=>{acceptCart(await api.command<CartResponse>(`cart:remove:${id}`,"DELETE",`/cart/items/${encodeURIComponent(id)}`,{expectedCartVersion:version.current}));});}
   return <ShopContext.Provider value={{...catalog,cart,cartVersion,cartLoading,cartError,refreshCart,notice,dismissNotice:()=>setNotice(null),add,addMany,favorites,toggleFavorite,remove,user,sessionLoading,sessionError,refreshSession,tradeConfigured,loggedIn:!!user,login:(mode="steam")=>{setLoginMode(mode);setAuthError("");setLoginDialog(true);},logout:()=>setLogoutDialog(true),tradeUrl,saveTradeUrl,previewProduct,setPreviewProduct}}>
     {children}
     {cartError&&<Modal title="Корзина" onClose={()=>setCartError("")}><h2>Корзина</h2><p className="form-message" role="alert">{cartError}</p><button className="button primary full" onClick={()=>setCartError("")}>Понятно</button></Modal>}
-    {resumeProducts&&<Modal title="Проверьте выбор" onClose={()=>{clearPendingIntent(sessionStorage);setResumeProducts(null);}}><h2>Проверьте выбор</h2><p className="muted">Цена или наличие выбранных предметов изменились. Проверьте актуальные условия перед добавлением.</p>{resumeProducts.map(product=><p key={product.id}>{product.name} — {product.availability==="available"?`${(product.priceMinor/100).toLocaleString("ru-RU")} Shards`:"Недоступен"}</p>)}<button className="button primary full" disabled={resumeProducts.length!==1||resumeProducts.some(p=>p.availability!=="available")} onClick={()=>{const product=resumeProducts[0];queueCart(async()=>{await addSingle(product);clearPendingIntent(sessionStorage);setResumeProducts(null);});}}>Добавить в корзину</button></Modal>}
+    {resumeProducts&&<Modal title="Проверьте выбор" onClose={()=>{clearPendingIntent(sessionStorage);setResumeProducts(null);}}><h2>Проверьте выбор</h2><p className="muted">Цена или наличие выбранных предметов изменились. Проверьте актуальные условия перед добавлением.</p>{resumeProducts.map(product=><p key={product.id}>{product.name} — {product.availability==="available"?`${(product.priceMinor/100).toLocaleString("ru-RU")} Shards`:"Недоступен"}</p>)}<button className="button primary full" disabled={cartLoading||resumeProducts.length===0||resumeProducts.some(p=>p.availability!=="available")||(resumeProducts.length===2&&!resumeQuote?.withinBudget)} onClick={()=>{queueCart(async()=>{
+      if(resumeQuote){
+        if(Date.parse(resumeQuote.expiresAt)<=Date.now()){
+          const fresh=await api.post<DuoQuote>("/duo/quotes",{knifeSlug:resumeQuote.items[0].slug,gloveSlug:resumeQuote.items[1].slug,budgetRubMinor:resumeQuote.budgetRubMinor},{anonymous:true});setResumeQuote(fresh);setResumeProducts(fresh.items.map(mapProduct));return;
+        }
+        await addDuo(resumeQuote);
+      }else await addSingle(resumeProducts[0]);
+      clearPendingIntent(sessionStorage);setResumeProducts(null);setResumeQuote(null);
+    });}}>Добавить в корзину</button></Modal>}
     {!previewProduct&&<CartNotice/>}
     {loginDialog&&<Modal title="Личный кабинет" onClose={()=>setLoginDialog(false)}><div className="dialog-symbol"><Icon name="steam" size={32}/></div><h2>Личный кабинет</h2><p className="muted">Сохраните ссылку на обмен и управляйте покупками в личном кабинете.</p>{loginMode==="steam"?<><a className="button primary full" href={`/api/auth/steam/start?returnTo=${encodeURIComponent(readPendingIntent(sessionStorage)?"/cart":"/account")}`}>Войти через Steam <Icon name="arrow"/></a><button className="text-link" onClick={()=>setLoginMode("email")}>Войти по почте</button></>:<form onSubmit={e=>{e.preventDefault();void submitEmail();}}><label className="field-label" htmlFor="auth-email">Электронная почта</label><input className="text-input" id="auth-email" type="email" value={email} required disabled={!!challenge||authBusy} onChange={e=>setEmail(e.target.value)}/>{challenge&&<><label className="field-label" htmlFor="auth-code">Код из письма</label><input className="text-input" id="auth-code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e=>setCode(e.target.value)} required/></>}<button className="button primary full" disabled={authBusy}>{authBusy?"Подождите…":challenge?"Подтвердить":"Получить код"} <Icon name="arrow"/></button><button type="button" className="text-link" onClick={()=>{setChallenge(null);setCode("");setLoginMode("steam");}}>Войти через Steam</button></form>}{authError&&<p className="form-message" role="alert">{authError}</p>}</Modal>}
     {logoutDialog&&<Modal title="Выйти из аккаунта?" onClose={()=>setLogoutDialog(false)}><h2>Выйти из аккаунта?</h2><p className="muted">Выбранные скины останутся в корзине.</p><div className="dialog-actions"><button className="button primary" autoFocus onClick={()=>setLogoutDialog(false)}>Остаться</button><button className="button secondary" onClick={()=>{void api.post("/session/logout",{}).then(()=>{api.reset();api.setOwner(null);owner.current=null;clearPendingIntent(sessionStorage);setUser(null);resetCart();setTradeUrl("");setTradeConfigured(false);setLogoutDialog(false);router.refresh();}).catch(error=>setSessionError(errorMessage(error)));}}>Выйти</button></div></Modal>}
