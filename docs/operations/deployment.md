@@ -79,10 +79,33 @@ dumps and matching runtime env snapshots for14days in /opt/shardsmarket/backups
 This is a local backup, not an off-host disaster-recovery copy.
 
 SMTP authentication for support@shardsmarket.com passed without sending a test
-email. ArcPay/SIH keys are not configured; financial flags remainfalse.
+email. ArcPay is not configured; financial flags remainfalse. See the provider
+configuration update below for SIH.
 
 GA4 was activated in aa364e0 using the same automatic SPA tracking as Frags and
 Skindrop. Live verification observed one page_view for / and one for /catalog,
 both accepted with HTTP204, with no manual duplicate events. The private cart
 document had no GA loader. Yandex remains enabled. CI38176686221 and
 deploy38176686220 completed successfully. Dashboard ingestion was not inspected.
+
+
+## SIH provider configuration (2026-10-12)
+
+The owner-supplied skin market key is installed in the Shards runtime environment.
+At the owner's explicit request, only the Steam refill key was read from the
+Frags server's dedicated secret file and installed as SIH_STEAM_REFILL_API_KEY.
+Frags configuration was not modified. No credential values are stored in Git.
+
+After backup and service recreation, the catalog worker successfully loaded
+28,281 supplier listings and published 25,006 CS2 products. Public catalog API
+confirmed the published total. API and catalog containers are running.
+
+A check-only Steam request through the application's Node runtime returned HTTP200
+with the expected account-not-found response for a synthetic probe login. This
+confirms authenticated access, not successful refill delivery. No pay call was made.
+An earlier Python probe received Cloudflare1010; the runtime probe did not.
+
+ArcPay remains unconfigured and the active skin pricing row still has
+fxVerified=false. Financial flags were not activated. Local DB/env backups were
+created before and after this configuration change. Temporary credential copies
+were removed after installation.

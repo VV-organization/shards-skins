@@ -101,5 +101,8 @@ artwork with unavailable, unpriced items; it does not invent stock.
   also verified during the deployment. Provider dashboard reports were not inspected.
 - Own server, runtime secrets, HTTPS renewal, runner and local daily backups are configured.
   SMTP authentication succeeded; inbox delivery and real user Steam login remain unverified.
-- ArcPay/SIH credentials, live catalog synchronization and financial provider acceptance
+- SIH skin and Steam refill keys were subsequently configured on 2026-10-12.
+  The worker loaded 28,281 supplier listings and published 25,006 products.
+  A runtime Steam check returned HTTP200/account-not-found for a synthetic login.
+- ArcPay credentials, verified USD/RUB pricing and financial provider acceptance
   remain outstanding. Financial flags remain off; no real charge or fulfillment was performed.
