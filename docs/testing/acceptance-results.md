@@ -1,6 +1,6 @@
 # Приёмка Shards commerce — 2026-10-11
 
-Реализация находится в `main`. Собственный backend, API-контракты, сценарии frontend и эксплуатационная конфигурация реализованы. Это локальная приёмка кода; production и реальные операции провайдеров не активированы.
+Реализация находится в `main`. Собственный backend, API-контракты, сценарии frontend и эксплуатационная конфигурация реализованы. Начальные разделы фиксируют локальную приёмку до деплоя. Актуальный статус публикации и аналитики приведён в конце документа; реальные финансовые операции провайдеров ещё не активированы.
 
 ## Матрица доказательств
 
@@ -49,7 +49,7 @@ Backend unit run намеренно пропускает DB integration tests; �
 
 Обновлены Next/ESLint config до 16.3.8, Nodemailer до 10.1.0, транзитивные runtime-пакеты и уязвимые test-worker/brace-expansion/js-yaml. `npm audit --omit=dev`: 0 vulnerabilities в backend и frontend на дату проверки. В полном developer dependency tree остаются 6 moderate advisory backend и 5 high advisory frontend для инструментов (в том числе braces в Next ESLint и esbuild/Vitest chain); автоматический `--force` с откатом Next или сменой major toolchain не применён. Это не доказательство отсутствия всех уязвимостей. Перед публичным CI с недоверенными PR и production сборкой повторить аудит; dev-зависимости присутствуют в текущих Docker images для миграций/worker CLI.
 
-## Не выполнено и не объявляется готовым
+## Ограничения на момент первоначальной локальной приёмки (до VV-162)
 
 - Собственные production domains, credentials, SMTP delivery, Steam OpenID callback, SIH каталог/FX, ArcPay методы/origins/лимиты и текущие Steam fee/limits ещё не подтверждены.
 - Нет live charge, реальной выдачи/возврата, отправки VV/Slack/SMTP, production deployment, live health или проверки опубликованной версии.
@@ -73,10 +73,10 @@ settings and the deployment's FX verification metadata.
 - Browser: 19 commerce/layout/analytics tests plus 4 cart state matrix tests passed.
 - Cart matrix: zero, insufficient, exact and surplus balances at 320/390/768/1440px.
 - Original visual comparison passed at all four widths; approved lower-page changes are intentional.
-- Analytics loaders are stubbed in the local browser test. It verifies sanitized
-  manual public page views and a fresh tracker-free private document, not receipt
-  of real events by Google/Yandex dashboards. GA activation still requires the
-  property configuration described in operations/deployment.md.
+- Analytics loaders are stubbed in the local browser test. Following aa364e0,
+  it verifies a single GA initialization, no application-generated page_view
+  duplicates, and fresh tracker-free private documents. GA4 automatically tracks
+  public SPA navigation, matching Frags and Skindrop.
 
 These checks do not establish real payment acceptance, Steam delivery or mailbox
 delivery. Own provider credentials and a separate acceptance run remain required.
@@ -89,3 +89,17 @@ Migration0037 hides four legacy bootstrap catalog rows with absent /products
 artwork, retaining the rows and publication history. Provider-enriched rows are
 excluded by the migration guard. An empty live catalog keeps original showcase
 artwork with unavailable, unpriced items; it does not invent stock.
+
+
+## VV-162 published verification (2026-10-12 Europe/Moscow)
+
+- https://shardsmarket.com is deployed from main; aa364e0 passed CI38176686221
+  and deployment38176686220. HTTPS and API readiness passed with PostgreSQL and Redis healthy.
+- Live GA4 G-XWF1ZMQBL1 emitted exactly one page_view each for / and /catalog;
+  both received HTTP204. No manual page_view events are sent by the application.
+  A fresh private cart document had no GA. Real Yandex loader/watch requests were
+  also verified during the deployment. Provider dashboard reports were not inspected.
+- Own server, runtime secrets, HTTPS renewal, runner and local daily backups are configured.
+  SMTP authentication succeeded; inbox delivery and real user Steam login remain unverified.
+- ArcPay/SIH credentials, live catalog synchronization and financial provider acceptance
+  remain outstanding. Financial flags remain off; no real charge or fulfillment was performed.

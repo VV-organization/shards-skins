@@ -79,5 +79,10 @@ dumps and matching runtime env snapshots for14days in /opt/shardsmarket/backups
 This is a local backup, not an off-host disaster-recovery copy.
 
 SMTP authentication for support@shardsmarket.com passed without sending a test
-email. ArcPay/SIH keys are not configured; financial flags remainfalse. GA4 is
-installed but not activated pending Enhanced Measurement confirmation.
+email. ArcPay/SIH keys are not configured; financial flags remainfalse.
+
+GA4 was activated in aa364e0 using the same automatic SPA tracking as Frags and
+Skindrop. Live verification observed one page_view for / and one for /catalog,
+both accepted with HTTP204, with no manual duplicate events. The private cart
+document had no GA loader. Yandex remains enabled. CI38176686221 and
+deploy38176686220 completed successfully. Dashboard ingestion was not inspected.
