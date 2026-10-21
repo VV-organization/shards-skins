@@ -34,9 +34,9 @@ export class QuotedCheckoutService {
   const credential={partner:row.partner_account_id,ciphertext:row.ciphertext,nonce:row.nonce,authTag:row.auth_tag};
   return {steamId64:row.steam_id64,credential,revision:digest([row.steam_id64,credential])};
  }
- private async verifiedPricing(client:CartClient,ids:string[],lock=false){
-  const rows=await client.query<{id:string;metadata:{fxVerified?:boolean}}>(`SELECT id,metadata FROM pricing_settings WHERE scope='sih-skins' AND superseded_at IS NULL ${lock?'FOR SHARE':''}`);
-  if(rows.rows.length!==1||rows.rows[0]?.metadata.fxVerified!==true||ids.some(id=>id!==rows.rows[0]?.id))throw new ServiceUnavailableException('PRICING_VERIFICATION_REQUIRED');
+ private async assertCurrentPricing(client:CartClient,ids:string[],lock=false){
+  const rows=await client.query<{id:string}>(`SELECT id FROM pricing_settings WHERE scope='sih-skins' AND superseded_at IS NULL ${lock?'FOR SHARE':''}`);
+  if(rows.rows.length!==1||ids.some(id=>id!==rows.rows[0]?.id))throw new ServiceUnavailableException('PRICING_UNAVAILABLE');
  }
  private assertCart(cart:CartDto,version:number){
   if(!Number.isSafeInteger(version)||version<0)throw new BadRequestException('INVALID_CART_VERSION');
@@ -46,7 +46,7 @@ export class QuotedCheckoutService {
  async createCheckoutQuote(command:{userId:string;cartVersion:number}):Promise<CheckoutQuoteDto>{
   const cart=await this.cart.getCart(command.userId);this.assertCart(cart,command.cartVersion);
   const recipient=await this.recipient(this.database,command.userId);
-  await this.verifiedPricing(this.database,cart.items.map(i=>i.product.pricingSettingId));
+  await this.assertCurrentPricing(this.database,cart.items.map(i=>i.product.pricingSettingId));
   const lines:QuoteLine[]=[];
   // Bounded supplier reads happen before opening any checkout transaction.
   for(let start=0;start<cart.items.length;start+=5){
@@ -78,7 +78,7 @@ export class QuotedCheckoutService {
    if(quote.cartVersion!==command.cartVersion||locked.version!==quote.cartVersion)throw new ConflictException('CART_VERSION_CHANGED');
    const recipient=await this.recipient(client,command.userId,true);
    if(recipient.revision!==quote.recipient.revision)throw new ConflictException('RECIPIENT_CHANGED');
-   await this.verifiedPricing(client,quote.lines.map(l=>l.pricingSettingId),true);
+   await this.assertCurrentPricing(client,quote.lines.map(l=>l.pricingSettingId),true);
    const slugs=quote.lines.map(l=>l.product.slug);
    await client.query('SELECT id FROM catalog_products WHERE slug=ANY($1::text[]) ORDER BY id FOR SHARE',[slugs]);
    await client.query("SELECT market_hash_name FROM supplier_listings WHERE supplier='sih' AND game='cs2' AND market_hash_name=ANY($1::text[]) ORDER BY market_hash_name FOR SHARE",[quote.lines.map(l=>l.product.marketHashName)]);

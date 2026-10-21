@@ -34,7 +34,6 @@ export async function commerceFixture(databaseUrl:string){
  await start();
  async function identity(id:string,steam=true){const steamId='76561198000000900';await pool.query('INSERT INTO users(id,steam_id64) VALUES ($1,$2)',[id,steam?steamId:null]);const session=await app.get(SessionsService).createSession(id,null);return {userId:id,steamId,cookie:`${CUSTOMER_SESSION_COOKIE}=${session.token}`,csrf:app.get(SessionsService).createCsrfToken(session.token)};}
  async function catalog(){
-  await pool.query("UPDATE pricing_settings SET metadata=metadata||'{\"fxVerified\":true}'::jsonb WHERE superseded_at IS NULL");
   const run=await pool.query<{id:string}>("INSERT INTO catalog_sync_runs(source,game,status,observed_at,finished_at,row_count) VALUES ('sih','cs2','promoted',now(),now(),2) RETURNING id");
   for(const category of ['knife','gloves']){const slug=`fixture-${category}`;
    await pool.query(`INSERT INTO supplier_listings(supplier,game,market_hash_name,active,available_quantity,price_microusd,last_seen_at,last_sync_run_id) VALUES ('sih','cs2',$1,true,5,1000000,now(),$2)`,[slug,run.rows[0]?.id]);

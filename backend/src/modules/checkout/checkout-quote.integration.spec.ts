@@ -18,7 +18,6 @@ describe.skipIf(!databaseUrl)('quoted skin checkout',()=>{
   process.env.DATABASE_URL=databaseUrl;pool=new Pool({connectionString:databaseUrl});
   app=(await Test.createTestingModule({imports:[AppModule]}).overrideProvider(SihClient).useValue(provider).compile()).createNestApplication();await app.init();checkout=app.get(QuotedCheckoutService);cart=app.get(CartService);wallet=app.get(WalletService);
   await pool.query('INSERT INTO users(id,steam_id64) VALUES ($1,$2)',[userId,steamId]);
-  await pool.query("UPDATE pricing_settings SET metadata=metadata||'{\"fxVerified\":true}'::jsonb WHERE superseded_at IS NULL");
   const run=await pool.query<{id:string}>("INSERT INTO catalog_sync_runs(source,game,status,observed_at,finished_at,row_count) VALUES ('sih','cs2','promoted',now(),now(),2) RETURNING id");
   for(const slug of ['checkout-knife','checkout-glove']){
    await pool.query(`INSERT INTO supplier_listings(supplier,game,market_hash_name,active,available_quantity,price_microusd,last_seen_at,last_sync_run_id) VALUES ('sih','cs2',$1,true,5,1000000,now(),$2)`,[slug,run.rows[0]?.id]);
@@ -35,6 +34,11 @@ describe.skipIf(!databaseUrl)('quoted skin checkout',()=>{
  const quote=()=>checkout.createCheckoutQuote({userId,cartVersion:1});
  const buy=(quoteId:string,idempotencyKey='checkout-buy',cartVersion=1)=>checkout.checkoutFromServerCart({userId,quoteId,cartVersion,idempotencyKey});
  const counts=async()=>{const result=await pool.query<{orders:number;holds:number}>('SELECT (SELECT count(*)::integer FROM orders) AS orders,(SELECT count(*)::integer FROM wallet_holds) AS holds');return result.rows[0];};
+ it('allows checkout despite legacy false FX approval metadata',async()=>{
+  await pool.query("UPDATE pricing_settings SET metadata=metadata||'{\"fxVerified\":false}'::jsonb WHERE superseded_at IS NULL");
+  try {const q=await quote();const order=await buy(q.id);expect(order.totalCoinMinor).toBe(q.totalCoinMinor);expect(await counts()).toEqual({orders:1,holds:1});}
+  finally {await pool.query("UPDATE pricing_settings SET metadata=metadata-'fxVerified'");}
+ });
  it('atomically persists the order, hold, immutable commands and cart cleanup; replay survives expiry',async()=>{
   const q=await quote(),order=await buy(q.id);expect(JSON.stringify(q)).not.toMatch(/ciphertext|fixtureToken|nonce/);expect(order.totalCoinMinor).toBe(q.totalCoinMinor);expect(await counts()).toEqual({orders:1,holds:1});expect((await cart.getCart(userId)).items).toHaveLength(0);
   const commands=await pool.query<{provider_operation_id:string}>('SELECT provider_operation_id FROM fulfillment_commands');expect(commands.rows[0]?.provider_operation_id).toBeTruthy();
