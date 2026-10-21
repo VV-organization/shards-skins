@@ -3,7 +3,7 @@ import Redis from "ioredis";
 
 import { DatabaseService } from "../../common/database/database.service";
 import type { AppConfig } from "../../config/app-config";
-import { isArcPayConfigured } from "../../config/app-config";
+import { isArcoPayConfigured } from "../../config/app-config";
 import { APP_CONFIG } from "../../config/app-config.module";
 import { type CatalogGame } from "../catalog/catalog-game";
 
@@ -57,12 +57,12 @@ export class IntegrationHealthService {
   }
 
   topUp(): IntegrationHealthResult {
-    const ok = isArcPayConfigured(this.config.arcPay);
-    return ok ? { status: "ok" } : { status: "down", reasons: ["ARC_PAY_TOP_UP_NOT_CONFIGURED"] };
+    const ok = isArcoPayConfigured(this.config.arcoPay);
+    return ok ? { status: "ok" } : { status: "down", reasons: ["ARCO_PAY_TOP_UP_NOT_CONFIGURED"] };
   }
 
   checkout(): IntegrationHealthResult {
-    const ok = Boolean(this.config.databaseUrl && this.config.redisUrl && this.config.arcPay.publicOrigin);
+    const ok = Boolean(this.config.databaseUrl && this.config.redisUrl && this.config.arcoPay.publicOrigin);
     return ok ? { status: "ok" } : { status: "down", reasons: ["CHECKOUT_NOT_CONFIGURED"] };
   }
 

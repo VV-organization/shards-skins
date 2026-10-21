@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { isArcPayConfigured, loadAppConfig } from "./app-config";
+import { isArcoPayConfigured, loadAppConfig } from "./app-config";
 
 describe("loadAppConfig", () => {
   it("parses runtime urls, secret-file paths, and CORS origins without exposing secret values", () => {
@@ -12,12 +12,12 @@ describe("loadAppConfig", () => {
       PORT: "4100",
       DATABASE_URL: "postgres://shards:test@localhost:5432/shards",
       REDIS_URL: "redis://localhost:6379/0",
-      ARC_PAY_ENVIRONMENT: "sandbox",
-      ARC_PAY_PROVIDER_MODE: "fake",
-      ARC_PAY_SECRET_KEY_FILE: "/run/secrets/arcPay-secret",
-      ARC_PAY_FAKE_CHECKOUT_BASE_URL: "http://localhost:3999",
-      ARC_PAY_PUBLIC_ORIGIN: "https://hkdk.events/source-id/",
-      ARC_PAY_WEBHOOK_SIGNING_SECRET_FILE: "/run/secrets/arc-pay-webhook-secret",
+      ARCO_PAY_ENVIRONMENT: "sandbox",
+      ARCO_PAY_PROVIDER_MODE: "fake",
+      ARCO_PAY_API_KEY_FILE: "/run/secrets/arcoPay-secret",
+      ARCO_PAY_FAKE_CHECKOUT_BASE_URL: "http://localhost:3999",
+      ARCO_PAY_PUBLIC_ORIGIN: "https://hkdk.events/source-id/",
+      ARCO_PAY_PUBLIC_KEY_FILE: "/run/secrets/arco-pay-webhook-secret",
       STEAM_WEB_API_KEY_FILE: "/run/secrets/steam-web-api-key",
       SIH_API_KEY_FILE: "/run/secrets/sih-api-key",
       SIH_STEAM_REFILL_API_KEY_FILE: "/run/secrets/sih-steam-refill-api-key",
@@ -50,14 +50,14 @@ describe("loadAppConfig", () => {
       steam: {
         webApiKeyFile: "/run/secrets/steam-web-api-key",
       },
-      arcPay: {
-        apiUrl: "https://api.arcpay.space/v1",
+      arcoPay: { paymentOrigin: "https://payment.paidlayer.com",
+        apiUrl: "https://api.clickit.team/api/v1",
         environment: "sandbox",
         providerMode: "fake",
-        secretKeyFile: "/run/secrets/arcPay-secret",
+        apiKeyFile: "/run/secrets/arcoPay-secret",
         fakeCheckoutBaseUrl: "http://localhost:3999",
         publicOrigin: "https://hkdk.events/source-id",
-        webhookSigningSecretFile: "/run/secrets/arc-pay-webhook-secret",
+        publicKeyFile: "/run/secrets/arco-pay-webhook-secret",
       },
       sih: {
         apiKeyFile: "/run/secrets/sih-api-key",
@@ -94,13 +94,13 @@ describe("loadAppConfig", () => {
 
   it("fails closed on invalid ports and payment provider environments", () => {
     expect(() => loadAppConfig({ PORT: "0" })).toThrow("PORT must be between 1 and 65535.");
-    expect(() => loadAppConfig({ ARC_PAY_ENVIRONMENT: "qa" })).toThrow("ARC_PAY_ENVIRONMENT must be sandbox or live.");
-    expect(loadAppConfig({ ARC_PAY_PROVIDER_MODE: "real" }).arcPay.providerMode).toBe("real");
-    expect(() => loadAppConfig({ ARC_PAY_PROVIDER_MODE: "invalid" })).toThrow("ARC_PAY_PROVIDER_MODE must be disabled, fake, or real.");
-    expect(() => loadAppConfig({ NODE_ENV: "production", ARC_PAY_PROVIDER_MODE: "fake" })).toThrow("ARC_PAY_PROVIDER_MODE=fake is not allowed in production.");
-    expect(() => loadAppConfig({ ARC_PAY_FAKE_CHECKOUT_BASE_URL: "not-url" })).toThrow("ARC_PAY_FAKE_CHECKOUT_BASE_URL must be a valid HTTP(S) URL.");
-    expect(() => loadAppConfig({ ARC_PAY_PUBLIC_ORIGIN: "http://shards.example" })).toThrow("ARC_PAY_PUBLIC_ORIGIN must be a valid HTTPS base URL.");
-    expect(() => loadAppConfig({ ARC_PAY_PUBLIC_ORIGIN: "https://shards.example/path?query=1" })).toThrow("ARC_PAY_PUBLIC_ORIGIN must be a valid HTTPS base URL.");
+    expect(() => loadAppConfig({ ARCO_PAY_ENVIRONMENT: "qa" })).toThrow("ARCO_PAY_ENVIRONMENT must be sandbox or live.");
+    expect(loadAppConfig({ ARCO_PAY_PROVIDER_MODE: "real" }).arcoPay.providerMode).toBe("real");
+    expect(() => loadAppConfig({ ARCO_PAY_PROVIDER_MODE: "invalid" })).toThrow("ARCO_PAY_PROVIDER_MODE must be disabled, fake, or real.");
+    expect(() => loadAppConfig({ NODE_ENV: "production", ARCO_PAY_PROVIDER_MODE: "fake" })).toThrow("ARCO_PAY_PROVIDER_MODE=fake is not allowed in production.");
+    expect(() => loadAppConfig({ ARCO_PAY_FAKE_CHECKOUT_BASE_URL: "not-url" })).toThrow("ARCO_PAY_FAKE_CHECKOUT_BASE_URL must be a valid HTTP(S) URL.");
+    expect(() => loadAppConfig({ ARCO_PAY_PUBLIC_ORIGIN: "http://shards.example" })).toThrow("ARCO_PAY_PUBLIC_ORIGIN must be a valid HTTPS base URL.");
+    expect(() => loadAppConfig({ ARCO_PAY_PUBLIC_ORIGIN: "https://shards.example/path?query=1" })).toThrow("ARCO_PAY_PUBLIC_ORIGIN must be a valid HTTPS base URL.");
     expect(() => loadAppConfig({ VV_ADMIN_PUBLIC_ORIGIN: "http://shards.example" })).toThrow("VV_ADMIN_PUBLIC_ORIGIN must be a valid HTTPS base URL.");
     expect(() => loadAppConfig({ VV_ADMIN_SITE_KEY: "393a977013443bb19069045d36af4890" })).toThrow("VV_ADMIN_SITE_KEY must be a lowercase protocol key.");
     expect(() => loadAppConfig({ SIH_REQUEST_TIMEOUT_MS: "499" })).toThrow("SIH_REQUEST_TIMEOUT_MS must be between 500 and 120000.");
@@ -136,20 +136,23 @@ describe("loadAppConfig", () => {
   });
 });
 
-describe("isArcPayConfigured", () => {
+describe("isArcoPayConfigured", () => {
   const credentials = {
-    ARC_PAY_PROVIDER_MODE: "real",
-    ARC_PAY_SECRET_KEY_FILE: "/run/secrets/arc-pay-key",
-    ARC_PAY_WEBHOOK_SIGNING_SECRET_FILE: "/run/secrets/arc-pay-webhook",
-    ARC_PAY_PUBLIC_ORIGIN: "https://shards.example",
+    ARCO_PAY_BEARER_TOKEN_FILE: "/run/secrets/token",
+    ARCO_PAY_SHOP_ID: "1581",
+    ARCO_PAY_CALLBACK_URL: "https://shards.example/payments/webhooks/arco-pay",
+    ARCO_PAY_PROVIDER_MODE: "real",
+    ARCO_PAY_API_KEY_FILE: "/run/secrets/arco-pay-key",
+    ARCO_PAY_PUBLIC_KEY_FILE: "/run/secrets/arco-pay-webhook",
+    ARCO_PAY_PUBLIC_ORIGIN: "https://shards.example",
   };
 
   it("requires real mode and all settlement credentials before enabling payments", () => {
-    expect(isArcPayConfigured(loadAppConfig(credentials).arcPay)).toBe(true);
+    expect(isArcoPayConfigured(loadAppConfig(credentials).arcoPay)).toBe(true);
     for (const missing of Object.keys(credentials)) {
       const incomplete = { ...credentials, [missing]: "" };
-      expect(isArcPayConfigured(loadAppConfig(incomplete).arcPay)).toBe(false);
+      expect(isArcoPayConfigured(loadAppConfig(incomplete).arcoPay)).toBe(false);
     }
-    expect(isArcPayConfigured(loadAppConfig({ ...credentials, ARC_PAY_PROVIDER_MODE: "fake" }).arcPay)).toBe(false);
+    expect(isArcoPayConfigured(loadAppConfig({ ...credentials, ARCO_PAY_PROVIDER_MODE: "fake" }).arcoPay)).toBe(false);
   });
 });

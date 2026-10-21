@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 
 import type { AppConfig } from "../../config/app-config";
-import { isArcPayConfigured } from "../../config/app-config";
+import { isArcoPayConfigured } from "../../config/app-config";
 import { APP_CONFIG } from "../../config/app-config.module";
 
 type IntegrationManifest = {
@@ -57,7 +57,7 @@ type IntegrationReadiness = {
   readonly checks: {
     readonly postgres: "ok" | "not_configured";
     readonly redis: "ok" | "not_configured";
-    readonly arcPay: "ok" | "not_configured";
+    readonly arcoPay: "ok" | "not_configured";
     readonly sih: "ok" | "not_configured";
     readonly adminApi: "ok" | "not_configured";
   };
@@ -230,8 +230,8 @@ export class IntegrationService {
     const checks = {
       postgres: this.config.databaseUrl ? "ok" : "not_configured",
       redis: this.config.redisUrl ? "ok" : "not_configured",
-      arcPay:
-        isArcPayConfigured(this.config.arcPay)
+      arcoPay:
+        isArcoPayConfigured(this.config.arcoPay)
           ? "ok"
           : "not_configured",
       sih:

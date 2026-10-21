@@ -1,4 +1,5 @@
 "use client";
+import {submitHostedCheckout} from "@/lib/hosted-checkout";
 import {useEffect,useId,useState} from "react";
 import {parseAmount,shardsToRub,steamQuote,formatMinor} from "@/lib/money";
 import {guestApi,guestPaymentContext} from '@/lib/guest-payment';
@@ -34,7 +35,7 @@ function usePayment(kind:'top-up'|'steam-refill',body:unknown,valid:boolean){
    const result=await client.command<{id:string;checkoutUrl:string|null}>(`payment:${kind}`,'POST',`${path}/sessions`,pending?.body??{quoteId:pricing.quote!.quoteId,acceptedFiatMinor:pricing.quote!.fiatAmountMinor},result=>typeof result?.id==='string'&&!!result.id&&(result.checkoutUrl===null||typeof result.checkoutUrl==='string'));
    setLastSession(result.id);
    const returnPath=`/payments/return?session=${encodeURIComponent(result.id)}`;
-   if(result.checkoutUrl){const url=new URL(result.checkoutUrl);if(url.protocol!=='https:')throw new Error('Invalid checkout URL');window.location.assign(url.href);}else openPaymentPage(returnPath);
+   if(result.checkoutUrl){submitHostedCheckout(result.checkoutUrl,result.id);}else openPaymentPage(returnPath);
   }catch(error){if(error instanceof DOMException&&error.name==='AbortError')return;setMessage(error instanceof ApiError&&error.status>=400&&error.status<500?'Условия изменились. Проверьте данные и обновите расчёт.':'Результат запроса пока неизвестен. Повторите проверку — второй платёж не создаётся.');if(error instanceof ApiError&&error.status<500)pricing.refresh();}
   finally{setBusy(false);}
  }

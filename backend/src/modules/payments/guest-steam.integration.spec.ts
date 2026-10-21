@@ -138,8 +138,8 @@ describe.skipIf(!url)('VV163 guest Steam and automatic history',()=>{
   await pool.query("UPDATE steam_refill_payments SET provider_session_id='guest-replay-provider' WHERE id=$1",[p.id]);
   const event={providerEventId:'guest-replay-captured',eventType:'payment.captured',providerPaymentId:null,providerSessionId:'guest-replay-provider',topUpPaymentId:p.id,providerStatus:'captured',amountMinor:quote.fiatAmountMinor,currency:'RUB',payloadSnapshot:{}};
   const payments=app.get(PaymentsService);
-  expect((await payments['processVerifiedArcPayWebhook'](event)).status).toBe('processed');
-  expect((await payments['processVerifiedArcPayWebhook'](event)).status).toBe('duplicate');
+  expect((await payments['processVerifiedArcoPayWebhook'](event)).status).toBe('processed');
+  expect((await payments['processVerifiedArcoPayWebhook'](event)).status).toBe('duplicate');
   const after=await app.get(OrdersService).listUserOrders('guest-replay-owner');
   expect(after.orders).toHaveLength(1);
   const stored=await pool.query<{order_id:string}>('SELECT order_id FROM steam_refill_payments WHERE id=$1',[p.id]);

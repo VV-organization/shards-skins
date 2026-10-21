@@ -14,7 +14,7 @@ import { WalletModule } from "../wallet/wallet.module";
 import { PaymentsWebhookController } from "./payments-webhook.controller";
 import { PaymentsController } from "./payments.controller";
 import { PaymentsService } from "./payments.service";
-import { ArcPayClient } from "../providers/arc-pay/arc-pay.client";
+import { ArcoPayClient } from "../providers/arco-pay/arco-pay.client";
 import { PaymentHistoryController } from "./payment-history.controller";
 import { PaymentHistoryService } from "./payment-history.service";
 
@@ -23,13 +23,15 @@ import { PaymentHistoryService } from "./payment-history.service";
   controllers: [GuestPaymentsController,PaymentsController, PaymentsWebhookController, PaymentHistoryController],
   providers: [
     {
-      provide: ArcPayClient,
+      provide: ArcoPayClient,
       inject: [APP_CONFIG],
-      useFactory: (config: AppConfig): ArcPayClient => new ArcPayClient({
-        apiKeyFile: config.arcPay.secretKeyFile ?? "",
-        ...(config.arcPay.checkoutAllowedOrigins?{allowedCheckoutOrigins:config.arcPay.checkoutAllowedOrigins}:{}),
-        environment: config.arcPay.environment,
-        baseUrl: config.arcPay.apiUrl,
+      useFactory: (config: AppConfig): ArcoPayClient => new ArcoPayClient({
+        apiKeyFile: config.arcoPay.apiKeyFile ?? "",
+        bearerTokenFile: config.arcoPay.bearerTokenFile ?? "",
+        shopId: config.arcoPay.shopId ?? "",
+        callbackUrl: config.arcoPay.callbackUrl ?? "",
+        paymentOrigin: config.arcoPay.paymentOrigin,
+        baseUrl: config.arcoPay.apiUrl,
       }),
     },
     GuestPaymentService,

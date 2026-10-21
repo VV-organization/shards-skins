@@ -8,7 +8,7 @@ it('does not accept direct Steam payments while new fulfillment is disabled',()=
  expect(()=>guard.canActivate(context('POST','/payments/steam-refill/sessions'))).toThrow();
  expect(()=>guard.canActivate(context('POST','/checkout/cart'))).toThrow();
  expect(guard.canActivate(context('POST','/payments/top-up/sessions'))).toBe(true);
- expect(guard.canActivate(context('POST','/payments/webhooks/arc-pay'))).toBe(true);
+ expect(guard.canActivate(context('POST','/payments/webhooks/arco-pay'))).toBe(true);
  expect(guard.canActivate(context('GET','/payments/sessions/id'))).toBe(true);
 });
 
@@ -21,7 +21,7 @@ describe('new operations gate', () => {
   });
   it('keeps callbacks and status reads operational when new submissions are disabled', () => {
     const gate = new CommerceEnabledGuard(loadAppConfig({}));
-    expect(gate.canActivate(context('POST','/payments/webhooks/arc-pay'))).toBe(true);
+    expect(gate.canActivate(context('POST','/payments/webhooks/arco-pay'))).toBe(true);
     expect(gate.canActivate(context('GET','/payments/sessions/example'))).toBe(true);
   });
 });

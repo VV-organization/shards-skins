@@ -123,3 +123,29 @@ for(const width of [1440,768,390,320])test(`VV163 account, company and legal lay
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  const faq=page.locator('footer').getByRole('link',{name:'Вопросы и ответы'});await faq.scrollIntoViewIfNeeded();expect(await faq.evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})).toBe(true);await settled(faq);await expect(page).toHaveURL(/\/#faq$/);await expect(page.locator('#faq')).toBeInViewport();
 });
+
+for(const entry of ['create','resume'])test(`Arco hosted ${entry} posts return URLs to Paidlayer`,async({page})=>{
+ await fixture(page);
+ const checkoutUrl='https://payment.paidlayer.com/provider-order';
+ await page.route('**/api/payments/top-up/sessions',route=>route.fulfill({json:{id:sessionId,checkoutUrl}}));
+ await page.route(`**/api/payments/sessions/${sessionId}`,route=>route.fulfill({json:{id:sessionId,purpose:'wallet_topup',paymentStatus:'checkout_pending',fulfillmentStatus:null,fiatAmountMinor:10000,checkoutUrl,refundStatus:null}}));
+ await page.route('https://payment.paidlayer.com/**',async route=>{
+  expect(route.request().method()).toBe('POST');
+  const fields=new URLSearchParams(route.request().postData()??'');
+  for(const key of ['successUrl','failUrl']){
+   const url=new URL(fields.get(key)!);
+   expect(url.origin).toBe('http://127.0.0.1:5198');
+   expect(url.pathname).toBe('/payments/return');
+   expect(url.searchParams.get('session')).toBe(sessionId);
+  }
+  await route.fulfill({contentType:'text/html',body:'<h1>Payment provider fixture</h1>'});
+ });
+ if(entry==='resume'){
+  await page.goto(`/payments/return?session=${sessionId}`);
+  await page.getByRole('button',{name:'Продолжить оплату'}).click();
+ }else{
+  await page.goto('/#balance');
+  await settled(page.getByRole('button',{name:/Пополнить баланс/}));
+ }
+ await expect(page.getByRole('heading',{name:'Payment provider fixture'})).toBeVisible();
+});

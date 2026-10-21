@@ -8,8 +8,8 @@ export type ProviderGateStatus = "ready" | "blocked";
 export type ProviderAcceptanceGate = {
   id:
     | "steam-openid-browser"
-    | "arc-pay-hosted-checkout"
-    | "arc-pay-webhook"
+    | "arco-pay-hosted-checkout"
+    | "arco-pay-webhook"
     | "sih-catalog"
     | "sih-skin-test-order"
     | "sih-steam-refill";
@@ -103,13 +103,16 @@ export async function evaluateProviderAcceptanceReadiness(
       validateHttpsPublicBaseUrl("PUBLIC_BASE_URL", env.PUBLIC_BASE_URL),
       validateHttpsPublicBaseUrl("PUBLIC_FRONTEND_ORIGIN", env.PUBLIC_FRONTEND_ORIGIN),
     ]),
-    gate("arc-pay-hosted-checkout", [
-      optionalString(env.ARC_PAY_PROVIDER_MODE) === "real" ? undefined : "ARC_PAY_PROVIDER_MODE must be real",
-      await validateSecretFile("ARC_PAY_SECRET_KEY_FILE", env, probe),
-      validateHttpsPublicBaseUrl("ARC_PAY_PUBLIC_ORIGIN", env.ARC_PAY_PUBLIC_ORIGIN),
+    gate("arco-pay-hosted-checkout", [
+      optionalString(env.ARCO_PAY_PROVIDER_MODE) === "real" ? undefined : "ARCO_PAY_PROVIDER_MODE must be real",
+      await validateSecretFile("ARCO_PAY_API_KEY_FILE", env, probe),
+      await validateSecretFile("ARCO_PAY_BEARER_TOKEN_FILE", env, probe),
+      /^[1-9]\d*$/.test(env.ARCO_PAY_SHOP_ID ?? "") ? undefined : "ARCO_PAY_SHOP_ID must be a positive integer",
+      validateHttpsPublicBaseUrl("ARCO_PAY_CALLBACK_URL", env.ARCO_PAY_CALLBACK_URL),
+      validateHttpsPublicBaseUrl("ARCO_PAY_PUBLIC_ORIGIN", env.ARCO_PAY_PUBLIC_ORIGIN),
     ]),
-    gate("arc-pay-webhook", [
-      await validateSecretFile("ARC_PAY_WEBHOOK_SIGNING_SECRET_FILE", env, probe),
+    gate("arco-pay-webhook", [
+      await validateSecretFile("ARCO_PAY_PUBLIC_KEY_FILE", env, probe),
       validateHttpsPublicBaseUrl("PUBLIC_BASE_URL", env.PUBLIC_BASE_URL),
     ]),
     gate("sih-catalog", [sihApiKeyReason]),

@@ -60,7 +60,7 @@ describe("HealthModule", () => {
           reasons: [
             "DATABASE_NOT_CONFIGURED",
             "REDIS_NOT_CONFIGURED",
-            "ARC_PAY_NOT_CONFIGURED",
+            "ARCO_PAY_NOT_CONFIGURED",
             "SIH_NOT_CONFIGURED",
           ],
         });

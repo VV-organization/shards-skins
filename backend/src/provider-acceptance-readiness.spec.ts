@@ -16,14 +16,14 @@ describe("provider acceptance readiness", () => {
         reasons: ["PUBLIC_BASE_URL missing", "PUBLIC_FRONTEND_ORIGIN missing"],
       },
       {
-        id: "arc-pay-hosted-checkout",
+        id: "arco-pay-hosted-checkout",
         status: "blocked",
-        reasons: ["ARC_PAY_PROVIDER_MODE must be real", "ARC_PAY_SECRET_KEY_FILE missing", "ARC_PAY_PUBLIC_ORIGIN missing"],
+        reasons: ["ARCO_PAY_PROVIDER_MODE must be real", "ARCO_PAY_API_KEY_FILE missing", "ARCO_PAY_BEARER_TOKEN_FILE missing", "ARCO_PAY_SHOP_ID must be a positive integer", "ARCO_PAY_CALLBACK_URL missing", "ARCO_PAY_PUBLIC_ORIGIN missing"],
       },
       {
-        id: "arc-pay-webhook",
+        id: "arco-pay-webhook",
         status: "blocked",
-        reasons: ["ARC_PAY_WEBHOOK_SIGNING_SECRET_FILE missing", "PUBLIC_BASE_URL missing"],
+        reasons: ["ARCO_PAY_PUBLIC_KEY_FILE missing", "PUBLIC_BASE_URL missing"],
       },
       {
         id: "sih-catalog",
@@ -53,10 +53,11 @@ describe("provider acceptance readiness", () => {
       {
         PUBLIC_BASE_URL: "https://backend.example",
         PUBLIC_FRONTEND_ORIGIN: "https://shards.example",
-        ARC_PAY_PROVIDER_MODE: "real",
-        ARC_PAY_SECRET_KEY_FILE: "/run/secrets/arcPay",
-        ARC_PAY_PUBLIC_ORIGIN: "https://shards.example/pay",
-        ARC_PAY_WEBHOOK_SIGNING_SECRET_FILE: "/run/secrets/arc-pay-webhook",
+        ARCO_PAY_PROVIDER_MODE: "real",
+        ARCO_PAY_BEARER_TOKEN_FILE: "/run/secrets/token", ARCO_PAY_SHOP_ID:"1581", ARCO_PAY_CALLBACK_URL:"https://shards.example/api/payments/webhooks/arco-pay",
+        ARCO_PAY_API_KEY_FILE: "/run/secrets/arcoPay",
+        ARCO_PAY_PUBLIC_ORIGIN: "https://shards.example/pay",
+        ARCO_PAY_PUBLIC_KEY_FILE: "/run/secrets/arco-pay-webhook",
         SIH_API_KEY_FILE: "/run/secrets/sih",
         SIH_STEAM_REFILL_API_KEY_FILE: "/run/secrets/sih-steam-refill",
         SIH_ACCEPTANCE_STEAM_ID64: "76561198000000000",
@@ -79,10 +80,10 @@ describe("provider acceptance readiness", () => {
       {
         PUBLIC_BASE_URL: "http://backend.example",
         PUBLIC_FRONTEND_ORIGIN: "https://shards.example",
-        ARC_PAY_PROVIDER_MODE: "fake",
-        ARC_PAY_SECRET_KEY_FILE: "/run/secrets/missing-arcPay",
-        ARC_PAY_PUBLIC_ORIGIN: "https://user:pass@shards.example",
-        ARC_PAY_WEBHOOK_SIGNING_SECRET_FILE: "/run/secrets/empty-webhook",
+        ARCO_PAY_PROVIDER_MODE: "fake",
+        ARCO_PAY_API_KEY_FILE: "/run/secrets/missing-arcoPay",
+        ARCO_PAY_PUBLIC_ORIGIN: "https://user:pass@shards.example",
+        ARCO_PAY_PUBLIC_KEY_FILE: "/run/secrets/empty-webhook",
         SIH_API_KEY_FILE: "/run/secrets/missing-sih",
       },
       probe,
@@ -90,9 +91,9 @@ describe("provider acceptance readiness", () => {
 
     expect(result.ready).toBe(false);
     expect(result.gates).toContainEqual({
-      id: "arc-pay-webhook",
+      id: "arco-pay-webhook",
       status: "blocked",
-      reasons: ["ARC_PAY_WEBHOOK_SIGNING_SECRET_FILE empty", "PUBLIC_BASE_URL must be HTTPS origin/base URL"],
+      reasons: ["ARCO_PAY_PUBLIC_KEY_FILE empty", "PUBLIC_BASE_URL must be HTTPS origin/base URL"],
     });
     expect(JSON.stringify(result)).not.toContain("/run/secrets");
   });

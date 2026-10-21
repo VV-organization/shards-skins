@@ -10,12 +10,12 @@ const config: AppConfig = {
   redisUrl: "redis://localhost:6379/0",
   admin: { apiTokenFile: "/run/secrets/admin-token" },
   steam: {},
-  arcPay: {
-    apiUrl: "https://api.arcpay.space/v1",
+  arcoPay: { bearerTokenFile: "/run/secrets/token", shopId:"1581", callbackUrl:"https://shards.example/payments/webhooks/arco-pay", paymentOrigin: "https://payment.paidlayer.com",
+    apiUrl: "https://api.clickit.team/api/v1",
     environment: "sandbox",
     providerMode: "real",
-    secretKeyFile: "/run/secrets/arcPay",
-    webhookSigningSecretFile: "/run/secrets/arcPay-public",
+    apiKeyFile: "/run/secrets/arcoPay",
+    publicKeyFile: "/run/secrets/arcoPay-public",
     publicOrigin: "https://hkdk.events/source-id",
   },
   sih: {
@@ -97,7 +97,7 @@ describe("IntegrationService", () => {
       checks: {
         postgres: "ok",
         redis: "ok",
-        arcPay: "ok",
+        arcoPay: "ok",
         sih: "ok",
         adminApi: "ok",
       },

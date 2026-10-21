@@ -14,7 +14,7 @@ export class PaymentQuotesService {
  async quoteWallet(userId:string,coinAmountMinor:number):Promise<PaymentQuoteDto>{
   const user=await this.users.requireUser(userId);if(!user.steam.connected)throw new BadRequestException('STEAM_IDENTITY_REQUIRED');
   let fiatAmountMinor:number;try{fiatAmountMinor=topUpFiatMinor(coinAmountMinor);}catch{throw new BadRequestException('INVALID_TOP_UP_AMOUNT');}
-  return this.issue(userId,{purpose:'wallet_topup',termsVersion:WALLET_TERMS_VERSION,environment:this.config.arcPay.environment,currency:'RUB',fiatAmountMinor,coinAmountMinor});
+  return this.issue(userId,{purpose:'wallet_topup',termsVersion:WALLET_TERMS_VERSION,environment:this.config.arcoPay.environment,currency:'RUB',fiatAmountMinor,coinAmountMinor});
  }
  async quoteSteam(userId:string,amountRub:number,steamLogin:string,emailInput?:string,guestCheckout=false):Promise<PaymentQuoteDto>{
   if(!Number.isSafeInteger(amountRub)||amountRub<50||amountRub>9433||typeof steamLogin!=='string'||!/^[A-Za-z0-9_-]{3,64}$/.test(steamLogin.trim()))throw new BadRequestException('INVALID_STEAM_REFILL');
@@ -24,7 +24,7 @@ export class PaymentQuotesService {
   if(guestCheckout){const guest=await this.database.query('SELECT id FROM guest_payment_contexts WHERE user_id=$1 AND expires_at>now()',[userId]);if(!guest.rowCount)throw new BadRequestException('GUEST_CONTEXT_REQUIRED');}
   const login=steamLogin.trim();const checked=await this.sih.checkSteamAccount({steamUsername:login});
   const feeRubMinor=amountRub*5;
-  return this.issue(userId,{purpose:'steam_refill',termsVersion:STEAM_TERMS_VERSION,environment:this.config.arcPay.environment,currency:'RUB',fiatAmountMinor:amountRub*100+feeRubMinor,amountRub,feeRubMinor,steamLogin:login,contactEmail:email,...(emailInput===undefined?{}:{contactEmailSource:'input' as const}),...(guestCheckout?{guestCheckout:true}:{}),steamCheckTransactionId:checked.transactionId});
+  return this.issue(userId,{purpose:'steam_refill',termsVersion:STEAM_TERMS_VERSION,environment:this.config.arcoPay.environment,currency:'RUB',fiatAmountMinor:amountRub*100+feeRubMinor,amountRub,feeRubMinor,steamLogin:login,contactEmail:email,...(emailInput===undefined?{}:{contactEmailSource:'input' as const}),...(guestCheckout?{guestCheckout:true}:{}),steamCheckTransactionId:checked.transactionId});
  }
  private async issue(userId:string,terms:PaymentTerms):Promise<PaymentQuoteDto>{const q=await this.quotes.issue(terms.purpose,terms,userId);const exposed={...terms};delete exposed.steamCheckTransactionId;return {...exposed,quoteId:q.id,expiresAt:q.expiresAt};}
  async createSession(command:{userId:string;purpose:PaymentPurpose;quoteId:string;acceptedFiatMinor:number;idempotencyKey:string}){

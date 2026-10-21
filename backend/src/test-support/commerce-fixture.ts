@@ -20,7 +20,7 @@ export const responseBody=<T>(response:{body:unknown})=>response.body as T;
 function stable(value:unknown):string{if(value===null||typeof value!=='object')return JSON.stringify(value);if(Array.isArray(value))return `[${value.map(stable).join(',')}]`;return `{${Object.entries(value).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`${JSON.stringify(k)}:${stable(v)}`).join(',')}}`;}
 export async function commerceFixture(databaseUrl:string){
  process.env.DATABASE_URL=databaseUrl;const pool=new Pool({connectionString:databaseUrl}),directory=await mkdtemp(join(tmpdir(),'shards-acceptance-')),secret='fixture-only-signing-secret';await writeFile(join(directory,'hook'),secret);
- const config=loadAppConfig({DATABASE_URL:databaseUrl,SHARDS_CHECKOUT_ENABLED:'true',SHARDS_PAYMENTS_ENABLED:'true',SHARDS_FULFILLMENT_ENABLED:'true',ARC_PAY_PROVIDER_MODE:'fake',ARC_PAY_FAKE_CHECKOUT_BASE_URL:'https://checkout.example.test',ARC_PAY_WEBHOOK_SIGNING_SECRET_FILE:join(directory,'hook')});
+ const config=loadAppConfig({DATABASE_URL:databaseUrl,SHARDS_CHECKOUT_ENABLED:'true',SHARDS_PAYMENTS_ENABLED:'true',SHARDS_FULFILLMENT_ENABLED:'true',ARCO_PAY_PROVIDER_MODE:'fake',ARCO_PAY_FAKE_CHECKOUT_BASE_URL:'https://checkout.example.test',ARCO_PAY_PUBLIC_KEY_FILE:join(directory,'hook')});
  const known=new Map<string,SihSkinOrder>();
  const provider={
   getMinimumItem:vi.fn(({marketHashName}:{marketHashName:string})=>Promise.resolve({marketHashName,game:'cs2',availableQuantity:5,priceMicrousd:1000000n,imageUrl:null})),
@@ -42,7 +42,7 @@ export async function commerceFixture(databaseUrl:string){
   }
  }
  const http=()=>request(app.getHttpServer() as Parameters<typeof request>[0]);
- async function captured(id:string,amount:number,eventId=`captured-${id}`,valid=true){const row=(await pool.query<{provider_session_id:string}>('SELECT provider_session_id FROM top_up_payments WHERE id=$1 UNION ALL SELECT provider_session_id FROM steam_refill_payments WHERE id=$1',[id])).rows[0];if(!row)throw new Error('payment missing');const payload={eventId,type:'payment.captured',checkoutSessionId:row.provider_session_id,status:'captured',amount,currency:'RUB'};return http().post('/payments/webhooks/arc-pay').set('webhook-id',eventId).set('x-arc-pay-signature',valid?createHmac('sha256',secret).update(stable(payload)).digest('hex'):'invalid').send(payload);}
+ async function captured(id:string,amount:number,eventId=`captured-${id}`,valid=true){const row=(await pool.query<{provider_session_id:string}>('SELECT provider_session_id FROM top_up_payments WHERE id=$1 UNION ALL SELECT provider_session_id FROM steam_refill_payments WHERE id=$1',[id])).rows[0];if(!row)throw new Error('payment missing');const payload={eventId,type:'payment.captured',checkoutSessionId:row.provider_session_id,status:'captured',amount,currency:'RUB'};return http().post('/payments/webhooks/arco-pay').set('webhook-id',eventId).set('x-arco-pay-signature',valid?createHmac('sha256',secret).update(stable(payload)).digest('hex'):'invalid').send(payload);}
  return {pool,provider,known,config,http,identity,catalog,captured,get app(){return app;},async restart(){await app.close();await start();},async close(){await app.close();await pool.end();await rm(directory,{recursive:true,force:true});delete process.env.DATABASE_URL;},key:()=>randomUUID()};
 }
 export type CommerceFixture=Awaited<ReturnType<typeof commerceFixture>>;

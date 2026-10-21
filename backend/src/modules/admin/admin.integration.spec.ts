@@ -37,10 +37,11 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
   afterAll(async () => {
     delete process.env.DATABASE_URL;
     delete process.env.ADMIN_API_TOKEN_FILE;
-    delete process.env.ARC_PAY_PROVIDER_MODE;
-    delete process.env.ARC_PAY_SECRET_KEY_FILE;
-    delete process.env.ARC_PAY_WEBHOOK_SIGNING_SECRET_FILE;
-    delete process.env.ARC_PAY_PUBLIC_ORIGIN;
+    delete process.env.ARCO_PAY_PROVIDER_MODE;
+    delete process.env.ARCO_PAY_API_KEY_FILE;
+    delete process.env.ARCO_PAY_PUBLIC_KEY_FILE;
+    delete process.env.ARCO_PAY_PUBLIC_ORIGIN;
+    delete process.env.ARCO_PAY_BEARER_TOKEN_FILE; delete process.env.ARCO_PAY_SHOP_ID; delete process.env.ARCO_PAY_CALLBACK_URL;
     delete process.env.SIH_API_KEY_FILE;
     globalThis.fetch = originalFetch;
     await app?.close();
@@ -53,10 +54,11 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
       await app.close();
       app = null;
     }
-    delete process.env.ARC_PAY_PROVIDER_MODE;
-    delete process.env.ARC_PAY_SECRET_KEY_FILE;
-    delete process.env.ARC_PAY_WEBHOOK_SIGNING_SECRET_FILE;
-    delete process.env.ARC_PAY_PUBLIC_ORIGIN;
+    delete process.env.ARCO_PAY_PROVIDER_MODE;
+    delete process.env.ARCO_PAY_API_KEY_FILE;
+    delete process.env.ARCO_PAY_PUBLIC_KEY_FILE;
+    delete process.env.ARCO_PAY_PUBLIC_ORIGIN;
+    delete process.env.ARCO_PAY_BEARER_TOKEN_FILE; delete process.env.ARCO_PAY_SHOP_ID; delete process.env.ARCO_PAY_CALLBACK_URL;
     delete process.env.SIH_API_KEY_FILE;
     globalThis.fetch = originalFetch;
     tempDir = await mkdtemp(join(tmpdir(), "shards-admin-"));
@@ -116,7 +118,7 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
           'user_76561198000000011',
           'topup-admin-review',
           'request-hash',
-          'arc_pay',
+          'arco_pay',
           'manual_review',
           150000,
           100000,
@@ -125,7 +127,7 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
           150,
           '019facd9-9e3f-730f-9180-8a43c1499df7',
           'refunded',
-          '{"manualReviewReason":"arc_pay_refunded_after_credit","rawSecret":"must-not-leak"}'::jsonb
+          '{"manualReviewReason":"arco_pay_refunded_after_credit","rawSecret":"must-not-leak"}'::jsonb
         )
       `,
     );
@@ -248,7 +250,7 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
           processed_at
         )
         VALUES (
-          'arc_pay',
+          'arco_pay',
           'evt-admin-rejected',
           'rejected_amount_mismatch',
           'verified',
@@ -280,12 +282,12 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
           id: "019facdb-b116-7434-b27c-debea8fb1c30",
           userId: "user_76561198000000011",
           status: "manual_review",
-          provider: "arc_pay",
+          provider: "arco_pay",
           providerStatus: "refunded",
           coinAmountMinor: 150000,
           fiatAmountMinor: 100000,
           fiatCurrency: "RUB",
-          manualReviewReason: "arc_pay_refunded_after_credit",
+          manualReviewReason: "arco_pay_refunded_after_credit",
         }],
       },
       orders: {
@@ -313,7 +315,7 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
       },
       webhooks: {
         problem: [{
-          provider: "arc_pay",
+          provider: "arco_pay",
           providerEventId: "evt-admin-rejected",
           status: "rejected_amount_mismatch",
           signatureStatus: "verified",
@@ -329,33 +331,23 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
 
   it("runs payment provider top-up reconciliation once behind admin auth, idempotency, reason, and durable audit", async () => {
     await app?.close();
-    const arcPaySecretKeyFile = join(tempDir ?? tmpdir(), "arc-pay-secret");
-    await writeFile(arcPaySecretKeyFile, "sk_test_admin_reconcile\n", "utf8");
-    process.env.ARC_PAY_PROVIDER_MODE = "real";
-    process.env.ARC_PAY_SECRET_KEY_FILE = arcPaySecretKeyFile;
-    process.env.ARC_PAY_WEBHOOK_SIGNING_SECRET_FILE = arcPaySecretKeyFile;
-    process.env.ARC_PAY_PUBLIC_ORIGIN = "https://shards.example";
+    const arcoPaySecretKeyFile = join(tempDir ?? tmpdir(), "arco-pay-secret");
+    await writeFile(arcoPaySecretKeyFile, "sk_test_admin_reconcile\n", "utf8");
+    process.env.ARCO_PAY_PROVIDER_MODE = "real";
+    process.env.ARCO_PAY_API_KEY_FILE = arcoPaySecretKeyFile;
+    process.env.ARCO_PAY_BEARER_TOKEN_FILE = arcoPaySecretKeyFile;
+    process.env.ARCO_PAY_SHOP_ID="1581";
+    process.env.ARCO_PAY_CALLBACK_URL="https://shards.example/payments/webhooks/arco-pay";
+    process.env.ARCO_PAY_PUBLIC_KEY_FILE = arcoPaySecretKeyFile;
+    process.env.ARCO_PAY_PUBLIC_ORIGIN = "https://shards.example";
 
     const topUpId = "019facdb-b116-7434-b27c-debea8fb1c40";
     let providerListRequests = 0;
     globalThis.fetch = (input, init) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-      const payment = {
-        id: "019facdb-b116-7434-b27c-debea8fb1c43", external_id: topUpId,
-        status: "captured", amount: 100000, currency: "RUB", metadata: {},
-      };
-      if (url === `https://api.arcpay.space/v1/payments?search=${topUpId}&page_size=5`) {
-        expect(init?.method).toBe("GET");
-        providerListRequests += 1;
-        return Promise.resolve(new Response(JSON.stringify({
-          payments: [payment], total: 1, page_size: 5, next_cursor: null,
-        }), { status: 200, headers: { "content-type": "application/json" } }));
-      }
-      if (url === `https://api.arcpay.space/v1/payments/${payment.id}`) {
-        expect(init?.method).toBe("GET");
-        return Promise.resolve(new Response(JSON.stringify(payment), {
-          status: 200, headers: { "content-type": "application/json" },
-        }));
+      if(url === 'https://api.clickit.team/api/v1/payments/status') {
+        expect(init?.method).toBe('POST'); providerListRequests++;
+        return Promise.resolve(Response.json({Response:{Success:true},Order:{OrderId:'019facdb-b116-7434-b27c-debea8fb1c42',MerchantOrderId:topUpId,ShopId:1581,Amount:100000,Currency:'RUB',Status:'CHARGED',PaymentType:'CARD'}}));
       }
       return Promise.resolve(new Response(JSON.stringify({ error: "unexpected request" }), {
         status: 500,
@@ -385,7 +377,7 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
           'user_76561198000000011',
           'topup-admin-reconcile',
           'topup-admin-reconcile-hash',
-          'arc_pay',
+          'arco_pay',
           'checkout_pending',
           160000,
           100000,
@@ -409,13 +401,13 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
     const first = await request(app.getHttpServer() as Parameters<typeof request>[0])
       .post("/admin/operations/payments/reconcile")
       .set("x-admin-token", adminToken)
-      .set("idempotency-key", "admin-reconcile-arc-pay-1")
+      .set("idempotency-key", "admin-reconcile-arco-pay-1")
       .send({ reason: "recover missing payment provider webhook", limit: 10 })
       .expect(200);
 
     expect(first.body).toEqual({
       status: "processed",
-      idempotencyKey: "admin-reconcile-arc-pay-1",
+      idempotencyKey: "admin-reconcile-arco-pay-1",
       result: {
         checked: 1,
         credited: 1,
@@ -431,13 +423,13 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
     const second = await request(app.getHttpServer() as Parameters<typeof request>[0])
       .post("/admin/operations/payments/reconcile")
       .set("x-admin-token", adminToken)
-      .set("idempotency-key", "admin-reconcile-arc-pay-1")
+      .set("idempotency-key", "admin-reconcile-arco-pay-1")
       .send({ reason: "recover missing payment provider webhook", limit: 10 })
       .expect(200);
 
     expect(second.body).toEqual({
       status: "duplicate",
-      idempotencyKey: "admin-reconcile-arc-pay-1",
+      idempotencyKey: "admin-reconcile-arco-pay-1",
       result: null,
     });
     expect(providerListRequests).toBe(1);
@@ -455,9 +447,9 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
           (SELECT status FROM top_up_payments WHERE id = $1) AS payment_status,
           (SELECT provider_status FROM top_up_payments WHERE id = $1) AS provider_status,
           (SELECT count(*) FROM wallet_transactions WHERE user_id = 'user_76561198000000011' AND type = 'top_up_credit') AS wallet_transactions,
-          (SELECT count(*) FROM idempotency_keys WHERE scope = 'admin:payments:reconcile' AND id = 'admin-reconcile-arc-pay-1' AND status = 'completed') AS idempotency_rows,
-          (SELECT count(*) FROM audit_events WHERE action = 'admin.payments.reconcile' AND target_id = 'admin-reconcile-arc-pay-1') AS audit_rows,
-          (SELECT metadata FROM audit_events WHERE action = 'admin.payments.reconcile' AND target_id = 'admin-reconcile-arc-pay-1' LIMIT 1) AS audit_metadata
+          (SELECT count(*) FROM idempotency_keys WHERE scope = 'admin:payments:reconcile' AND id = 'admin-reconcile-arco-pay-1' AND status = 'completed') AS idempotency_rows,
+          (SELECT count(*) FROM audit_events WHERE action = 'admin.payments.reconcile' AND target_id = 'admin-reconcile-arco-pay-1') AS audit_rows,
+          (SELECT metadata FROM audit_events WHERE action = 'admin.payments.reconcile' AND target_id = 'admin-reconcile-arco-pay-1' LIMIT 1) AS audit_metadata
       `,
       [topUpId],
     );
@@ -469,7 +461,7 @@ describe.skipIf(!databaseUrl)("admin operations read models", () => {
       audit_rows: "1",
     });
     expect(persisted.rows[0]?.audit_metadata).toEqual({
-      idempotencyKey: "admin-reconcile-arc-pay-1",
+      idempotencyKey: "admin-reconcile-arco-pay-1",
       limit: 10,
       reason: "recover missing payment provider webhook",
       result: {

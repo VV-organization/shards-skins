@@ -2,8 +2,8 @@ import { optionalString, optionalStringFromFile } from "./secret-file";
 import { parseCatalogPublicGames, type CatalogGame } from "../modules/catalog/catalog-game";
 
 export type AppNodeEnv = "development" | "test" | "production";
-export type ArcPayEnvironment = "sandbox" | "live";
-export type ArcPayProviderMode = "disabled" | "fake" | "real";
+export type ArcoPayEnvironment = "sandbox" | "live";
+export type ArcoPayProviderMode = "disabled" | "fake" | "real";
 
 export type AppConfig = {
   commerce?: { guestSteamRefillEnabled?: boolean; checkoutEnabled: boolean; paymentsEnabled: boolean; fulfillmentEnabled: boolean };
@@ -17,14 +17,17 @@ export type AppConfig = {
   steam: {
     webApiKeyFile?: string;
   };
-  arcPay: {
-    checkoutAllowedOrigins?: string[];
-    environment: ArcPayEnvironment;
-    providerMode: ArcPayProviderMode;
-    secretKeyFile?: string;
+  arcoPay: {
+    environment: ArcoPayEnvironment;
+    providerMode: ArcoPayProviderMode;
+    apiKeyFile?: string;
+    bearerTokenFile?: string;
+    shopId?: string;
+    callbackUrl?: string;
+    paymentOrigin: string;
     fakeCheckoutBaseUrl?: string;
     publicOrigin?: string;
-    webhookSigningSecretFile?: string;
+    publicKeyFile?: string;
     apiUrl: string;
   };
   sih: {
@@ -105,19 +108,19 @@ function parseHttpsUrl(name: string, value: string | undefined, defaultValue: st
   return url.toString().replace(/\/$/, "");
 }
 
-function parseArcPayEnvironment(value: string | undefined): ArcPayEnvironment {
+function parseArcoPayEnvironment(value: string | undefined): ArcoPayEnvironment {
   if (!value) return "sandbox";
   if (value === "sandbox" || value === "live") return value;
-  throw new Error("ARC_PAY_ENVIRONMENT must be sandbox or live.");
+  throw new Error("ARCO_PAY_ENVIRONMENT must be sandbox or live.");
 }
 
-function parseArcPayProviderMode(nodeEnv: AppNodeEnv, value: string | undefined): ArcPayProviderMode {
+function parseArcoPayProviderMode(nodeEnv: AppNodeEnv, value: string | undefined): ArcoPayProviderMode {
   const normalized = value?.trim() || "disabled";
   if (normalized !== "disabled" && normalized !== "fake" && normalized !== "real") {
-    throw new Error("ARC_PAY_PROVIDER_MODE must be disabled, fake, or real.");
+    throw new Error("ARCO_PAY_PROVIDER_MODE must be disabled, fake, or real.");
   }
   if (nodeEnv === "production" && normalized === "fake") {
-    throw new Error("ARC_PAY_PROVIDER_MODE=fake is not allowed in production.");
+    throw new Error("ARCO_PAY_PROVIDER_MODE=fake is not allowed in production.");
   }
   return normalized;
 }
@@ -178,11 +181,15 @@ export function loadAppConfig(env: NodeJS.ProcessEnv): AppConfig {
   const nodeEnv = parseNodeEnv(env.NODE_ENV);
   const databaseUrl = optionalString(env.DATABASE_URL) ?? optionalStringFromFile(env.DATABASE_URL_FILE);
   const redisUrl = optionalString(env.REDIS_URL);
-  const arcPaySecretKeyFile = optionalString(env.ARC_PAY_SECRET_KEY_FILE);
-  const arcPayProviderMode = parseArcPayProviderMode(nodeEnv, env.ARC_PAY_PROVIDER_MODE);
-  const arcPayFakeCheckoutBaseUrl = parseHttpOrHttpsBaseUrl("ARC_PAY_FAKE_CHECKOUT_BASE_URL", env.ARC_PAY_FAKE_CHECKOUT_BASE_URL);
-  const arcPayPublicOrigin = parseHttpsPublicBaseUrl("ARC_PAY_PUBLIC_ORIGIN", env.ARC_PAY_PUBLIC_ORIGIN);
-  const arcPayWebhookSigningSecretFile = optionalString(env.ARC_PAY_WEBHOOK_SIGNING_SECRET_FILE);
+  const arcoPayApiKeyFile = optionalString(env.ARCO_PAY_API_KEY_FILE);
+  const bearerTokenFile = optionalString(env.ARCO_PAY_BEARER_TOKEN_FILE);
+  const shopId = optionalString(env.ARCO_PAY_SHOP_ID);
+  if (shopId !== undefined && !/^[1-9]\d*$/.test(shopId)) throw new Error("ARCO_PAY_SHOP_ID must be a positive integer.");
+  const callbackUrl = parseHttpsPublicBaseUrl("ARCO_PAY_CALLBACK_URL", env.ARCO_PAY_CALLBACK_URL);
+  const arcoPayProviderMode = parseArcoPayProviderMode(nodeEnv, env.ARCO_PAY_PROVIDER_MODE);
+  const arcoPayFakeCheckoutBaseUrl = parseHttpOrHttpsBaseUrl("ARCO_PAY_FAKE_CHECKOUT_BASE_URL", env.ARCO_PAY_FAKE_CHECKOUT_BASE_URL);
+  const arcoPayPublicOrigin = parseHttpsPublicBaseUrl("ARCO_PAY_PUBLIC_ORIGIN", env.ARCO_PAY_PUBLIC_ORIGIN);
+  const arcoPayPublicKeyFile = optionalString(env.ARCO_PAY_PUBLIC_KEY_FILE);
   const steamWebApiKeyFile = optionalString(env.STEAM_WEB_API_KEY_FILE);
   const sihApiKeyFile = optionalString(env.SIH_API_KEY_FILE);
   const sihSteamRefillApiKeyFile = optionalString(env.SIH_STEAM_REFILL_API_KEY_FILE);
@@ -243,15 +250,18 @@ export function loadAppConfig(env: NodeJS.ProcessEnv): AppConfig {
     steam: {
       ...(steamWebApiKeyFile ? { webApiKeyFile: steamWebApiKeyFile } : {}),
     },
-    arcPay: {
-      ...(env.NODE_ENV==='production'||env.ARC_PAY_CHECKOUT_ALLOWED_ORIGINS?{checkoutAllowedOrigins:(env.ARC_PAY_CHECKOUT_ALLOWED_ORIGINS??'').split(',').map(s=>s.trim()).filter(Boolean).map(origin=>new URL(parseHttpsUrl('ARC_PAY_CHECKOUT_ALLOWED_ORIGINS',origin,origin)).origin)}:{}),
-      apiUrl: parseHttpsUrl("ARC_PAY_API_URL", env.ARC_PAY_API_URL, "https://api.arcpay.space/v1"),
-      environment: parseArcPayEnvironment(env.ARC_PAY_ENVIRONMENT),
-      providerMode: arcPayProviderMode,
-      ...(arcPaySecretKeyFile ? { secretKeyFile: arcPaySecretKeyFile } : {}),
-      ...(arcPayFakeCheckoutBaseUrl ? { fakeCheckoutBaseUrl: arcPayFakeCheckoutBaseUrl } : {}),
-      ...(arcPayPublicOrigin ? { publicOrigin: arcPayPublicOrigin } : {}),
-      ...(arcPayWebhookSigningSecretFile ? { webhookSigningSecretFile: arcPayWebhookSigningSecretFile } : {}),
+    arcoPay: {
+      apiUrl: parseHttpsUrl("ARCO_PAY_API_URL", env.ARCO_PAY_API_URL, "https://api.clickit.team/api/v1"),
+      paymentOrigin: parseHttpsPublicBaseUrl("ARCO_PAY_PAYMENT_ORIGIN", env.ARCO_PAY_PAYMENT_ORIGIN) ?? "https://payment.paidlayer.com",
+      ...(bearerTokenFile ? { bearerTokenFile } : {}),
+      ...(shopId ? { shopId } : {}),
+      ...(callbackUrl ? { callbackUrl } : {}),
+      environment: parseArcoPayEnvironment(env.ARCO_PAY_ENVIRONMENT),
+      providerMode: arcoPayProviderMode,
+      ...(arcoPayApiKeyFile ? { apiKeyFile: arcoPayApiKeyFile } : {}),
+      ...(arcoPayFakeCheckoutBaseUrl ? { fakeCheckoutBaseUrl: arcoPayFakeCheckoutBaseUrl } : {}),
+      ...(arcoPayPublicOrigin ? { publicOrigin: arcoPayPublicOrigin } : {}),
+      ...(arcoPayPublicKeyFile ? { publicKeyFile: arcoPayPublicKeyFile } : {}),
     },
     sih: {
       ...(sihApiKeyFile ? { apiKeyFile: sihApiKeyFile } : {}),
@@ -286,8 +296,9 @@ export function loadAppConfig(env: NodeJS.ProcessEnv): AppConfig {
   };
 }
 
-export function isArcPayConfigured(config: AppConfig["arcPay"]): boolean {
+export function isArcoPayConfigured(config: AppConfig["arcoPay"]): boolean {
   return config.providerMode === "real" && Boolean(
-    config.secretKeyFile && config.webhookSigningSecretFile && config.publicOrigin,
+    config.apiKeyFile && config.bearerTokenFile && config.shopId &&
+    config.callbackUrl && config.publicKeyFile && config.publicOrigin,
   );
 }

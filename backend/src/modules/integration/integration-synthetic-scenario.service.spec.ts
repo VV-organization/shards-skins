@@ -118,7 +118,7 @@ function createTopUp(
     id: input.id,
     userId: "synthetic:vv-admin",
     status: input.status,
-    provider: "arc_pay",
+    provider: "arco_pay",
     coinAmountMinor: 10_000,
     fiatAmountMinor: 6_667,
     fiatCurrency: "RUB",

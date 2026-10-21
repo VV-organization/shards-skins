@@ -41,9 +41,9 @@ describe.skipIf(!databaseUrl)('bound payment quotes',()=>{
   await pool.query("UPDATE top_up_payments SET provider_session_id='bound-provider' WHERE id=$1",[payment.id]);
   const service=app.get(PaymentsService);
   const event={providerEventId:'callback-ok',eventType:'payment.captured',providerPaymentId:null,providerSessionId:'bound-provider',topUpPaymentId:payment.id,providerStatus:'captured',amountMinor:q.fiatAmountMinor,currency:'RUB',payloadSnapshot:{}};
-  for(const [index,change] of [{providerSessionId:'wrong-provider'},{amountMinor:1},{currency:'USD'},{payloadSnapshot:{metadata:{environment:'wrong'}}},{payloadSnapshot:{metadata:{purpose:'steam_refill'}}}].entries())expect((await service['processVerifiedArcPayWebhook']({...event,...change,providerEventId:`wrong-${index}`})).status).not.toBe('processed');
+  for(const [index,change] of [{providerSessionId:'wrong-provider'},{amountMinor:1},{currency:'USD'},{payloadSnapshot:{metadata:{environment:'wrong'}}},{payloadSnapshot:{metadata:{purpose:'steam_refill'}}}].entries())expect((await service['processVerifiedArcoPayWebhook']({...event,...change,providerEventId:`wrong-${index}`})).status).not.toBe('processed');
   expect((await pool.query('SELECT * FROM wallet_ledger_entries')).rowCount).toBe(0);
-  expect((await service['processVerifiedArcPayWebhook'](event)).status).toBe('processed');expect((await service['processVerifiedArcPayWebhook'](event)).status).toBe('duplicate');
+  expect((await service['processVerifiedArcoPayWebhook'](event)).status).toBe('processed');expect((await service['processVerifiedArcoPayWebhook'](event)).status).toBe('duplicate');
   const balance=await pool.query<{amount:string}>("SELECT sum(amount_coin_minor)::text AS amount FROM wallet_ledger_entries WHERE user_id='wallet-owner'");expect(balance.rows[0]?.amount).toBe('100000');
  });
  it('enforces whole Steam bounds and verified identity',async()=>{

@@ -94,7 +94,7 @@ describe.skipIf(!databaseUrl)("wallet PostgreSQL persistence", () => {
       userId,
       amountCoinMinor: 100_000,
       idempotencyKey: "topup-wallet-history",
-      reason: "arc_pay_top_up_capture",
+      reason: "arco_pay_top_up_capture",
     });
     const order = await pool.query<{ id: string }>(
       `

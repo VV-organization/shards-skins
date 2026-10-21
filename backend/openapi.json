@@ -4340,7 +4340,7 @@
                     "provider": {
                       "type": "string",
                       "enum": [
-                        "arc_pay"
+                        "arco_pay"
                       ]
                     },
                     "amountRubMinor": {
@@ -4746,7 +4746,7 @@
                     "provider": {
                       "type": "string",
                       "enum": [
-                        "arc_pay"
+                        "arco_pay"
                       ]
                     },
                     "coinAmountMinor": {
@@ -4878,7 +4878,7 @@
                     "provider": {
                       "type": "string",
                       "enum": [
-                        "arc_pay"
+                        "arco_pay"
                       ]
                     },
                     "amountRubMinor": {
@@ -5015,33 +5015,15 @@
         ]
       }
     },
-    "/payments/webhooks/arc-pay": {
+    "/payments/webhooks/arco-pay": {
       "post": {
-        "operationId": "PaymentsWebhookController_handleArcPayWebhook",
+        "operationId": "PaymentsWebhookController_handleArcoPayWebhook",
         "parameters": [
           {
-            "name": "Webhook-Timestamp",
+            "name": "Payment-Sign",
             "in": "header",
-            "description": "Unix timestamp included in the payment provider signed payload.",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Webhook-Signature",
-            "in": "header",
-            "description": "payment provider HMAC signature in `t=<unix>,v1=<hex>` format. Fake mode also accepts X-Arc-Pay-Signature.",
+            "description": "ArcoPay RSA-SHA1 signature of the raw request body, encoded as base64.",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Webhook-Id",
-            "in": "header",
-            "description": "Provider webhook idempotency id. In fake mode this may also be present in the JSON payload.",
-            "required": false,
             "schema": {
               "type": "string"
             }

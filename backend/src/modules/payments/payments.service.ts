@@ -1,7 +1,7 @@
 import {QuotesService} from "../quotes/quotes.service";
 import {WALLET_TERMS_VERSION,STEAM_TERMS_VERSION,type PaymentTerms,type PaymentPurpose,type PaymentQuoteBinding} from "./payment-quote.types";
 import { topUpFiatMinor } from "../../common/money/shards";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import type { QueryResult, QueryResultRow } from "pg";
@@ -9,10 +9,10 @@ import type { QueryResult, QueryResultRow } from "pg";
 import { DatabaseService } from "../../common/database/database.service";
 import { normalizeIdempotencyKey } from "../../common/idempotency/idempotency-key";
 import { APP_CONFIG } from "../../config/app-config.module";
-import type { AppConfig } from "../../config/app-config";
-import { ArcPayClient } from "../providers/arc-pay/arc-pay.client";
-import { verifyFakeArcPayWebhookSignature } from "../providers/arc-pay/arc-pay-fake-webhook";
-import { verifyArcPayWebhookSignature } from "../providers/arc-pay/arc-pay-webhook-signature";
+import { isArcoPayConfigured, type AppConfig } from "../../config/app-config";
+import { ArcoPayClient, parseArcoPayPayment } from "../providers/arco-pay/arco-pay.client";
+import { verifyFakeArcoPayWebhookSignature } from "../providers/arco-pay/arco-pay-fake-webhook";
+import { verifyArcoPayWebhookSignature } from "../providers/arco-pay/arco-pay-webhook-signature";
 import { STEAM_REFILL_MAX_RUB, STEAM_REFILL_MIN_RUB } from "../catalog/steam-refill-product";
 import type { CheckoutRecipientSnapshot } from "../checkout/checkout.service";
 import { FulfillmentService, type FulfillmentOrderLineInput } from "../fulfillment/fulfillment.service";
@@ -26,8 +26,8 @@ const TOP_UP_MIN_COIN_MINOR = 10_000;
 const TOP_UP_MAX_COIN_MINOR = 10_000_000;
 const COIN_RATE_FIAT_MINOR = 100;
 const COIN_RATE_COIN_MINOR = 160;
-const TOP_UP_PROVIDER = "arc_pay";
-const STEAM_REFILL_PROVIDER = "arc_pay";
+const TOP_UP_PROVIDER = "arco_pay";
+const STEAM_REFILL_PROVIDER = "arco_pay";
 const STEAM_REFILL_FEE_BASIS_POINTS = 500;
 const BASIS_POINTS_DENOMINATOR = 10_000;
 
@@ -42,7 +42,7 @@ export type TopUpSessionDto = {
   id: string;
   userId: string;
   status: "provider_configuration_required" | "provider_creation_pending" | "checkout_pending" | "paid" | "failed" | "manual_review";
-  provider: "arc_pay";
+  provider: "arco_pay";
   coinAmountMinor: number;
   fiatAmountMinor: number;
   fiatCurrency: "RUB";
@@ -65,7 +65,7 @@ export type SteamRefillSessionDto = {
   id: string;
   userId: string;
   status: "provider_configuration_required" | "provider_creation_pending" | "checkout_pending" | "paid" | "failed" | "manual_review";
-  provider: "arc_pay";
+  provider: "arco_pay";
   amountRubMinor: number;
   feeRubMinor: number;
   fiatAmountMinor: number;
@@ -74,7 +74,7 @@ export type SteamRefillSessionDto = {
   checkoutUrl: string | null;
 };
 
-export type HandleArcPayWebhookCommand = {
+export type HandleArcoPayWebhookCommand = {
   providerEventId?: string;
   rawBody?: Buffer;
   signature?: string;
@@ -164,7 +164,7 @@ type PaymentReconciliationTarget = {
   request_hash: string;
 };
 
-type NormalizedArcPayWebhook = {
+type NormalizedArcoPayWebhook = {
   providerEventId: string;
   eventType: string;
   providerPaymentId: string | null;
@@ -176,7 +176,7 @@ type NormalizedArcPayWebhook = {
   payloadSnapshot: Record<string, unknown>;
 };
 
-type ParsedArcPayWebhook = Omit<NormalizedArcPayWebhook, "amountMinor" | "currency"> & {
+type ParsedArcoPayWebhook = Omit<NormalizedArcoPayWebhook, "amountMinor" | "currency"> & {
   amountMinor: number | undefined;
   currency: string | undefined;
 };
@@ -280,13 +280,15 @@ function steamRefillReturnUrls(publicOrigin: string,sessionId:string): { cancelU
 }
 
 function ambiguousCheckoutCreation(errorCode: string): boolean {
-  return errorCode === "ARC_PAY_TRANSPORT_UNAVAILABLE" || errorCode.startsWith("ARC_PAY_RESPONSE_") ||
-    errorCode === "ARC_PAY_CHECKOUT_URL_INVALID" || /^ARC_PAY_HTTP_(?:5\d\d|408|409|429)$/.test(errorCode);
+  // Only failures known to precede submission, or an explicit provider rejection,
+  // prove that no order was created. Everything else stays for review.
+  return !["ARCO_PAY_REQUEST_REJECTED", "ARCO_PAY_CREDENTIALS_UNAVAILABLE", "ARCO_PAY_REQUEST_INVALID",
+    "ARCO_PAY_AMOUNT_INVALID", "ARCO_PAY_URL_INVALID", "ARCO_PAY_SHOP_ID_INVALID"].includes(errorCode);
 }
 
 function providerErrorCode(error: unknown): string {
-  if (error instanceof Error && error.message.trim().length > 0) return error.message.slice(0, 120);
-  return "ARC_PAY_CHECKOUT_CREATE_FAILED";
+  if (error instanceof Error && /^ARCO_PAY_[A-Z0-9_]+$/.test(error.message)) return error.message.slice(0, 120);
+  return "ARCO_PAY_CHECKOUT_CREATE_FAILED";
 }
 
 function toDto(row: TopUpPaymentRow): TopUpSessionDto {
@@ -350,7 +352,7 @@ function optionalRecordField(record: Record<string, unknown>, ...keys: string[])
   return {};
 }
 
-function normalizeArcPayWebhook(providerEventIdHeader: string | undefined, payload: unknown): ParsedArcPayWebhook {
+function normalizeArcoPayWebhook(providerEventIdHeader: string | undefined, payload: unknown): ParsedArcoPayWebhook {
   const root = asRecord(payload);
   const payment = root.payment !== null && typeof root.payment === "object" && !Array.isArray(root.payment)
     ? root.payment as Record<string, unknown>
@@ -418,16 +420,16 @@ function normalizeArcPayWebhook(providerEventIdHeader: string | undefined, paylo
   };
 }
 
-function isCapturedWebhook(event: NormalizedArcPayWebhook): boolean {
+function isCapturedWebhook(event: NormalizedArcoPayWebhook): boolean {
   return event.eventType === "payment.captured" || event.providerStatus === "captured" || event.providerStatus === "settled";
 }
 
-function isFailedWebhook(event: NormalizedArcPayWebhook): boolean {
+function isFailedWebhook(event: NormalizedArcoPayWebhook): boolean {
   return ["payment.failed", "payment.declined", "payment.expired", "payment.voided"].includes(event.eventType)
     || isFailedProviderStatus(event.providerStatus);
 }
 
-function isManualReviewWebhook(event: NormalizedArcPayWebhook): boolean {
+function isManualReviewWebhook(event: NormalizedArcoPayWebhook): boolean {
   return ["payment.refunded", "payment.chargeback"].includes(event.eventType)
     || isManualReviewProviderStatus(event.providerStatus);
 }
@@ -451,8 +453,8 @@ function topUpStatusForVvAdmin(eventType: VvAdminTopUpEventType): "created" | "c
 }
 
 function manualReviewReason(providerStatus: string): string {
-  if (providerStatus === "chargeback") return "arc_pay_chargeback_after_credit";
-  return "arc_pay_refunded_after_credit";
+  if (providerStatus === "chargeback") return "arco_pay_chargeback_after_credit";
+  return "arco_pay_refunded_after_credit";
 }
 
 @Injectable()
@@ -461,7 +463,7 @@ export class PaymentsService {
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(WalletService) private readonly wallet: WalletService,
-    @Inject(ArcPayClient) private readonly arcPay: ArcPayClient,
+    @Inject(ArcoPayClient) private readonly arcoPay: ArcoPayClient,
     @Inject(FulfillmentService) private readonly fulfillment: FulfillmentService,
     @Optional() @Inject(QuotesService) private readonly quotes?: QuotesService,
   ) {}
@@ -471,7 +473,7 @@ export class PaymentsService {
     if(!this.quotes)throw new ServiceUnavailableException('Quotes unavailable');
     const terms=await this.quotes.lock<PaymentTerms>(client,command.quoteBinding.quoteId,purpose,command.userId);
     const expected=purpose==='wallet_topup'?fiatMinorForCoinMinor((command as CreateTopUpSessionCommand).coinAmountMinor):steamRefillPaymentTerms((command as CreateSteamRefillSessionCommand).amountRub).fiatAmountMinor;
-    if(terms.environment!==this.config.arcPay.environment||terms.fiatAmountMinor!==expected||terms.fiatAmountMinor!==command.quoteBinding.acceptedFiatMinor||terms.termsVersion!==(purpose==='wallet_topup'?WALLET_TERMS_VERSION:STEAM_TERMS_VERSION))throw new ConflictException('PAYMENT_TERMS_CHANGED');
+    if(terms.environment!==this.config.arcoPay.environment||terms.fiatAmountMinor!==expected||terms.fiatAmountMinor!==command.quoteBinding.acceptedFiatMinor||terms.termsVersion!==(purpose==='wallet_topup'?WALLET_TERMS_VERSION:STEAM_TERMS_VERSION))throw new ConflictException('PAYMENT_TERMS_CHANGED');
     const user=await client.query<{steam_id64:string|null;disabled:boolean}>('SELECT steam_id64,disabled FROM users WHERE id=$1 FOR SHARE',[command.userId]);
     if(!user.rows[0]||user.rows[0].disabled)throw new BadRequestException('USER_UNAVAILABLE');
     if(purpose==='wallet_topup'){
@@ -491,7 +493,7 @@ export class PaymentsService {
   async createTopUpSession(command: CreateTopUpSessionCommand): Promise<TopUpSessionDto> {
     assertCoinAmountMinor(command.coinAmountMinor);
     const idempotencyKey = requireIdempotencyKey(command.idempotencyKey);
-    if (this.config.arcPay.providerMode === "real") {
+    if (this.config.arcoPay.providerMode === "real") {
       return this.createRealTopUpSession({
         ...command,
         idempotencyKey,
@@ -537,17 +539,17 @@ export class PaymentsService {
           COIN_RATE_COIN_MINOR,
           JSON.stringify({
             ...(bound?{...bound,quoteId:command.quoteBinding?.quoteId}:{}),
-            arcPayConfigured: this.config.arcPay.secretKeyFile !== undefined,
-            environment: this.config.arcPay.environment,
+            arcoPayConfigured: this.config.arcoPay.apiKeyFile !== undefined,
+            environment: this.config.arcoPay.environment,
           }),
         ],
       );
       const id = inserted.rows[0]?.id;
       if (id === undefined) throw new Error("TOP_UP_PAYMENT_NOT_CREATED");
       if (command.quoteBinding) await this.quotes?.consume(client, command.quoteBinding.quoteId, id);
-      if (this.config.arcPay.providerMode === "fake") {
-        const providerSessionId = `fake_arc_pay_${id}`;
-        const checkoutBaseUrl = this.config.arcPay.fakeCheckoutBaseUrl;
+      if (this.config.arcoPay.providerMode === "fake") {
+        const providerSessionId = `fake_arco_pay_${id}`;
+        const checkoutBaseUrl = this.config.arcoPay.fakeCheckoutBaseUrl;
         if (checkoutBaseUrl === undefined) throw new ServiceUnavailableException("payment provider fake checkout URL is not configured");
         const checkoutUrl = `${checkoutBaseUrl}/checkout/${providerSessionId}`;
         await client.query(
@@ -568,7 +570,7 @@ export class PaymentsService {
             checkoutUrl,
             JSON.stringify({
               fakeProvider: true,
-              environment: this.config.arcPay.environment,
+              environment: this.config.arcoPay.environment,
             }),
           ],
         );
@@ -623,7 +625,7 @@ export class PaymentsService {
               error_code,
               finished_at
             )
-            VALUES ($1, $2, $3, 'configuration_required', $4, $5::jsonb, '{}'::jsonb, 'ARC_PAY_CONFIGURATION_REQUIRED', now())
+            VALUES ($1, $2, $3, 'configuration_required', $4, $5::jsonb, '{}'::jsonb, 'ARCO_PAY_CONFIGURATION_REQUIRED', now())
           `,
           [
             id,
@@ -663,7 +665,7 @@ export class PaymentsService {
       idempotencyKey,
       steamLogin,
     };
-    if (this.config.arcPay.providerMode === "real") {
+    if (this.config.arcoPay.providerMode === "real") {
       return this.createRealSteamRefillSession(normalizedCommand);
     }
     const hash = steamRefillRequestHash(normalizedCommand);
@@ -706,8 +708,8 @@ export class PaymentsService {
           steamLogin,
           JSON.stringify({
             ...(bound?{...bound,quoteId:normalizedCommand.quoteBinding?.quoteId}:{}),
-            arcPayConfigured: this.config.arcPay.secretKeyFile !== undefined,
-            environment: this.config.arcPay.environment,
+            arcoPayConfigured: this.config.arcoPay.apiKeyFile !== undefined,
+            environment: this.config.arcoPay.environment,
             purpose: bound?.purpose ?? "steam_refill_payment",
           }),
         ],
@@ -715,9 +717,9 @@ export class PaymentsService {
       const id = inserted.rows[0]?.id;
       if (id === undefined) throw new Error("STEAM_REFILL_PAYMENT_NOT_CREATED");
       if (normalizedCommand.quoteBinding) await this.quotes?.consume(client, normalizedCommand.quoteBinding.quoteId, id);
-      if (this.config.arcPay.providerMode === "fake") {
-        const providerSessionId = `fake_arc_pay_steam_refill_${id}`;
-        const checkoutBaseUrl = this.config.arcPay.fakeCheckoutBaseUrl;
+      if (this.config.arcoPay.providerMode === "fake") {
+        const providerSessionId = `fake_arco_pay_steam_refill_${id}`;
+        const checkoutBaseUrl = this.config.arcoPay.fakeCheckoutBaseUrl;
         if (checkoutBaseUrl === undefined) throw new ServiceUnavailableException("payment provider fake checkout URL is not configured");
         const checkoutUrl = `${checkoutBaseUrl}/checkout/${providerSessionId}`;
         await client.query(
@@ -738,7 +740,7 @@ export class PaymentsService {
             checkoutUrl,
             JSON.stringify({
               fakeProvider: true,
-              environment: this.config.arcPay.environment,
+              environment: this.config.arcoPay.environment,
             }),
           ],
         );
@@ -795,7 +797,7 @@ export class PaymentsService {
               error_code,
               finished_at
             )
-            VALUES (NULL, $1, $2, $3, 'configuration_required', $4, $5::jsonb, '{}'::jsonb, 'ARC_PAY_CONFIGURATION_REQUIRED', now())
+            VALUES (NULL, $1, $2, $3, 'configuration_required', $4, $5::jsonb, '{}'::jsonb, 'ARCO_PAY_CONFIGURATION_REQUIRED', now())
           `,
           [
             id,
@@ -870,10 +872,11 @@ export class PaymentsService {
   }
 
   private async createRealTopUpSession(command: CreateTopUpSessionCommand): Promise<TopUpSessionDto> {
-    const publicOrigin = this.config.arcPay.publicOrigin;
+    if (!isArcoPayConfigured(this.config.arcoPay)) throw new ServiceUnavailableException("payment provider is not configured");
+    const publicOrigin = this.config.arcoPay.publicOrigin;
     if (publicOrigin === undefined) throw new ServiceUnavailableException("payment provider public origin is not configured");
-    if (this.config.arcPay.secretKeyFile === undefined) throw new ServiceUnavailableException("payment provider secret key is not configured");
-    if (this.config.arcPay.webhookSigningSecretFile === undefined) throw new ServiceUnavailableException("payment provider webhook secret is not configured");
+    if (this.config.arcoPay.apiKeyFile === undefined) throw new ServiceUnavailableException("payment provider secret key is not configured");
+    if (this.config.arcoPay.publicKeyFile === undefined) throw new ServiceUnavailableException("payment provider webhook secret is not configured");
     const hash = requestHash(command);
     const {session: initial, ownsCreation} = await this.database.transaction(async (client) => {
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`payment:${command.userId}`]);
@@ -914,8 +917,9 @@ export class PaymentsService {
           COIN_RATE_COIN_MINOR,
           JSON.stringify({
             ...(bound?{...bound,quoteId:command.quoteBinding?.quoteId}:{}),
-            arcPayConfigured: true,
-            environment: this.config.arcPay.environment,
+            arcoPayConfigured: true,
+            providerPaymentMethod: "card",
+            environment: this.config.arcoPay.environment,
           }),
         ],
       );
@@ -962,9 +966,9 @@ export class PaymentsService {
 
     const providerIdempotencyKey = initial.id;
     const urls = topUpReturnUrls(publicOrigin,initial.id);
-    let checkout: Awaited<ReturnType<ArcPayClient["createHostedCheckout"]>>;
+    let checkout: Awaited<ReturnType<ArcoPayClient["createHostedCheckout"]>>;
     try {
-      checkout = await this.arcPay.createHostedCheckout({
+      checkout = await this.arcoPay.createHostedCheckout({
         ...(await this.buyerDetails(command.userId)),
         amountMinor: initial.fiatAmountMinor,
         cancelUrl: urls.cancelUrl,
@@ -974,7 +978,7 @@ export class PaymentsService {
         idempotencyKey: providerIdempotencyKey,
         metadata: {
           shards_top_up_id: initial.id,
-          environment:this.config.arcPay.environment, purpose:"wallet_topup",
+          environment:this.config.arcoPay.environment, purpose:"wallet_topup",
         },
         successUrl: urls.successUrl,
       });
@@ -1033,7 +1037,7 @@ export class PaymentsService {
     return this.database.transaction(async (client) => {
       const bound=await client.query<{provider_session_id:string|null}>('SELECT provider_session_id FROM top_up_payments WHERE id=$1 FOR UPDATE',[initial.id]);
       if(bound.rows[0]?.provider_session_id&&bound.rows[0].provider_session_id!==checkout.providerSessionId){
-        await client.query("UPDATE top_up_payments SET status='manual_review',metadata=metadata||'{\"providerIdentityMismatch\":true}'::jsonb WHERE id=$1",[initial.id]);
+        await client.query("UPDATE top_up_payments SET status=CASE WHEN status='paid' THEN status ELSE 'manual_review' END,metadata=metadata||'{\"providerIdentityMismatch\":true}'::jsonb WHERE id=$1",[initial.id]);
         const current=await this.findTopUpPayment(client,command.userId,command.idempotencyKey);if(!current)throw new Error('PAYMENT_NOT_FOUND');return toDto(current);
       }
       await client.query(
@@ -1082,10 +1086,11 @@ export class PaymentsService {
   }
 
   private async createRealSteamRefillSession(command: CreateSteamRefillSessionCommand): Promise<SteamRefillSessionDto> {
-    const publicOrigin = this.config.arcPay.publicOrigin;
+    if (!isArcoPayConfigured(this.config.arcoPay)) throw new ServiceUnavailableException("payment provider is not configured");
+    const publicOrigin = this.config.arcoPay.publicOrigin;
     if (publicOrigin === undefined) throw new ServiceUnavailableException("payment provider public origin is not configured");
-    if (this.config.arcPay.secretKeyFile === undefined) throw new ServiceUnavailableException("payment provider secret key is not configured");
-    if (this.config.arcPay.webhookSigningSecretFile === undefined) throw new ServiceUnavailableException("payment provider webhook secret is not configured");
+    if (this.config.arcoPay.apiKeyFile === undefined) throw new ServiceUnavailableException("payment provider secret key is not configured");
+    if (this.config.arcoPay.publicKeyFile === undefined) throw new ServiceUnavailableException("payment provider webhook secret is not configured");
     const hash = steamRefillRequestHash(command);
     const paymentTerms = steamRefillPaymentTerms(command.amountRub);
     const {session: initial, ownsCreation} = await this.database.transaction(async (client) => {
@@ -1126,8 +1131,9 @@ export class PaymentsService {
           command.steamLogin,
           JSON.stringify({
             ...(bound?{...bound,quoteId:command.quoteBinding?.quoteId}:{}),
-            arcPayConfigured: true,
-            environment: this.config.arcPay.environment,
+            arcoPayConfigured: true,
+            providerPaymentMethod: "card",
+            environment: this.config.arcoPay.environment,
             purpose: bound?.purpose ?? "steam_refill_payment",
           }),
         ],
@@ -1174,9 +1180,9 @@ export class PaymentsService {
     if (!ownsCreation || initial.checkoutUrl !== null || initial.status !== "provider_creation_pending") return initial;
 
     const urls = steamRefillReturnUrls(publicOrigin,initial.id);
-    let checkout: Awaited<ReturnType<ArcPayClient["createHostedCheckout"]>>;
+    let checkout: Awaited<ReturnType<ArcoPayClient["createHostedCheckout"]>>;
     try {
-      checkout = await this.arcPay.createHostedCheckout({
+      checkout = await this.arcoPay.createHostedCheckout({
         ...(await this.steamBuyerDetails(initial.id)),
         amountMinor: initial.fiatAmountMinor,
         cancelUrl: urls.cancelUrl,
@@ -1186,7 +1192,7 @@ export class PaymentsService {
         idempotencyKey: initial.id,
         metadata: {
           shards_steam_refill_payment_id: initial.id,
-          environment:this.config.arcPay.environment, purpose:"steam_refill",
+          environment:this.config.arcoPay.environment, purpose:"steam_refill",
         },
         successUrl: urls.successUrl,
       });
@@ -1241,7 +1247,7 @@ export class PaymentsService {
     return this.database.transaction(async (client) => {
       const bound=await client.query<{provider_session_id:string|null}>('SELECT provider_session_id FROM steam_refill_payments WHERE id=$1 FOR UPDATE',[initial.id]);
       if(bound.rows[0]?.provider_session_id&&bound.rows[0].provider_session_id!==checkout.providerSessionId){
-        await client.query("UPDATE steam_refill_payments SET status='manual_review',metadata=metadata||'{\"providerIdentityMismatch\":true}'::jsonb WHERE id=$1",[initial.id]);
+        await client.query("UPDATE steam_refill_payments SET status=CASE WHEN status='paid' THEN status ELSE 'manual_review' END,metadata=metadata||'{\"providerIdentityMismatch\":true}'::jsonb WHERE id=$1",[initial.id]);
         const current=await this.findSteamRefillPayment(client,command.userId,command.idempotencyKey);if(!current)throw new Error('PAYMENT_NOT_FOUND');return steamRefillToDto(current);
       }
       await client.query(
@@ -1285,50 +1291,104 @@ export class PaymentsService {
     });
   }
 
-  async handleArcPayWebhook(command: HandleArcPayWebhookCommand): Promise<PaymentWebhookResultDto> {
-    if (this.config.arcPay.providerMode === "disabled") {
+  async handleArcoPayWebhook(command: HandleArcoPayWebhookCommand): Promise<PaymentWebhookResultDto> {
+    if (this.config.arcoPay.providerMode === "disabled") {
       throw new ServiceUnavailableException("payment provider webhook verification is not configured");
     }
-    const signingSecretFile = this.config.arcPay.webhookSigningSecretFile;
+    const signingSecretFile = this.config.arcoPay.publicKeyFile;
     if (signingSecretFile === undefined) {
       throw new ServiceUnavailableException("payment provider webhook signing secret is not configured");
     }
     const signingSecret = (await readFile(signingSecretFile, "utf8")).trim();
-    if (this.config.arcPay.providerMode === "fake") {
-      if (!verifyFakeArcPayWebhookSignature(command.payload, command.signature, signingSecret)) {
+    if (this.config.arcoPay.providerMode === "fake") {
+      if (!verifyFakeArcoPayWebhookSignature(command.payload, command.signature, signingSecret)) {
         throw new UnauthorizedException("payment provider webhook signature is invalid");
       }
     } else {
-      if (!verifyArcPayWebhookSignature({
-        secret: signingSecret,
-        ...(command.providerEventId === undefined ? {} : { eventId: command.providerEventId }),
+      if (!verifyArcoPayWebhookSignature({
+        publicKey: signingSecret,
         ...(command.rawBody === undefined ? {} : { rawBody: command.rawBody }),
         ...(command.signature === undefined ? {} : { signature: command.signature }),
-        ...(command.timestamp === undefined ? {} : { timestamp: command.timestamp }),
       })) {
         throw new UnauthorizedException("payment provider webhook signature is invalid");
       }
     }
 
-    let payload = command.payload;
-    if (this.config.arcPay.providerMode === "real") {
-      if (!command.rawBody) throw new BadRequestException("Payment notification body is required");
-      payload = JSON.parse(command.rawBody.toString("utf8")) as unknown;
+    if (this.config.arcoPay.providerMode === "fake") {
+      const event = normalizeArcoPayWebhook(command.providerEventId, command.payload);
+      if (event.amountMinor === undefined || event.currency === undefined) throw new BadRequestException("Payment notification fields are required");
+      return this.processVerifiedArcoPayWebhook({ ...event, amountMinor: event.amountMinor, currency: event.currency });
     }
-    const event = await this.enrichArcPayWebhook(normalizeArcPayWebhook(command.providerEventId, payload));
-    return this.processVerifiedArcPayWebhook(event);
+    if (!command.rawBody) throw new BadRequestException("Payment notification body is required");
+    let notified: ReturnType<typeof parseArcoPayPayment>;
+    try { notified = parseArcoPayPayment(JSON.parse(command.rawBody.toString("utf8")), this.config.arcoPay.shopId ?? ""); }
+    catch { throw new BadRequestException("Payment notification is invalid"); }
+    let payment: Awaited<ReturnType<ArcoPayClient["getPayment"]>>;
+    try { payment = await this.arcoPay.getPayment(notified.id); }
+    catch { throw new ServiceUnavailableException("Payment status confirmation is unavailable"); }
+    if (notified.status === "captured" && !isCapturedProviderStatus(payment.status) && !isManualReviewProviderStatus(payment.status)) {
+      throw new ServiceUnavailableException("Payment status confirmation is pending");
+    }
+    if (payment.externalId !== notified.externalId || payment.amount !== notified.amount || payment.currency !== notified.currency) {
+      throw new BadRequestException("Payment notification does not match provider order");
+    }
+    return this.processVerifiedArcoPayWebhook({
+      providerEventId: createHash("sha256").update(command.rawBody).digest("hex"),
+      eventType: `payment.${payment.status}`, providerPaymentId: payment.id, providerSessionId: payment.id,
+      topUpPaymentId: payment.externalId, providerStatus: payment.status, amountMinor: payment.amount, currency: payment.currency,
+      payloadSnapshot: { orderId: payment.id, merchantOrderId: payment.externalId, amount: payment.amount, currency: payment.currency, status: payment.status },
+    });
   }
 
   async reconcilePendingTopUps(command: { limit?: number } = {}): Promise<PaymentReconciliationResultDto> {
-    if (this.config.arcPay.providerMode !== "real") {
+    if (this.config.arcoPay.providerMode !== "real") {
       throw new ServiceUnavailableException("payment provider reconciliation requires real provider mode");
     }
     const limit = command.limit ?? 20;
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw new BadRequestException("Reconciliation limit must be between 1 and 100");
-    // One fair budget across both products; oldest unobserved attempt is checked first.
-    const candidates=await this.database.query<{id:string;kind:string}>(`SELECT p.id,p.kind FROM (SELECT id,'top_up' AS kind,created_at,status,metadata FROM top_up_payments UNION ALL SELECT id,'steam_refill' AS kind,created_at,status,metadata FROM steam_refill_payments) p WHERE p.status IN ('checkout_pending','provider_creation_pending') OR (p.status='manual_review' AND p.metadata->>'providerCreationAmbiguous'='true') ORDER BY coalesce((SELECT max(a.created_at) FROM payment_provider_attempts a WHERE a.top_up_payment_id=p.id OR a.steam_refill_payment_id=p.id),p.created_at),p.id LIMIT $1`,[limit]);
-    const topUpIds=candidates.rows.filter(row=>row.kind==='top_up').map(row=>row.id),steamIds=candidates.rows.filter(row=>row.kind==='steam_refill').map(row=>row.id);
-    const pendingTopUps = await this.database.query<TopUpPaymentReconciliationRow>(
+    // A create interrupted by process death has no provider OrderId to poll.
+    // Never guess it from MerchantOrderId or replay create beyond provider deduplication.
+    // Give an active HTTP request time to finish before marking it for review.
+    for (const table of ["top_up_payments", "steam_refill_payments"] as const) {
+      await this.database.query(`UPDATE ${table}
+        SET status='manual_review', metadata=metadata || '{"providerCreationAmbiguous":true}'::jsonb, updated_at=now()
+        WHERE id IN (SELECT id FROM ${table} WHERE provider=$1 AND status='provider_creation_pending'
+          AND provider_session_id IS NULL AND created_at < now() - interval '1 minute' LIMIT $2)
+        AND status='provider_creation_pending' AND provider_session_id IS NULL`, [TOP_UP_PROVIDER, limit]);
+    }
+    // Share the batch across both products and rotate attempted orders, including
+    // provider errors, so an older pending order cannot monopolize every cycle.
+    const candidates = await this.database.query<{ id: string; kind: PaymentReconciliationTarget["kind"] }>(
+      `
+        WITH candidates AS (
+          SELECT id, provider, created_at, 'top_up' AS kind
+          FROM top_up_payments
+          WHERE provider = $1 AND provider_session_id IS NOT NULL
+            AND (status IN ('checkout_pending', 'provider_creation_pending')
+              OR (status = 'manual_review' AND metadata->>'providerCreationAmbiguous' = 'true'))
+          UNION ALL
+          SELECT id, provider, created_at, 'steam_refill' AS kind
+          FROM steam_refill_payments
+          WHERE provider = $1 AND provider_session_id IS NOT NULL
+            AND (status IN ('checkout_pending', 'provider_creation_pending')
+              OR (status = 'manual_review' AND metadata->>'providerCreationAmbiguous' = 'true'))
+        )
+        SELECT candidate.id, candidate.kind
+        FROM candidates candidate
+        LEFT JOIN payment_provider_attempts attempt
+          ON attempt.provider = candidate.provider
+          AND attempt.idempotency_key = 'reconcile:' || candidate.id::text
+          AND ((candidate.kind = 'top_up' AND attempt.top_up_payment_id = candidate.id)
+            OR (candidate.kind = 'steam_refill' AND attempt.steam_refill_payment_id = candidate.id))
+        ORDER BY COALESCE(attempt.finished_at, attempt.created_at) ASC NULLS FIRST,
+          candidate.created_at ASC, candidate.id ASC, candidate.kind ASC
+        LIMIT $2
+      `,
+      [TOP_UP_PROVIDER, limit],
+    );
+    const topUpIds = candidates.rows.filter(candidate => candidate.kind === "top_up").map(candidate => candidate.id);
+    const steamRefillIds = candidates.rows.filter(candidate => candidate.kind === "steam_refill").map(candidate => candidate.id);
+    const pendingTopUps = topUpIds.length > 0 ? await this.database.query<TopUpPaymentReconciliationRow>(
       `
         SELECT
           id,
@@ -1337,17 +1397,16 @@ export class PaymentsService {
           coin_amount_minor,
           fiat_amount_minor,
           fiat_currency,
-          request_hash
+          request_hash,
+          provider_session_id
         FROM top_up_payments
-        WHERE provider = $1 AND id=ANY($3::uuid[])
-          AND (status IN ('checkout_pending', 'provider_creation_pending') OR (status = 'manual_review' AND metadata->>'providerCreationAmbiguous' = 'true'))
+        WHERE provider = $1
+          AND id = ANY($2::uuid[])
         ORDER BY created_at ASC, id ASC
-        LIMIT $2
       `,
-      [TOP_UP_PROVIDER, limit, topUpIds],
-    );
-    const remainingLimit = steamIds.length;
-    const pendingSteamRefills = remainingLimit > 0
+      [TOP_UP_PROVIDER, topUpIds],
+    ) : { rows: [] };
+    const pendingSteamRefills = steamRefillIds.length > 0
       ? await this.database.query<SteamRefillPaymentReconciliationRow>(
         `
           SELECT
@@ -1360,14 +1419,14 @@ export class PaymentsService {
             fiat_currency,
             steam_login,
             order_id::text AS order_id,
-            request_hash
+            request_hash,
+            provider_session_id
           FROM steam_refill_payments
-          WHERE provider = $1 AND id=ANY($3::uuid[])
-            AND (status IN ('checkout_pending', 'provider_creation_pending') OR (status = 'manual_review' AND metadata->>'providerCreationAmbiguous' = 'true'))
+          WHERE provider = $1
+            AND id = ANY($2::uuid[])
           ORDER BY created_at ASC, id ASC
-          LIMIT $2
         `,
-        [STEAM_REFILL_PROVIDER, remainingLimit, steamIds],
+        [STEAM_REFILL_PROVIDER, steamRefillIds],
       )
       : { rows: [] };
     const result: PaymentReconciliationResultDto = {
@@ -1382,14 +1441,12 @@ export class PaymentsService {
     };
 
     for (const topUpPayment of pendingTopUps.rows) {
-      const attemptKey = `reconcile:${topUpPayment.id}:${randomUUID()}`;
+      const attemptKey = `reconcile:${topUpPayment.id}`;
       await this.beginReconciliationAttempt({ id: topUpPayment.id, kind: "top_up", request_hash: topUpPayment.request_hash }, attemptKey);
-      let providerPayments: Awaited<ReturnType<ArcPayClient["listPayments"]>>;
+      let providerPayment: Awaited<ReturnType<ArcoPayClient["getPayment"]>>;
       try {
-        providerPayments = await this.arcPay.listPayments({
-          pageSize: 5,
-          search: topUpPayment.id,
-        });
+        if (!topUpPayment.provider_session_id) throw new Error("ARCO_PAY_ORDER_ID_MISSING");
+        providerPayment = await this.arcoPay.getPayment(topUpPayment.provider_session_id);
       } catch (error) {
         result.errors += 1;
         await this.finishReconciliationAttempt({ id: topUpPayment.id, kind: "top_up" }, attemptKey, "failed", {
@@ -1398,25 +1455,12 @@ export class PaymentsService {
         continue;
       }
 
-      const candidates = providerPayments.payments.filter(payment => payment.externalId === topUpPayment.id);
-      let matched = candidates.length === 1 && !providerPayments.nextCursor && providerPayments.total <= providerPayments.payments.length ? candidates[0] : undefined;
-      if (matched) {
-        try {
-          matched = await this.arcPay.getPayment(matched.id);
-          if (matched.externalId !== topUpPayment.id) throw new Error("ARC_PAY_PAYMENT_MISMATCH");
-        } catch (error) {
-          result.errors += 1;
-          await this.finishReconciliationAttempt({id:topUpPayment.id,kind:"top_up"},attemptKey,"failed",{providerErrorCode:providerErrorCode(error)},providerErrorCode(error));
-          continue;
-        }
-      }
+      const matched = providerPayment.externalId === topUpPayment.id ? providerPayment : undefined;
       if (matched === undefined) {
         result.unmatched += 1;
         await this.finishReconciliationAttempt({ id: topUpPayment.id, kind: "top_up" }, attemptKey, "succeeded", {
           matched: false,
-          pageSize: providerPayments.pageSize,
-          providerPaymentCount: providerPayments.payments.length,
-          total: providerPayments.total,
+          providerOrderId: providerPayment.id,
         });
         continue;
       }
@@ -1428,11 +1472,10 @@ export class PaymentsService {
         providerPaymentId: matched.id,
         providerStatus: matched.status,
       });
-      const applied = await this.applyArcPayProviderPaymentStatus({
+      const applied = await this.applyArcoPayProviderPaymentStatus({
         amountMinor: matched.amount,
         currency: matched.currency,
         providerPaymentId: matched.id,
-        metadata:matched.metadata,
         providerStatus: matched.status,
         topUpPaymentId: topUpPayment.id,
       });
@@ -1444,18 +1487,16 @@ export class PaymentsService {
     }
 
     for (const steamRefillPayment of pendingSteamRefills.rows) {
-      const attemptKey = `reconcile:${steamRefillPayment.id}:${randomUUID()}`;
+      const attemptKey = `reconcile:${steamRefillPayment.id}`;
       await this.beginReconciliationAttempt({
         id: steamRefillPayment.id,
         kind: "steam_refill",
         request_hash: steamRefillPayment.request_hash,
       }, attemptKey);
-      let providerPayments: Awaited<ReturnType<ArcPayClient["listPayments"]>>;
+      let providerPayment: Awaited<ReturnType<ArcoPayClient["getPayment"]>>;
       try {
-        providerPayments = await this.arcPay.listPayments({
-          pageSize: 5,
-          search: steamRefillPayment.id,
-        });
+        if (!steamRefillPayment.provider_session_id) throw new Error("ARCO_PAY_ORDER_ID_MISSING");
+        providerPayment = await this.arcoPay.getPayment(steamRefillPayment.provider_session_id);
       } catch (error) {
         result.errors += 1;
         await this.finishReconciliationAttempt({ id: steamRefillPayment.id, kind: "steam_refill" }, attemptKey, "failed", {
@@ -1464,25 +1505,12 @@ export class PaymentsService {
         continue;
       }
 
-      const candidates = providerPayments.payments.filter(payment => payment.externalId === steamRefillPayment.id);
-      let matched = candidates.length === 1 && !providerPayments.nextCursor && providerPayments.total <= providerPayments.payments.length ? candidates[0] : undefined;
-      if (matched) {
-        try {
-          matched = await this.arcPay.getPayment(matched.id);
-          if (matched.externalId !== steamRefillPayment.id) throw new Error("ARC_PAY_PAYMENT_MISMATCH");
-        } catch (error) {
-          result.errors += 1;
-          await this.finishReconciliationAttempt({id:steamRefillPayment.id,kind:"steam_refill"},attemptKey,"failed",{providerErrorCode:providerErrorCode(error)},providerErrorCode(error));
-          continue;
-        }
-      }
+      const matched = providerPayment.externalId === steamRefillPayment.id ? providerPayment : undefined;
       if (matched === undefined) {
         result.unmatched += 1;
         await this.finishReconciliationAttempt({ id: steamRefillPayment.id, kind: "steam_refill" }, attemptKey, "succeeded", {
           matched: false,
-          pageSize: providerPayments.pageSize,
-          providerPaymentCount: providerPayments.payments.length,
-          total: providerPayments.total,
+          providerOrderId: providerPayment.id,
         });
         continue;
       }
@@ -1498,7 +1526,6 @@ export class PaymentsService {
         amountMinor: matched.amount,
         currency: matched.currency,
         providerPaymentId: matched.id,
-        metadata:matched.metadata,
         providerStatus: matched.status,
         steamRefillPaymentId: steamRefillPayment.id,
       });
@@ -1512,47 +1539,23 @@ export class PaymentsService {
     return result;
   }
 
-  private async enrichArcPayWebhook(event: ParsedArcPayWebhook): Promise<NormalizedArcPayWebhook> {
-    if (this.config.arcPay.providerMode !== "real") {
-      if (event.amountMinor === undefined || event.currency === undefined) {
-        throw new BadRequestException("payment provider webhook payload is missing required payment fields");
-      }
-      return { ...event, amountMinor: event.amountMinor, currency: event.currency };
-    }
-    if (event.providerPaymentId === null) throw new BadRequestException("Payment id is required");
-    const payment = await this.arcPay.getPayment(event.providerPaymentId);
-    const externalId = payment.externalId;
-    if (payment.id !== event.providerPaymentId || !externalId ||
-        (event.topUpPaymentId !== null && event.topUpPaymentId !== externalId) ||
-        (event.amountMinor !== undefined && event.amountMinor !== payment.amount) ||
-        (event.currency !== undefined && event.currency !== payment.currency)) {
-      throw new BadRequestException("Payment notification does not match provider payment");
-    }
-    const claimsCapture = event.eventType === "payment.captured" || event.providerStatus === "captured" || event.providerStatus === "settled";
-    if (claimsCapture && !isCapturedProviderStatus(payment.status) && !isManualReviewProviderStatus(payment.status)) {
-      throw new ServiceUnavailableException("Payment status confirmation is pending");
-    }
-    const incoming=optionalRecordField(event.payloadSnapshot,"metadata");
-    for(const field of ["environment","purpose"]){if(incoming[field]!==undefined&&payment.metadata[field]!==undefined&&incoming[field]!==payment.metadata[field])throw new BadRequestException("Payment metadata mismatch");}
-    return { ...event, payloadSnapshot:{...event.payloadSnapshot,metadata:{...incoming,...payment.metadata}}, topUpPaymentId: externalId, providerStatus: payment.status,
-      amountMinor: payment.amount, currency: payment.currency, eventType: `payment.${payment.status}` };
-  }
-
-  private async bindWebhook(client:Queryable,table:'top_up_payments'|'steam_refill_payments',id:string,event:NormalizedArcPayWebhook,purpose:PaymentPurpose):Promise<boolean>{
+  private async bindWebhook(client:Queryable,table:'top_up_payments'|'steam_refill_payments',id:string,event:NormalizedArcoPayWebhook,purpose:PaymentPurpose):Promise<boolean>{
     const result=await client.query<{provider_session_id:string|null;provider_payment_id:string|null;metadata:Record<string,unknown>}>(`SELECT provider_session_id,provider_payment_id,metadata FROM ${table} WHERE id=$1 FOR UPDATE`,[id]);
     const row=result.rows[0];if(!row)return false;
+    if(this.config.arcoPay.providerMode==='real' && row.provider_session_id!==null && row.provider_session_id!==event.providerSessionId)return false;
     const root=event.payloadSnapshot;
     const metadata={...optionalRecordField(root,'metadata'),...optionalRecordField(optionalRecordField(root,'payment'),'metadata'),...optionalRecordField(optionalRecordField(root,'data'),'metadata')};
     const claimedPurpose=metadata.purpose==='steam_refill_payment'?'steam_refill':metadata.purpose;
     const storedPurpose=row.metadata.purpose==='steam_refill_payment'?'steam_refill':row.metadata.purpose;
     const explicitSession=optionalStringField(root,'checkoutSessionId','checkout_session_id')??optionalStringField(optionalRecordField(root,'payment'),'checkoutSessionId','checkout_session_id','checkout_session');
-    if((event.providerPaymentId!==null?row.provider_payment_id!==null&&row.provider_payment_id!==event.providerPaymentId:row.provider_session_id!==null&&row.provider_session_id!==event.providerSessionId)||(explicitSession!==undefined&&row.provider_session_id!==null&&explicitSession!==row.provider_session_id)||(event.topUpPaymentId!==null&&event.topUpPaymentId!==id)||row.metadata.environment!==this.config.arcPay.environment||(metadata.environment!==undefined&&metadata.environment!==row.metadata.environment)||(claimedPurpose!==undefined&&claimedPurpose!==purpose)||(storedPurpose!==undefined&&storedPurpose!==purpose))return false;
+    if((event.providerPaymentId!==null?row.provider_payment_id!==null&&row.provider_payment_id!==event.providerPaymentId:row.provider_session_id!==null&&row.provider_session_id!==event.providerSessionId)||(explicitSession!==undefined&&row.provider_session_id!==null&&explicitSession!==row.provider_session_id)||(event.topUpPaymentId!==null&&event.topUpPaymentId!==id)||row.metadata.environment!==this.config.arcoPay.environment||(metadata.environment!==undefined&&metadata.environment!==row.metadata.environment)||(claimedPurpose!==undefined&&claimedPurpose!==purpose)||(storedPurpose!==undefined&&storedPurpose!==purpose))return false;
     if(event.providerPaymentId!==null)await client.query(`UPDATE ${table} SET provider_payment_id=$2 WHERE id=$1 AND provider_payment_id IS NULL`,[id,event.providerPaymentId]);
     else await client.query(`UPDATE ${table} SET provider_session_id=$2 WHERE id=$1 AND provider_session_id IS NULL`,[id,event.providerSessionId]);
+    if(this.config.arcoPay.providerMode==='real')await client.query(`UPDATE ${table} SET provider_session_id=$2 WHERE id=$1 AND provider_session_id IS NULL`,[id,event.providerSessionId]);
     return true;
   }
 
-  private async processVerifiedArcPayWebhook(event: NormalizedArcPayWebhook): Promise<PaymentWebhookResultDto> {
+  private async processVerifiedArcoPayWebhook(event: NormalizedArcoPayWebhook): Promise<PaymentWebhookResultDto> {
     return this.database.transaction(async (client) => {
       const insertedEvent = await client.query<{ id: string }>(
         `
@@ -1623,19 +1626,19 @@ export class PaymentsService {
       if(!await this.bindWebhook(client,'top_up_payments',topUpPayment.id,event,'wallet_topup')){await this.markWebhookEvent(client,event.providerEventId,'rejected_identity_mismatch');return {status:'rejected'};}
 
       if (isCapturedWebhook(event)) {
-        await this.applyArcPayProviderPaymentStatusWithClient(client, topUpPayment, event.providerStatus);
+        await this.applyArcoPayProviderPaymentStatusWithClient(client, topUpPayment, event.providerStatus);
         await this.markWebhookEvent(client, event.providerEventId, "processed");
         return { status: "processed" };
       }
 
       if (isFailedWebhook(event)) {
-        await this.applyArcPayProviderPaymentStatusWithClient(client, topUpPayment, event.providerStatus);
+        await this.applyArcoPayProviderPaymentStatusWithClient(client, topUpPayment, event.providerStatus);
         await this.markWebhookEvent(client, event.providerEventId, "processed");
         return { status: "processed" };
       }
 
       if (isManualReviewWebhook(event)) {
-        await this.applyArcPayProviderPaymentStatusWithClient(client, topUpPayment, event.providerStatus);
+        await this.applyArcoPayProviderPaymentStatusWithClient(client, topUpPayment, event.providerStatus);
         await this.markWebhookEvent(client, event.providerEventId, "processed");
         return { status: "processed" };
       }
@@ -1645,7 +1648,7 @@ export class PaymentsService {
     });
   }
 
-  private async applyArcPayProviderPaymentStatus(command: {
+  private async applyArcoPayProviderPaymentStatus(command: {
     amountMinor: number;
     currency: string;
     providerPaymentId: string;
@@ -1695,11 +1698,11 @@ export class PaymentsService {
         return "rejected";
       }
       if(!await this.bindWebhook(client,'top_up_payments',topUpPayment.id,{providerEventId:'reconciliation',eventType:`payment.${command.providerStatus}`,providerPaymentId:command.providerPaymentId,providerSessionId:command.providerPaymentId,topUpPaymentId:topUpPayment.id,providerStatus:command.providerStatus,amountMinor:command.amountMinor,currency:command.currency,payloadSnapshot:{metadata:command.metadata??{}}},'wallet_topup'))return 'rejected';
-      return this.applyArcPayProviderPaymentStatusWithClient(client, topUpPayment, command.providerStatus);
+      return this.applyArcoPayProviderPaymentStatusWithClient(client, topUpPayment, command.providerStatus);
     });
   }
 
-  private async applyArcPayProviderPaymentStatusWithClient(
+  private async applyArcoPayProviderPaymentStatusWithClient(
     client: Queryable,
     topUpPayment: TopUpPaymentWebhookRow,
     providerStatus: string,
@@ -1710,7 +1713,7 @@ export class PaymentsService {
           userId: topUpPayment.user_id,
           amountCoinMinor: topUpPayment.coin_amount_minor,
           idempotencyKey: `top-up:${topUpPayment.id}`,
-          reason: "arc_pay_top_up_capture",
+          reason: "arco_pay_top_up_capture",
         });
         await client.query(
           `
@@ -1861,7 +1864,7 @@ export class PaymentsService {
 
   private async findSteamRefillPaymentForProviderWebhook(
     client: Queryable,
-    event: NormalizedArcPayWebhook,
+    event: NormalizedArcoPayWebhook,
   ): Promise<SteamRefillPaymentWebhookRow | null> {
     const payment = await client.query<SteamRefillPaymentWebhookRow>(
       `
@@ -2081,6 +2084,7 @@ export class PaymentsService {
   ): Promise<void> {
     const result = await client.query<
       TopUpPaymentWebhookRow & {
+        metadata: {providerPaymentMethod?:string};
         created_at: Date;
         provider_session_id: string | null;
         updated_at: Date;
@@ -2095,6 +2099,7 @@ export class PaymentsService {
           fiat_amount_minor,
           fiat_currency,
           provider_session_id,
+          metadata,
           created_at,
           updated_at
         FROM top_up_payments
@@ -2118,12 +2123,12 @@ export class PaymentsService {
         externalTopUpId: topUp.id,
         externalUserId: topUp.user_id,
         status: topUpStatusForVvAdmin(input.eventType),
-        paymentProvider: "arc_pay",
+        paymentProvider: "arco_pay",
         providerOrderId: topUp.provider_session_id,
         paymentMethod: {
-          type: "sbp",
-          displayName: "СБП",
-          provider: "ArcPay",
+          type: topUp.metadata.providerPaymentMethod === "card" ? "card" : "sbp",
+          displayName: topUp.metadata.providerPaymentMethod === "card" ? "Банковская карта" : "СБП",
+          provider: "ArcoPay",
         },
         paidAmount: (topUp.fiat_amount_minor / 100).toFixed(2),
         paidCurrency: topUp.fiat_currency,

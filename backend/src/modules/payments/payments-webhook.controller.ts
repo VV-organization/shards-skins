@@ -25,36 +25,24 @@ export class PaymentsWebhookController {
 
   @ApiOkResponse({ schema: paymentWebhookResultSchema })
   @ApiHeader({
-    name: "Webhook-Id",
-    required: false,
-    description: "Provider webhook idempotency id. In fake mode this may also be present in the JSON payload.",
-  })
-  @ApiHeader({
-    name: "Webhook-Signature",
+    name: "Payment-Sign",
     required: true,
-    description: "payment provider HMAC signature in `t=<unix>,v1=<hex>` format. Fake mode also accepts X-Arc-Pay-Signature.",
-  })
-  @ApiHeader({
-    name: "Webhook-Timestamp",
-    required: false,
-    description: "Unix timestamp included in the payment provider signed payload.",
+    description: "ArcoPay RSA-SHA1 signature of the raw request body, encoded as base64.",
   })
   @HttpCode(200)
-  @Post("arc-pay")
-  handleArcPayWebhook(
+  @Post("arco-pay")
+  handleArcoPayWebhook(
     @Headers("webhook-id") providerEventId: string | undefined,
-    @Headers("webhook-signature") webhookSignature: string | undefined,
-    @Headers("x-arc-pay-signature") fakeSignature: string | undefined,
-    @Headers("webhook-timestamp") timestamp: string | undefined,
+    @Headers("payment-sign") webhookSignature: string | undefined,
+    @Headers("x-arco-pay-signature") fakeSignature: string | undefined,
     @Body() payload: unknown,
     @Req() request: RawBodyRequest,
   ): Promise<PaymentWebhookResultDto> {
     const signature = webhookSignature ?? fakeSignature;
-    return this.payments.handleArcPayWebhook({
+    return this.payments.handleArcoPayWebhook({
       payload,
       ...(providerEventId === undefined ? {} : { providerEventId }),
       ...(request.rawBody === undefined ? {} : { rawBody: request.rawBody }),
-      ...(timestamp === undefined ? {} : { timestamp }),
       ...(signature === undefined ? {} : { signature }),
     });
   }

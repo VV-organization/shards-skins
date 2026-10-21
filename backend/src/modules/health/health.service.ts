@@ -4,7 +4,7 @@ import Redis from "ioredis";
 import { Inject, Injectable, Optional } from "@nestjs/common";
 
 import type { AppConfig } from "../../config/app-config";
-import { isArcPayConfigured } from "../../config/app-config";
+import { isArcoPayConfigured } from "../../config/app-config";
 import { APP_CONFIG } from "../../config/app-config.module";
 import type { CapabilitiesResponse, LivenessResponse, ReadinessResponse } from "./health.types";
 
@@ -46,19 +46,19 @@ export class HealthService {
     const reasons = [
       ...(this.config.databaseUrl ? [] : ["DATABASE_NOT_CONFIGURED"]),
       ...(this.config.redisUrl ? [] : ["REDIS_NOT_CONFIGURED"]),
-      ...(isArcPayConfigured(this.config.arcPay) ? [] : ["ARC_PAY_NOT_CONFIGURED"]),
+      ...(isArcoPayConfigured(this.config.arcoPay) ? [] : ["ARCO_PAY_NOT_CONFIGURED"]),
       ...(this.config.sih.apiKeyFile ? [] : ["SIH_NOT_CONFIGURED"]),
     ];
 
     const hasCore = Boolean(this.config.databaseUrl && this.config.redisUrl);
-    const hasArcPay = isArcPayConfigured(this.config.arcPay);
+    const hasArcoPay = isArcoPayConfigured(this.config.arcoPay);
     const hasSih = Boolean(this.config.sih.apiKeyFile);
 
     return {
       checkoutEnabled: Boolean(storefront?.capabilities.checkoutEnabled) && hasCore && hasSih,
-      coinsTopUpEnabled: Boolean(storefront?.capabilities.walletTopUpEnabled) && hasCore && hasArcPay,
+      coinsTopUpEnabled: Boolean(storefront?.capabilities.walletTopUpEnabled) && hasCore && hasArcoPay,
       skinFulfillmentEnabled: Boolean(this.config.commerce?.fulfillmentEnabled) && hasCore && hasSih,
-      steamRefillEnabled: Boolean(storefront?.capabilities.steamRefillEnabled) && hasCore && hasArcPay,
+      steamRefillEnabled: Boolean(storefront?.capabilities.steamRefillEnabled) && hasCore && hasArcoPay,
       reasons,
     };
   }
