@@ -21,6 +21,7 @@ export class ApiClient {
   private journal=new CommandJournal();
   constructor(fetcher:Fetch=(input,init)=>fetch(input,init)) { this.fetcher=fetcher; }
   setOwner(owner:string|null) { if(owner!==this.owner){if(this.owner)this.journal.clear(this.owner);this.reset();this.owner=owner;} }
+  setContext(owner:string,csrf:string) { this.setOwner(owner);this.csrf=csrf; }
   reset() { this.generation++;this.csrf=null;this.keys.clear();for(const controller of this.controllers)controller.abort();this.controllers.clear(); }
   commandKey(purpose:string,intent:string) {
     if(!this.owner)throw new ApiError(401,{code:'SESSION_REQUIRED'});

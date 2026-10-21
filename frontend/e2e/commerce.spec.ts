@@ -51,16 +51,26 @@ test('trade URL saves and returns to the preserved cart',async({page})=>{
  await page.getByLabel('Ссылка на обмен Steam').fill('https://steamcommunity.com/tradeoffer/new/?partner=39734272&token=abcdefgh');await settled(page.getByRole('button',{name:'Сохранить',exact:true}));
  await settled(page.getByRole('link',{name:'Продолжить покупку',exact:true}));await expect(page).toHaveURL(/\/cart$/);await expect(page.getByText('Trade-URL сохранён. Его можно изменить в кабинете.')).toBeVisible();
 });
-test('email OTP error preserves Steam login and amount; verified email proceeds without a wallet',async({page})=>{
- await fixture(page);let authenticated=false,walletReads=0;
- await page.route('**/api/session/me',route=>route.fulfill({status:authenticated?200:401,contentType:'application/json',body:JSON.stringify(authenticated?{id:'email-only',steam:{connected:false},email:{address:'buyer@example.test',verified:true}}:{})}));
- await page.route('**/api/wallet/me',route=>{walletReads++;return route.fulfill({status:403,body:'{}'});});
- await page.route('**/api/auth/email/challenges',route=>{expect(route.request().postDataJSON()).toEqual({email:'buyer@example.test',purpose:'sign_in'});return route.fulfill({status:202,contentType:'application/json',body:JSON.stringify({id:'challenge',resendAvailableAt:new Date().toISOString()})});});
- await page.route('**/api/auth/email/challenges/challenge/verify',route=>{const valid=route.request().postDataJSON().code==='123456';if(valid)authenticated=true;return route.fulfill({status:valid?200:401,contentType:'application/json',body:JSON.stringify(valid?{userId:'email-only'}:{message:'Неверный код'})});});
- await page.route('**/api/payments/steam-refill/quotes',route=>{expect(route.request().postDataJSON()).toEqual({steamLogin:'receiver-login',amountRub:500});return route.fulfill({contentType:'application/json',body:JSON.stringify({quoteId:'steam-quote',expiresAt:new Date(Date.now()+60000).toISOString(),fiatAmountMinor:52500,feeRubMinor:2500,steamLogin:'receiver-login'})});});
- await page.goto('http://127.0.0.1:5198/#steam');const panel=page.locator('#steam');await panel.getByLabel('Логин Steam').fill('receiver-login');await panel.getByLabel('На баланс Steam').fill('500');await settled(panel.getByRole('button',{name:'Подтвердить почту'}));
- const dialog=page.getByRole('dialog');await dialog.getByLabel('Электронная почта').fill('buyer@example.test');await dialog.getByRole('button',{name:'Получить код',exact:true}).click();await dialog.getByLabel('Код из письма').fill('000000');await dialog.getByRole('button',{name:'Подтвердить',exact:true}).click();await expect(dialog.getByText('Неверный код',{exact:true})).toBeVisible();
- await expect(panel.getByLabel('Логин Steam')).toHaveValue('receiver-login');await expect(panel.getByLabel('На баланс Steam')).toHaveValue('500');await dialog.getByLabel('Код из письма').fill('123456');await dialog.getByRole('button',{name:'Подтвердить',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(panel.getByRole('button',{name:'Перейти к оплате'})).toBeEnabled();expect(walletReads).toBe(0);
+test('guest Steam needs contact email, no sign-in or OTP; unknown creation survives reload',async({page})=>{
+ await fixture(page);let walletReads=0,authCalls=0,fail=true;const keys:string[]=[],bodies:unknown[]=[];
+ await page.route('**/api/session/me',route=>route.fulfill({status:401,body:'{}'}));
+ await page.route('**/api/storefront/config',route=>route.fulfill({json:{capabilities:{guestSteamRefillEnabled:true,steamRefillEnabled:true,walletTopUpEnabled:true}}}));
+ await page.route('**/api/wallet/me',route=>{walletReads++;return route.fulfill({status:401,body:'{}'});});
+ await page.route('**/api/auth/email/**',route=>{authCalls++;return route.fulfill({status:400,body:'{}'});});
+ await page.route('**/api/payments/guest/context',route=>route.fulfill({status:201,json:{id:'guest-context',csrfToken:'guest-csrf'}}));
+ await page.route('**/api/payments/guest/steam-refill/quotes',route=>{expect(route.request().headers()['x-csrf-token']).toBe('guest-csrf');expect(route.request().postDataJSON()).toEqual({steamLogin:'receiver-login',amountRub:500,email:'buyer@example.test'});return route.fulfill({json:{quoteId:'steam-quote',expiresAt:new Date(Date.now()+60000).toISOString(),fiatAmountMinor:52500,feeRubMinor:2500,steamLogin:'receiver-login'}});});
+ await page.route('**/api/payments/guest/steam-refill/sessions',route=>{keys.push(route.request().headers()['idempotency-key']);bodies.push(route.request().postDataJSON());return fail?route.abort('failed'):route.fulfill({json:{id:sessionId,checkoutUrl:null}});});
+ await page.route(`**/api/payments/sessions/${sessionId}`,route=>route.fulfill({status:401,body:'{}'}));
+ await page.route(`**/api/payments/guest/steam-refill/sessions/${sessionId}`,route=>route.fulfill({json:{id:sessionId,purpose:'steam_refill',paymentStatus:'paid',fulfillmentStatus:'pending',fiatAmountMinor:52500,steamLogin:'receiver-login',checkoutUrl:null,refundStatus:null}}));
+ await page.goto('http://127.0.0.1:5198/#steam');const panel=page.locator('#steam');await panel.getByLabel('Логин Steam').fill('receiver-login');await panel.getByLabel('На баланс Steam').fill('500');await panel.getByLabel('Почта для чека').fill('buyer@example.test');
+ await settled(panel.getByRole('button',{name:'Перейти к оплате'}));await expect(panel.getByText(/Результат запроса пока неизвестен/)).toBeVisible();
+ await page.reload();fail=false;await expect(panel.getByLabel('Логин Steam')).toHaveValue('receiver-login');await expect(panel.getByLabel('Почта для чека')).toHaveValue('buyer@example.test');await settled(panel.getByRole('button',{name:'Проверить результат запроса'}));
+ await expect(page).toHaveURL(/payments\/return/);await expect(page.getByRole('heading',{name:'Оплата получена. Пополнение Steam выполняется.'})).toBeVisible();
+ expect(authCalls).toBe(0);expect(walletReads).toBe(0);expect(keys).toHaveLength(2);expect(keys[0]).toBe(keys[1]);expect(bodies[0]).toEqual(bodies[1]);
+});
+test('Steam-only login and contact confirmation lives outside trade URL',async({page})=>{
+ await fixture(page);await page.goto('/account');await expect(page.locator('.trade-panel').getByText('Подтвердить почту')).toHaveCount(0);await expect(page.locator('.contact-panel')).toContainText('owner@example.test');
+ await page.route('**/api/session/me',route=>route.fulfill({status:401,body:'{}'}));await page.reload();await settled(page.getByRole('button',{name:'Открыть кабинет',exact:true}));await expect(page.getByRole('dialog').getByRole('link',{name:'Войти через Steam'})).toBeVisible();await expect(page.getByText('Войти по почте',{exact:true})).toHaveCount(0);
 });
 test('wrong payment owner gets no details and cannot create another session from return page',async({page})=>{
  const state=await fixture(page);await page.route(`**/api/payments/sessions/${sessionId}`,route=>route.fulfill({status:404,body:'{}'}));await page.goto(`http://127.0.0.1:5198/payments/return?session=${sessionId}&payment=success`);await expect(page.getByText('Платёж не найден или принадлежит другому аккаунту.')).toBeVisible();expect(state.paymentCalls).toBe(0);
@@ -85,8 +95,8 @@ test('same Steam owner linking email refreshes csrf before immediate Steam quote
  await page.route('**/api/auth/email/challenges',route=>{expect(route.request().headers()['x-csrf-token']).toBe('original');return route.fulfill({status:202,json:{id:'link'}});});
  await page.route('**/api/auth/email/challenges/link/verify',route=>{expect(route.request().headers()['x-csrf-token']).toBe('original');verified=true;return route.fulfill({json:{userId:'owner'},headers:{'Set-Cookie':'shards_session=rotated; Path=/; HttpOnly; SameSite=Lax'}});});
  await page.route('**/api/payments/steam-refill/quotes',route=>{expect(route.request().headers()['x-csrf-token']).toBe('rotated');quotes++;return route.fulfill({json:{quoteId:'steam',expiresAt:new Date(Date.now()+60000).toISOString(),fiatAmountMinor:52500,feeRubMinor:2500,steamLogin:'player'}});});
- await page.goto('http://127.0.0.1:5198/#steam');const panel=page.locator('#steam');await panel.getByLabel('Логин Steam').fill('player');await panel.getByLabel('На баланс Steam').fill('500');await settled(panel.getByRole('button',{name:'Подтвердить почту'}));
- const dialog=page.getByRole('dialog');await dialog.getByLabel('Электронная почта').fill('buyer@example.test');await dialog.getByRole('button',{name:'Получить код',exact:true}).click();await dialog.getByLabel('Код из письма').fill('123456');await dialog.getByRole('button',{name:'Подтвердить',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(panel.getByRole('button',{name:'Перейти к оплате'})).toBeEnabled();expect(quotes).toBeGreaterThan(0);
+ await page.goto('/account');await settled(page.locator('.contact-panel').getByRole('button',{name:'Подтвердить почту'}));
+ const dialog=page.getByRole('dialog');await dialog.getByLabel('Электронная почта').fill('buyer@example.test');await dialog.getByRole('button',{name:'Получить код',exact:true}).click();await dialog.getByLabel('Код из письма').fill('123456');await dialog.getByRole('button',{name:'Подтвердить',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(page.locator('.contact-panel')).toContainText('buyer@example.test');await settled(page.locator('header .wordmark'));const panel=page.locator('#steam');await panel.getByLabel('Логин Steam').fill('player');await panel.getByLabel('На баланс Steam').fill('500');await expect(panel.getByRole('button',{name:'Перейти к оплате'})).toBeEnabled();expect(quotes).toBeGreaterThan(0);
 });
 
 for(const width of [1440,768,390,320])test(`VV162 cart wallet states at ${width}`,async({page})=>{
@@ -102,4 +112,14 @@ for(const width of [1440,768,390,320])test(`VV162 cart wallet states at ${width}
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.locator('.vv162-summary').screenshot({path:`../.qa/vv162/cart-${name}-${width}.png`});
  }
+});
+
+for(const width of [1440,768,390,320])test(`VV163 account, company and legal layout ${width}`,async({page})=>{
+ await page.setViewportSize({width,height:1000});await page.emulateMedia({reducedMotion:'reduce'});await fixture(page);mkdirSync('../.qa/vv163',{recursive:true});
+ await page.goto('/account');const contact=page.locator('.contact-panel');await expect(contact).toContainText('owner@example.test');await contact.scrollIntoViewIfNeeded();await page.screenshot({path:`../.qa/vv163/account-${width}.png`,fullPage:true});
+ await settled(page.getByRole('button',{name:'Пополнить баланс',exact:true}));const topup=page.locator('.account-topup');await expect(topup).toBeVisible();const css=await topup.evaluate(el=>({padding:parseFloat(getComputedStyle(el).paddingLeft),radius:parseFloat(getComputedStyle(el).borderRadius)}));expect(css.padding).toBeGreaterThanOrEqual(20);expect(css.radius).toBeGreaterThan(0);await topup.screenshot({path:`../.qa/vv163/balance-${width}.png`});
+ await page.goto('/terms');await expect(page.locator('main')).toContainText('1 российский рубль = 1,6 Shards');await expect(page.locator('.legal-document h2')).toHaveCount(12);await page.screenshot({path:`../.qa/vv163/terms-${width}.png`});
+ await page.locator('footer').scrollIntoViewIfNeeded();await page.locator('footer').screenshot({path:`../.qa/vv163/footer-${width}.png`});await expect(page.locator('footer')).toContainText('260740037730');await expect(page.locator('.footer-payment-logos img')).toHaveCount(2);await expect(page.locator('footer').getByRole('img',{name:'МИР',exact:true})).toBeVisible();await expect(page.locator('footer').getByRole('img',{name:'СБП',exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ const faq=page.locator('footer').getByRole('link',{name:'Вопросы и ответы'});await faq.scrollIntoViewIfNeeded();expect(await faq.evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})).toBe(true);await settled(faq);await expect(page).toHaveURL(/\/#faq$/);await expect(page.locator('#faq')).toBeInViewport();
 });

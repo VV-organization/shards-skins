@@ -1,3 +1,6 @@
 import type {Metadata} from 'next';
-export const metadata:Metadata={title:"Политика конфиденциальности",robots:{index:false,follow:true}};
-export default function Page(){return <div className="page-container legal-page"><div className="page-heading"><h1>Политика конфиденциальности</h1></div></div>;}
+import {LegalDocument} from '@/components/legal-document';
+import blocks from '@/lib/legal/privacy.json';
+
+export const metadata: Metadata = {title: 'Политика конфиденциальности', robots: {index: false, follow: true}};
+export default function Page() {return <LegalDocument blocks={blocks} current="privacy"/>;}

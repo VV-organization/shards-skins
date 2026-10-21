@@ -73,6 +73,7 @@ export type CatalogFacetsDto = {
 };
 
 export type CatalogListDto = {
+  categoryCounts: { all: number; byCategory: Record<string, number> };
   items: CatalogProductDto[];
   facets: CatalogFacetsDto;
   pagination: {

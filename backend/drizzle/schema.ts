@@ -789,3 +789,13 @@ export const commerceQuotes = pgTable('commerce_quotes', {
 export const commerceQuoteLimits = pgTable('commerce_quote_limits', {
   key: text('key').primaryKey(), windowStartedAt: timestamp('window_started_at',{withTimezone:true}).defaultNow().notNull(), count: integer('count').notNull(),
 });
+
+export const guestPaymentContexts = pgTable('guest_payment_contexts', {
+ id: uuid('id').defaultRandom().primaryKey(), userId:text('user_id').notNull().unique(),
+ tokenDigest:text('token_digest').notNull().unique(), expiresAt:timestamp('expires_at',{withTimezone:true}).notNull(),
+ createdAt:timestamp('created_at',{withTimezone:true}).defaultNow().notNull(),
+});
+export const steamRefillClaims = pgTable('steam_refill_claims', {
+ paymentId:uuid('payment_id').primaryKey(),userId:text('user_id').notNull(),email:text('email').notNull(),
+ claimedAt:timestamp('claimed_at',{withTimezone:true}).defaultNow().notNull(),
+}, table=>[index('steam_refill_claims_user_idx').on(table.userId)]);

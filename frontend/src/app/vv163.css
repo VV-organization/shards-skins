@@ -1,0 +1,13 @@
+/* VV-163: scoped corrections, preserving the designer stylesheet. */
+button.text-link{background:transparent;color:inherit;text-align:left;cursor:pointer}
+button.text-link:hover{color:var(--pink);border-bottom-color:var(--pink)}
+.account-page .account-panel{padding:clamp(20px,3vw,35px);border:1px solid var(--line);border-radius:14px}
+.account-page .account-topup{width:100%;max-width:650px;overflow:hidden}
+.account-topup form{display:flex;flex-direction:column}
+.contact-panel .fine-print{overflow-wrap:anywhere}
+.steam-panel .topup-form-body>.fine-print{margin:10px 0 20px}
+.cart-wallet .button small{margin-left:auto;font-size:12px;white-space:nowrap;font-weight:400}
+.cart-wallet .text-link small{font-size:12px;white-space:nowrap}
+@media(max-width:420px){.cart-wallet .button{gap:8px;padding:14px 12px}.account-topup h2{font-size:32px}.account-page .panel-heading{gap:12px}}
+/* The oversized wordmark's text hit area extends above its line box on desktop. */
+.shards-footer .footer-top{position:relative;z-index:1}

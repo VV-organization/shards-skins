@@ -10,7 +10,16 @@ createServer(async(req,res)=>{const url=new URL(req.url,'http://127.0.0.1:5199')
  if(url.pathname==='/storefront/config')return send(config);
  if(url.pathname==='/session/me')return send({message:'Guest'},401);
  if(url.pathname==='/catalog/lookup')return send({items:items.filter(p=>body.slugs.includes(p.slug))});
- if(url.pathname==='/catalog')return send({items:items.slice(0,60),facets:{kinds:[],games:[],productTypes:[],conditions:[],fulfillmentModes:[],availability:[]},pagination:{limit:60,offset:0,total:items.length,hasMore:false},pricing:{coinRate:{fiatCurrency:'RUB',fiatMinor:100,coinMinor:160,display:'1.6'}}});
+ if(url.pathname==='/catalog'){
+  const query=url.searchParams;
+  const wearCodes={'Прямо с завода':'FN','Немного поношенное':'MW','После полевых испытаний':'FT','Поношенное':'WW','Закалённое в боях':'BS','Закаленное в боях':'BS'};
+  const matching=items.filter(p=>(!query.get('q')||`${p.title} ${p.description} ${p.weapon}`.toLowerCase().includes(query.get('q').toLowerCase()))&&(!query.get('condition')||(wearCodes[p.condition]??p.condition)===query.get('condition'))&&(!query.get('stattrak')||p.stattrak===(query.get('stattrak')==='true'))&&(!query.get('weapon')||p.weapon===query.get('weapon'))&&(!query.get('min')||p.price.amountMinor>=Number(query.get('min'))*100)&&(!query.get('max')||p.price.amountMinor<=Number(query.get('max'))*100));
+  const categoryCounts={all:matching.length,byCategory:{}};
+  for(const product of matching)categoryCounts.byCategory[product.categoryId]=(categoryCounts.byCategory[product.categoryId]??0)+1;
+  const selected=matching.filter(p=>!query.get('categoryId')||p.categoryId===query.get('categoryId'));
+  const offset=Number(query.get('offset')??0),limit=Number(query.get('limit')??60);
+  return send({items:selected.slice(offset,offset+limit),categoryCounts,facets:{kinds:[],games:[],productTypes:[],conditions:[],fulfillmentModes:[],availability:[]},pagination:{limit,offset,total:selected.length,hasMore:offset+limit<selected.length},pricing:{coinRate:{fiatCurrency:'RUB',fiatMinor:100,coinMinor:160,display:'1.6'}}});
+ }
  if(url.pathname==='/duo/options')return send({items:items.filter(p=>p.categoryId===url.searchParams.get('slot')).slice(0,60),nextCursor:null});
  if(url.pathname==='/duo/quotes'){const pair=[items.find(p=>p.slug===body.knifeSlug),items.find(p=>p.slug===body.gloveSlug)];if(pair.some(p=>!p))return send({},400);const totalCoinMinor=pair.reduce((s,p)=>s+p.price.amountMinor,0),totalRubMinor=Math.round(totalCoinMinor*5/8);return send({id:'fixture-quote',expiresAt:new Date(Date.now()+60000).toISOString(),items:pair,totalCoinMinor,totalRubMinor,budgetRubMinor:body.budgetRubMinor,remainingRubMinor:body.budgetRubMinor-totalRubMinor,withinBudget:totalRubMinor<=body.budgetRubMinor});}
  if(url.pathname.startsWith('/catalog/'))return send(items.find(p=>p.slug===url.pathname.split('/').at(-1))??{},items.some(p=>p.slug===url.pathname.split('/').at(-1))?200:404);

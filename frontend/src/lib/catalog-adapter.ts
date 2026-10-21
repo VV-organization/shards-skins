@@ -1,3 +1,4 @@
+import {filterProducts,type Filters} from './filters.ts';
 import type {ApiResponses} from '../generated/api-types.ts';
 import type {Product} from './types.ts';
 import {presentationArtwork} from './presentation.ts';
@@ -11,3 +12,12 @@ export function mapProduct(dto:CatalogApiProduct):Product {
 }
 
 export function unavailableProduct(slug:string):Product { return {id:slug,name:"Предмет недоступен",description:"Этот предмет больше не доступен в каталоге",imageUrl:"/favicon.svg",categoryId:"other",condition:"",priceMinor:0,availability:"unavailable",priceRevision:"",weapon:"CS2",finish:"Предмет недоступен",rarity:"",stattrak:false,source:{name:"",url:"",capturedAt:"",price:0,currency:"RUB",rublesPerUnit:1}}; }
+
+export type CategoryCounts={all:number;byCategory:Record<string,number>};
+export function savedCatalogPage(products:Product[],filters:Filters) {
+ const matching=filterProducts(products,{...filters,category:'all'});
+ const byCategory:Record<string,number>={};
+ for(const product of matching)byCategory[product.categoryId]=(byCategory[product.categoryId]??0)+1;
+ const selected=filters.category==='all'?matching:matching.filter(product=>product.categoryId===filters.category);
+ return {products:selected,total:selected.length,categoryCounts:{all:matching.length,byCategory}};
+}

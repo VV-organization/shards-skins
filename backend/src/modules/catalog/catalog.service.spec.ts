@@ -68,6 +68,18 @@ describe("CatalogService", () => {
     return new CatalogService(database as never);
   }
 
+  it("reports whole matching catalog counts independently of the selected category and page", async () => {
+    const service = new CatalogService({query: (sql: string) => Promise.resolve({rows: sql.includes("AS total")
+      ? [{category_id:"rifle",total:"81"},{category_id:"knife",total:"4"},{category_id:"other",total:"2"}]
+      : []})} as never);
+    const result = await service.list({categoryId:"knife",limit:"1",offset:"2"});
+    expect(result).toMatchObject({categoryCounts:{all:87,byCategory:{rifle:81,knife:4,other:2}},pagination:{total:4,limit:1,offset:2}});
+  });
+
+  it("returns zero category counts for the excluded Steam catalog", async () => {
+    expect(await createService().list({category:"steam"})).toMatchObject({categoryCounts:{all:0,byCategory:{}}});
+  });
+
   it("keeps the default public catalog constrained to skins", async () => {
     const service = createService();
 

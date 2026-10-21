@@ -146,7 +146,7 @@ export class OrdersService {
       `
         SELECT id, user_id, status, total_coin_minor, recipient_snapshots, created_at
         FROM orders
-        WHERE user_id = $1
+        WHERE user_id = $1 OR EXISTS(SELECT 1 FROM steam_refill_payments p JOIN steam_refill_claims c ON c.payment_id=p.id WHERE p.order_id=orders.id AND c.user_id=$1)
         ORDER BY created_at DESC, id DESC
       `,
       [userId],
@@ -155,7 +155,7 @@ export class OrdersService {
       `
         SELECT id, user_id, status, amount_rub_minor, steam_login, created_at
         FROM steam_refill_payments
-        WHERE user_id = $1
+        WHERE (user_id = $1 OR EXISTS(SELECT 1 FROM steam_refill_claims c WHERE c.payment_id=steam_refill_payments.id AND c.user_id=$1))
           AND order_id IS NULL
         ORDER BY created_at DESC, id DESC
       `,

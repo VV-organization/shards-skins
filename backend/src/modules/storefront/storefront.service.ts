@@ -18,6 +18,7 @@ export class StorefrontService {
       steamFeeBps: 500,
       paymentMethods: paymentReady ? ['sbp'] : [],
       capabilities: {
+        guestSteamRefillEnabled: Boolean(paymentReady && this.config.commerce?.guestSteamRefillEnabled && this.config.commerce.fulfillmentEnabled && this.config.sih.steamRefillApiKeyFile),
         checkoutEnabled: Boolean(verifiedFx && this.config.commerce?.checkoutEnabled && this.config.commerce.fulfillmentEnabled && this.config.databaseUrl && this.config.sih.apiKeyFile),
         walletTopUpEnabled: paymentReady,
         steamRefillEnabled: Boolean(paymentReady && this.config.commerce?.fulfillmentEnabled && this.config.databaseUrl && this.config.sih.steamRefillApiKeyFile && isArcPayConfigured(this.config.arcPay)),

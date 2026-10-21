@@ -1,3 +1,5 @@
+import {GuestPaymentService} from './guest-payment.service';
+import {GuestPaymentsController} from './guest-payments.controller';
 import {QuotesModule} from "../quotes/quotes.module";
 import {PaymentQuotesService} from "./payment-quotes.service";
 import { Module } from "@nestjs/common";
@@ -18,7 +20,7 @@ import { PaymentHistoryService } from "./payment-history.service";
 
 @Module({
   imports: [QuotesModule, DatabaseModule, SessionsModule, UsersModule, WalletModule, FulfillmentModule],
-  controllers: [PaymentsController, PaymentsWebhookController, PaymentHistoryController],
+  controllers: [GuestPaymentsController,PaymentsController, PaymentsWebhookController, PaymentHistoryController],
   providers: [
     {
       provide: ArcPayClient,
@@ -30,6 +32,7 @@ import { PaymentHistoryService } from "./payment-history.service";
         baseUrl: config.arcPay.apiUrl,
       }),
     },
+    GuestPaymentService,
     PaymentQuotesService,
     PaymentsService,
     PaymentHistoryService,

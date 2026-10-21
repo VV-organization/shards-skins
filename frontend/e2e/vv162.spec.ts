@@ -7,7 +7,7 @@ test('VV-162 section order, copy, deferred skins and legal shells',async({page})
  await expect(page.locator('#faq details')).toHaveCount(7);await expect(page.locator('#faq')).toContainText('support@shardsmarket.com');
  await expect(page.locator('footer')).not.toContainText('Личный отбор');await expect(page.locator('.footer-baseline')).toContainText('Скины CS2');await expect(page.locator('.footer-baseline')).not.toContainText('Steam');
  await expect(page.locator('header a[aria-label="Отложенные"]')).toHaveAttribute('href','/catalog?saved=1');
- for(const [url,title] of [['/privacy','Политика конфиденциальности'],['/terms','Пользовательское соглашение']]){await page.goto(url);await expect(page.getByRole('heading',{name:title})).toBeVisible();await expect(page.locator('meta[name=robots]')).toHaveAttribute('content','noindex, follow');await expect(page.locator('main p')).toHaveCount(0);}
+ for(const [url,title] of [['/privacy','Политика конфиденциальности'],['/terms','Пользовательское соглашение']]){await page.goto(url);await expect(page.getByRole('heading',{name:title})).toBeVisible();await expect(page.locator('meta[name=robots]')).toHaveAttribute('content','noindex, follow');expect(await page.locator('main p').count()).toBeGreaterThan(30);await expect(page.locator('main')).toContainText('Smartvesta');}
 });
 test('analytics initializes automatic GA once without manual duplicates and isolates private documents',async({page})=>{
  // The target origin is simulated locally; never contact the real site/counters.

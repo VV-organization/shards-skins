@@ -39,7 +39,7 @@ describe("loadAppConfig", () => {
       CATALOG_PUBLIC_GAMES: "cs2",
       CORS_ORIGINS: "https://shards.example, https://admin.shards.example",
     })).toEqual({
-      commerce: { checkoutEnabled: false, paymentsEnabled: false, fulfillmentEnabled: false },
+      commerce: { checkoutEnabled: false, paymentsEnabled: false, fulfillmentEnabled: false, guestSteamRefillEnabled: false },
       nodeEnv: "test",
       port: 4100,
       databaseUrl: "postgres://shards:test@localhost:5432/shards",

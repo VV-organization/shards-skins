@@ -121,13 +121,25 @@ export class UsersService {
           await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`email-owner:${targetUserId}`]);
           const prior = await client.query<{email:string}>("SELECT email FROM email_identities WHERE user_id=$1",[targetUserId]);
           if (prior.rows[0] && prior.rows[0].email !== email) throw new ConflictException({code:"ACCOUNT_EMAIL_EXISTS", message:"У аккаунта уже есть подтверждённая почта"});
+          const existing=await client.query<{user_id:string;steam_id64:string|null;disabled:boolean}>("SELECT e.user_id,u.steam_id64,u.disabled FROM email_identities e JOIN users u ON u.id=e.user_id WHERE e.email=$1 FOR UPDATE OF u",[email]);
+          const source=existing.rows[0];
+          if(source&&source.user_id!==targetUserId){
+            const target=await client.query<{steam_id64:string|null}>('SELECT steam_id64 FROM users WHERE id=$1',[targetUserId]);
+            if(source.steam_id64||source.disabled||!target.rows[0]?.steam_id64)throw new ConflictException({code:'EMAIL_ALREADY_LINKED',message:'Эта почта привязана к другому аккаунту'});
+            await client.query('INSERT INTO steam_refill_claims(payment_id,user_id,email) SELECT id,$1,$2 FROM steam_refill_payments WHERE user_id=$3 ON CONFLICT(payment_id) DO NOTHING',[targetUserId,email,source.user_id]);
+            await client.query('UPDATE email_identities SET user_id=$1,verified_at=now(),updated_at=now() WHERE email=$2',[targetUserId,email]);
+            // Keep the immutable former owner for payment idempotency and fulfillment; deny future sessions under that identity.
+            await client.query('UPDATE user_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL',[source.user_id]);
+          }
           const linked = await client.query<{user_id:string}>(`INSERT INTO email_identities (email,user_id,verified_at) VALUES ($1,$2,clock_timestamp()) ON CONFLICT (email) DO UPDATE SET verified_at=clock_timestamp(),updated_at=clock_timestamp() WHERE email_identities.user_id=EXCLUDED.user_id RETURNING user_id`, [email,targetUserId]);
           if (!linked.rows[0]) throw new ConflictException({code:"EMAIL_ALREADY_LINKED", message:"Эта почта привязана к другому аккаунту"});
         });
         return this.requireUser(targetUserId);
       }
       const userId = `user_email_${createHash("sha256").update(email, "utf8").digest("hex").slice(0, 32)}`;
-      const result = await this.database.query<{ user_id: string }>(
+      const result = await this.database.transaction(async (client) => {
+        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`email:${email}`]);
+        return client.query<{ user_id: string }>(
         `
           WITH existing_identity AS (
             SELECT user_id AS id
@@ -171,6 +183,7 @@ export class UsersService {
         `,
         [userId, email, null],
       );
+      });
       const row = result.rows[0];
       if (!row) throw new Error("Email user was not stored");
       return this.requireUser(row.user_id);

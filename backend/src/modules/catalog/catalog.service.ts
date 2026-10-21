@@ -279,6 +279,7 @@ export class CatalogService {
       return {
         items: [],
         facets: emptyCatalogFacets(),
+        categoryCounts: { all: 0, byCategory: {} },
         pagination: {
           limit,
           offset,
@@ -288,7 +289,7 @@ export class CatalogService {
         pricing: catalogPricingDto(),
       };
     }
-    const [products, catalogFacets, total] = await Promise.all([
+    const [products, catalogFacets, categoryCounts] = await Promise.all([
       this.loadProducts({
         ...(query.categoryId ? {categoryId:query.categoryId} : {}),
         ...(query.stattrak ? {stattrak:query.stattrak} : {}),
@@ -313,7 +314,6 @@ export class CatalogService {
         search,
       }),
       this.countProducts({
-        ...(query.categoryId ? {categoryId:query.categoryId} : {}),
         ...(query.stattrak ? {stattrak:query.stattrak} : {}),
         ...(typeof query.weapon === "string" ? {weapon:query.weapon} : {}),
         ...(category === undefined ? {} : { category }),
@@ -326,12 +326,14 @@ export class CatalogService {
       }),
     ]);
 
+    const total = query.categoryId ? categoryCounts.byCategory[query.categoryId] ?? 0 : categoryCounts.all;
     const items = products;
     const quotedItems = items;
 
     return {
       items: quotedItems.map(productDto),
       facets: catalogFacets,
+      categoryCounts,
       pagination: {
         limit,
         offset,
@@ -515,7 +517,7 @@ ${supplierPricingJoin}
       "catalog_products.kind = 'skins'",
       "lower(catalog_products.game) = 'cs2'",
     ];
-    if (command.categoryId !== undefined) { params.push(command.categoryId); where.push(`catalog_products.category_id = $${params.length}`); }
+    if (command.categoryId !== undefined) { params.push(command.categoryId); where.push(`COALESCE(catalog_products.category_id, 'other') = $${params.length}`); }
     if (command.stattrak !== undefined) {
       if (!["true","false","1","0"].includes(command.stattrak)) throw new BadRequestException("Invalid StatTrak filter");
       where.push(`catalog_products.stattrak = ${["true","1"].includes(command.stattrak)?"true":"false"}`);
@@ -611,7 +613,7 @@ ${supplierPricingJoin}
     search?: string;
     slug?: string; slugs?: string[];
     types?: string[];
-  }): Promise<number> {
+  }): Promise<CatalogListDto["categoryCounts"]> {
     const { params, where } = this.catalogWhere(command);
     if (command.minPriceCoinMinor !== undefined) {
       params.push(command.minPriceCoinMinor);
@@ -621,9 +623,9 @@ ${supplierPricingJoin}
       params.push(command.maxPriceCoinMinor);
       where.push(`${effectivePriceCoinMinorSql} <= $${params.length}`);
     }
-    const result = await this.database.query<{ total: string }>(
+    const result = await this.database.query<{ category_id: string; total: string }>(
       `
-        SELECT count(*)::text AS total
+        SELECT COALESCE(catalog_products.category_id, 'other') AS category_id, count(*)::text AS total
         FROM catalog_products
         LEFT JOIN supplier_listings
           ON catalog_products.supplier_provider = 'sih'
@@ -632,10 +634,14 @@ ${supplierPricingJoin}
           AND supplier_listings.market_hash_name = catalog_products.supplier_item_id
 ${supplierPricingJoin}
         WHERE ${where.join("\n          AND ")}
+        GROUP BY COALESCE(catalog_products.category_id, 'other')
       `,
       params,
     );
-    return Number(result.rows[0]?.total ?? 0);
+    return {
+      all: result.rows.reduce((sum, row) => sum + Number(row.total), 0),
+      byCategory: Object.fromEntries(result.rows.map(row => [row.category_id, Number(row.total)])),
+    };
   }
 
   private gameFilter(query: CatalogListQuery): CatalogGame | undefined {

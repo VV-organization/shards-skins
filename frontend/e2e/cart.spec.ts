@@ -17,7 +17,7 @@ test('guest selection survives Steam return; confirmed cart survives reload and 
   if(path==='/session/csrf')return send({token:'fixture'});
   if(path==='/me/steam-trade-url/status')return send({configured:true});
   if(path==='/catalog/lookup')return send({items:[product]});
-  if(path==='/catalog')return send({items:[product],facets:{kinds:[],games:[],productTypes:[],conditions:[],fulfillmentModes:[],availability:[]},pagination:{limit:60,offset:0,total:1,hasMore:false},pricing:{coinRate:{fiatCurrency:'RUB',fiatMinor:100,coinMinor:160,display:'1.6'}}});
+  if(path==='/catalog')return send({items:[product],categoryCounts:{all:1,byCategory:{knife:1}},facets:{kinds:[],games:[],productTypes:[],conditions:[],fulfillmentModes:[],availability:[]},pagination:{limit:60,offset:0,total:1,hasMore:false},pricing:{coinRate:{fiatCurrency:'RUB',fiatMinor:100,coinMinor:160,display:'1.6'}}});
   if(path==='/cart')return send(cart());
   if(path==='/cart/items/fixture-knife'){
    expect(authenticated).toBe(true);expect(route.request().headers()['idempotency-key']).toBeTruthy();

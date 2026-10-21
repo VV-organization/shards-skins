@@ -477,8 +477,13 @@ export class PaymentsService {
     if(purpose==='wallet_topup'){
       if(!user.rows[0].steam_id64||terms.coinAmountMinor!==(command as CreateTopUpSessionCommand).coinAmountMinor)throw new BadRequestException('STEAM_IDENTITY_REQUIRED');
     }else{
+      if(terms.guestCheckout){const guest=await client.query('SELECT id FROM guest_payment_contexts WHERE user_id=$1 AND expires_at>now()',[command.userId]);if(!guest.rowCount)throw new BadRequestException('GUEST_CONTEXT_REQUIRED');}
+      // Serialize guest inserts with email verification to avoid missing concurrent claims.
+      if(terms.guestCheckout)await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`email:${terms.contactEmail}`]);
       const email=await client.query<{email:string}>('SELECT email FROM email_identities WHERE user_id=$1 AND verified_at IS NOT NULL FOR SHARE',[command.userId]);
-      if(!email.rows[0]||email.rows[0].email!==terms.contactEmail||terms.steamLogin!==(command as CreateSteamRefillSessionCommand).steamLogin||!terms.steamCheckTransactionId)throw new ConflictException('PAYMENT_RECIPIENT_CHANGED');
+      // A legacy email-only owner loses its identity on adoption. Reject an in-flight new payment, while existing idempotent payments remain replayable.
+      if(!terms.guestCheckout&&!user.rows[0].steam_id64&&!email.rows[0])throw new ConflictException('PAYMENT_RECIPIENT_CHANGED');
+      if((terms.contactEmailSource!=='input'&&(!email.rows[0]||email.rows[0].email!==terms.contactEmail))||!terms.contactEmail||terms.steamLogin!==(command as CreateSteamRefillSessionCommand).steamLogin||!terms.steamCheckTransactionId)throw new ConflictException('PAYMENT_RECIPIENT_CHANGED');
     }
     return terms;
   }
@@ -853,6 +858,10 @@ export class PaymentsService {
     });
   }
 
+  private async steamBuyerDetails(paymentId:string):Promise<{buyerEmail?:string}>{
+    const r=await this.database.query<{email:string|null}>("SELECT metadata->>'contactEmail' AS email FROM steam_refill_payments WHERE id=$1",[paymentId]);
+    return r.rows[0]?.email?{buyerEmail:r.rows[0].email}:{};
+  }
   private async buyerDetails(userId: string): Promise<{ buyerEmail?: string }> {
     const result = await this.database.query<{ email: string }>(
       "SELECT email FROM email_identities WHERE user_id = $1 ORDER BY created_at ASC LIMIT 1", [userId],
@@ -1168,7 +1177,7 @@ export class PaymentsService {
     let checkout: Awaited<ReturnType<ArcPayClient["createHostedCheckout"]>>;
     try {
       checkout = await this.arcPay.createHostedCheckout({
-        ...(await this.buyerDetails(command.userId)),
+        ...(await this.steamBuyerDetails(initial.id)),
         amountMinor: initial.fiatAmountMinor,
         cancelUrl: urls.cancelUrl,
         description: `Пополнение Steam на ${initial.amountRubMinor / 100} RUB`,

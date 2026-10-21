@@ -6,7 +6,7 @@ export type ArcPayEnvironment = "sandbox" | "live";
 export type ArcPayProviderMode = "disabled" | "fake" | "real";
 
 export type AppConfig = {
-  commerce?: { checkoutEnabled: boolean; paymentsEnabled: boolean; fulfillmentEnabled: boolean };
+  commerce?: { guestSteamRefillEnabled?: boolean; checkoutEnabled: boolean; paymentsEnabled: boolean; fulfillmentEnabled: boolean };
   nodeEnv: AppNodeEnv;
   port: number;
   databaseUrl?: string;
@@ -228,6 +228,7 @@ export function loadAppConfig(env: NodeJS.ProcessEnv): AppConfig {
   }
   return {
     commerce: {
+      guestSteamRefillEnabled: parseBoolean("GUEST_STEAM_REFILL_ENABLED", env.GUEST_STEAM_REFILL_ENABLED, false),
       checkoutEnabled: parseBoolean("SHARDS_CHECKOUT_ENABLED", env.SHARDS_CHECKOUT_ENABLED, false),
       paymentsEnabled: parseBoolean("SHARDS_PAYMENTS_ENABLED", env.SHARDS_PAYMENTS_ENABLED, false),
       fulfillmentEnabled: parseBoolean("SHARDS_FULFILLMENT_ENABLED", env.SHARDS_FULFILLMENT_ENABLED, false),

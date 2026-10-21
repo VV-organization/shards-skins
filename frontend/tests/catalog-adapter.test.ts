@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mapProduct} from '../src/lib/catalog-adapter.ts';
+import {mapProduct,savedCatalogPage,unavailableProduct} from '../src/lib/catalog-adapter.ts';
 import {presentationProducts} from '../src/lib/presentation.ts';
 test('missing curated SKU keeps its visual slot without becoming purchasable',()=>{
  const items=presentationProducts(['swap-0a7a560b8522'],[]);
@@ -10,4 +10,14 @@ test('catalog mapping uses authoritative identity, revision and wear and has a s
  const dto={id:'backend-id',kind:'skins',category:'Скины',productType:'Автомат',createdAt:'2026-10-11T00:00:00Z',popularity:1,fulfillmentMode:'steam-trade',keywords:[],details:{specifications:[],fulfillment:{title:'Steam',description:'Trade',requirements:[]}},slug:'real-sku',title:'AK-47 | Redline',description:'Skin',categoryId:'rifle',condition:'FT',weapon:'AK-47',stattrak:false,marketHashName:'AK-47 | Redline (Field-Tested)',priceRevision:'r2',pricingSettingId:'p1',price:{currency:"COINS",scale:2,display:"123,45 Shards",amountMinor:12345},availability:'unavailable',meta:[]} as Parameters<typeof mapProduct>[0];
  const product=mapProduct(dto);
  assert.equal(product.id,'real-sku');assert.equal(product.priceMinor,12345);assert.equal(product.condition,'После полевых испытаний');assert.equal(product.availability,'unavailable');assert.equal(product.priceRevision,'r2');assert.ok(product.imageUrl);assert.equal('float' in product,false);
+});
+
+import {emptyFilters} from '../src/lib/filters.ts';
+test('saved category counts include other categories and retain non-category filters',()=>{
+ const products=[{...unavailableProduct('a'),categoryId:'knife',priceMinor:500,stattrak:true},{...unavailableProduct('b'),categoryId:'rifle',priceMinor:600,stattrak:true},{...unavailableProduct('c'),priceMinor:700,stattrak:true},{...unavailableProduct('d'),categoryId:'knife',priceMinor:100,stattrak:false}];
+ const page=savedCatalogPage(products,{...emptyFilters,category:'knife',min:'4',stattrak:true});
+ assert.deepEqual(page.categoryCounts,{all:3,byCategory:{knife:1,rifle:1,other:1}});
+ assert.deepEqual(page.products.map(p=>p.id),['a']);
+ assert.equal(page.total,1);
+ assert.deepEqual(savedCatalogPage([],emptyFilters).categoryCounts,{all:0,byCategory:{}});
 });

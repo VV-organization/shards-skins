@@ -1,0 +1,22 @@
+.shards-footer .footer-legal{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:32px;padding:8px 0 28px;color:#554667;font-size:12px;line-height:1.8}
+.shards-footer .footer-company{display:grid;gap:5px;max-width:620px}
+.shards-footer .footer-company strong{font-size:14px;color:#1b102f}
+.shards-footer .footer-company address{font-style:normal;overflow-wrap:anywhere}
+.shards-footer .footer-documents{display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+.shards-footer .footer-documents a:hover{text-decoration:underline;text-underline-offset:4px}
+.shards-footer .footer-documents a:focus-visible{outline-color:#44216b}
+.shards-footer .footer-baseline{align-items:center;gap:16px;flex-wrap:wrap}
+.shards-footer .footer-payment-logos{display:flex;align-items:center;gap:12px}
+.shards-footer .footer-payment-logos .footer-payment-logo{display:flex;align-items:center;justify-content:center;width:72px;height:38px;padding:7px 9px;background:#fff;border-radius:6px}
+.shards-footer .footer-payment-logo img{display:block;max-width:100%;height:24px;object-fit:contain}
+.legal-page .legal-content{max-width:1000px;margin:0 auto}
+.legal-navigation{display:flex;flex-wrap:wrap;gap:12px 24px;font-size:12px;line-height:1.7;color:var(--muted);margin-bottom:48px}
+.legal-navigation [aria-current=page],.legal-navigation a:hover{color:var(--pink)}
+.legal-document{font-size:15px;line-height:1.9;overflow-wrap:anywhere}
+.legal-document h1{font-size:clamp(26px,4vw,44px);line-height:1.25;letter-spacing:-.035em;margin:0 0 20px}
+.legal-document h2{font-size:20px;line-height:1.5;margin:36px 0 16px;letter-spacing:-.015em}
+.legal-document p{margin:0 0 18px;line-height:inherit;white-space:pre-wrap}
+.legal-document .legal-revision{color:var(--muted);margin-bottom:36px}
+.legal-document ol{list-style:decimal;padding-left:24px;margin:0 0 18px}
+.legal-document li{padding-left:4px;margin:6px 0;white-space:pre-wrap}
+@media(max-width:760px){.shards-footer .footer-legal{grid-template-columns:1fr;gap:24px;font-size:11px}.shards-footer .footer-documents{gap:12px}.legal-navigation{margin-bottom:32px;font-size:11px}.legal-document{font-size:14px;line-height:1.8}.legal-document h2{font-size:17px}.shards-footer .footer-payment-logos{gap:8px}.shards-footer .footer-payment-logos .footer-payment-logo{width:62px;height:34px}}

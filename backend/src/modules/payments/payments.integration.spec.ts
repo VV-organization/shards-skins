@@ -6,11 +6,11 @@ describe.skipIf(!databaseUrl)('quoted payment HTTP boundary',()=>{
  let f:CommerceFixture,owner:FixtureIdentity,email:FixtureIdentity;
  beforeAll(async()=>{if(!databaseUrl)throw new Error('test database missing');f=await commerceFixture(databaseUrl);owner=await f.identity('wallet-http');email=await f.identity('email-http',false);await f.pool.query("INSERT INTO email_identities(email,user_id,verified_at) VALUES ('owner@example.test',$1,now())",[email.userId]);});
  afterAll(async()=>{await f.close();});
- it('rejects guest email upsert, unquoted amounts and client recipient overrides',async()=>{
+ it('rejects customer-session bypass and unquoted amounts; contact email does not create an identity',async()=>{
   await f.http().post('/payments/steam-refill/sessions').send({amountRub:50,steamLogin:'player',email:'guest@example.test'}).expect(401);
   await f.http().post('/payments/top-up/sessions').set('Cookie',owner.cookie).set('x-csrf-token',owner.csrf).set('idempotency-key',f.key()).send({coinAmountMinor:100000}).expect(400);
-  await f.http().post('/payments/steam-refill/quotes').set('Cookie',email.cookie).set('x-csrf-token',email.csrf).send({amountRub:50,steamLogin:'player',email:'foreign@example.test'}).expect(400);
-  expect((await f.pool.query("SELECT * FROM email_identities WHERE email='guest@example.test'")).rowCount).toBe(0);
+  await f.http().post('/payments/steam-refill/quotes').set('Cookie',email.cookie).set('x-csrf-token',email.csrf).send({amountRub:50,steamLogin:'player',email:'foreign@example.test'}).expect(200);
+  expect((await f.pool.query("SELECT * FROM email_identities WHERE email IN ('guest@example.test','foreign@example.test')")).rowCount).toBe(0);
  });
  it('creates one quoted top-up, verifies callback signature, survives restart and credits once',async()=>{
   const quote=responseBody<{quoteId:string;fiatAmountMinor:number}>(await f.http().post('/payments/top-up/quotes').set('Cookie',owner.cookie).set('x-csrf-token',owner.csrf).send({coinAmountMinor:100000}).expect(200));expect(quote.fiatAmountMinor).toBe(62500);

@@ -14,7 +14,7 @@ export class StorefrontController {
     walletTopUp: shape({minimumCoinMinor: integer, maximumCoinMinor: integer, stepCoinMinor: integer}),
     steamRefill: shape({minimumRubMinor: integer, maximumRubMinor: integer, stepRubMinor: integer}),
     steamFeeBps: integer, paymentMethods: { type: 'array', items: { type: 'string', enum: ['sbp'] } },
-    capabilities: shape({ checkoutEnabled: { type: 'boolean' }, walletTopUpEnabled: { type: 'boolean' }, steamRefillEnabled: { type: 'boolean' } }),
+    capabilities: shape({ guestSteamRefillEnabled: { type: 'boolean' }, checkoutEnabled: { type: 'boolean' }, walletTopUpEnabled: { type: 'boolean' }, steamRefillEnabled: { type: 'boolean' } }),
   }) })
   config() { return this.storefront.getConfig(); }
 }

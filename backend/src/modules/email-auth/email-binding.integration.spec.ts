@@ -17,7 +17,8 @@ describe.skipIf(!databaseUrl)('durable email ownership binding',()=>{
   afterAll(async()=>{await app.close();await pool.end();delete process.env.DATABASE_URL;});
   it('persists linking purpose, rejects foreign email and keeps the original session',async()=>{
     const users=app.get(UsersService);const sessions=app.get(SessionsService);const email=app.get(EmailAuthService);
-    const oldOwner=await users.upsertEmailUser('taken@example.test');
+    const oldOwner=await users.upsertSteamUser({steamId64:'76561198000000201',claimedIdentifier:'https://steamcommunity.com/openid/id/76561198000000201',providerEndpoint:'https://steamcommunity.com/openid/login',responseNonce:'fixture'});
+    await users.upsertEmailUser('taken@example.test',oldOwner.id);
     const steam=await users.upsertSteamUser({steamId64:'76561198000000200',claimedIdentifier:'https://steamcommunity.com/openid/id/76561198000000200',providerEndpoint:'https://steamcommunity.com/openid/login',responseNonce:'fixture'});
     const session=await sessions.createSession(steam.id,null);
     const challenge=await email.requestChallenge('taken@example.test',{purpose:'link_email',presentedSessionToken:session.token});

@@ -1,4 +1,5 @@
 import {readFile, writeFile, mkdir} from 'node:fs/promises';
+import {pathToFileURL} from 'node:url';
 
 export function schemaType(s) {
   if (!s) return 'unknown';
@@ -10,10 +11,11 @@ export function schemaType(s) {
   else if (s.type === 'integer' || s.type === 'number') t = 'number';
   else if (s.type === 'boolean') t = 'boolean';
   else if (s.type === 'array') t = `Array<${schemaType(s.items)}>`;
-  else if (s.type === 'object') t = s.properties ? `{${Object.entries(s.properties).map(([k,v]) => `${JSON.stringify(k)}${s.required?.includes(k)?'':'?'}: ${schemaType(v)};`).join('\n')}}` : 'Record<string, unknown>';
+  else if (s.type === 'object') t = s.properties ? `{${Object.entries(s.properties).map(([k,v]) => `${JSON.stringify(k)}${s.required?.includes(k)?'':'?'}: ${schemaType(v)};`).join('\n')}}` : s.additionalProperties && typeof s.additionalProperties === 'object' ? `Record<string, ${schemaType(s.additionalProperties)}>` : 'Record<string, unknown>';
   else t = 'unknown';
   return s.nullable ? `(${t}) | null` : t;
 }
+async function syncApi() {
 const document = JSON.parse(await readFile(new URL('../../backend/openapi.json', import.meta.url), 'utf8'));
 const components = Object.entries(document.components?.schemas ?? {}).map(([k,v]) => `export type ${k} = ${schemaType(v)};`).join('\n');
 const responses = Object.entries(document.paths).map(([path, methods]) => `${JSON.stringify(path)}: {${Object.entries(methods).filter(([,v]) => v.responses).map(([method, op]) => {
@@ -28,3 +30,6 @@ if (process.argv.includes('--check')) {
   await mkdir(new URL('../src/generated/', import.meta.url), {recursive: true});
   await writeFile(target, result);
 }
+
+}
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) await syncApi();

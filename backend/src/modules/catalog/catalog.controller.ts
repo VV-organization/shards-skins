@@ -75,10 +75,11 @@ export class CatalogController {
   @ApiOkResponse({
     schema: {
       type: "object",
-      required: ["items", "facets", "pricing", "pagination"],
+      required: ["items", "facets", "pricing", "pagination", "categoryCounts"],
       properties: {
         items: { type: "array", items: productSchema },
         facets: { type: "object", required: ["kinds", "games", "productTypes", "conditions", "fulfillmentModes", "availability"], properties: Object.fromEntries(["kinds", "games", "productTypes", "conditions", "fulfillmentModes", "availability"].map(key => [key, { type: "array", items: { type: "object", required: ["id", "title"], properties: { id: { type: "string" }, title: { type: "string" } } } }])) },
+        categoryCounts: { type: "object", required: ["all", "byCategory"], properties: { all: { type: "integer", minimum: 0 }, byCategory: { type: "object", additionalProperties: { type: "integer", minimum: 0 } } } },
         pagination: { type: "object", required: ["limit", "offset", "total", "hasMore"], properties: { limit: { type: "integer" }, offset: { type: "integer" }, total: { type: "integer" }, hasMore: { type: "boolean" } } },
         pricing: { type: "object" },
       },

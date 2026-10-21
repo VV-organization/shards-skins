@@ -14,7 +14,7 @@ export class PaymentHistoryService {
         p.order_id AS "orderId", o.status AS "fulfillmentStatus", p.created_at AS "createdAt"
       FROM steam_refill_payments p
       LEFT JOIN orders o ON o.id = p.order_id AND o.user_id = p.user_id
-      WHERE p.user_id = $1
+      WHERE p.user_id = $1 OR EXISTS(SELECT 1 FROM steam_refill_claims c WHERE c.payment_id=p.id AND c.user_id=$1)
       UNION ALL
       SELECT id, 'coins_top_up' AS kind, status,
         fiat_amount_minor AS "amountMinor", fiat_currency AS currency,

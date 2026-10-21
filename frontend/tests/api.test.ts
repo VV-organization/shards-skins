@@ -52,3 +52,14 @@ test('incomplete successful financial result retains recovery until valid respon
  const valid=(value:{id:string;checkoutUrl:string|null})=>typeof value?.id==='string'&&(value.checkoutUrl===null||typeof value.checkoutUrl==='string');
  await assert.rejects(client.command('payment','POST','/payments/top-up/sessions',{},valid));assert.ok(client.pendingCommand('payment'));complete=true;await client.command('payment','POST','/payments/top-up/sessions',{},valid);assert.equal(client.pendingCommand('payment'),null);
 });
+
+test('guest context uses separate CSRF and keeps unresolved commands across customer login',async()=>{
+ const sent:Array<{url:string;headers:Headers}>=[];let fail=true;
+ const guest=new ApiClient(async(url,init)=>{sent.push({url:String(url),headers:new Headers(init?.headers)});if(fail)throw new Error('lost');return Response.json({id:'payment'});});
+ guest.setContext('guest:one','guest-csrf');
+ await assert.rejects(guest.command('steam','POST','/payments/guest/steam-refill/sessions',{quoteId:'first'}));
+ const customer=new ApiClient();customer.setOwner('steam-account');customer.setOwner(null);
+ guest.setContext('guest:one','guest-csrf-new');fail=false;
+ await guest.command('steam','POST','/payments/guest/steam-refill/sessions',{quoteId:'different'});
+ assert.equal(sent.length,2);assert.equal(sent[0]?.headers.get('x-csrf-token'),'guest-csrf');assert.equal(sent[1]?.headers.get('x-csrf-token'),'guest-csrf-new');assert.equal(sent[0]?.headers.get('Idempotency-Key'),sent[1]?.headers.get('Idempotency-Key'));
+});
