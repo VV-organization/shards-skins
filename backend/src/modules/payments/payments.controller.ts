@@ -49,7 +49,7 @@ export const quoteSchema={type:'object',required:['quoteId','purpose','fiatAmoun
 export const sessionBody={type:'object',additionalProperties:false,required:['quoteId','acceptedFiatMinor'],properties:{quoteId:{type:'string'},acceptedFiatMinor:{type:'integer',minimum:1}}};
 function record(value:unknown,allowed:string[]){if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!allowed.includes(k)))throw new BadRequestException('INVALID_PAYMENT');return value as Record<string,unknown>;}
 function session(value:unknown){const body=record(value,['quoteId','acceptedFiatMinor']);if(typeof body.quoteId!=='string'||typeof body.acceptedFiatMinor!=='number')throw new BadRequestException('INVALID_PAYMENT');return {quoteId:body.quoteId,acceptedFiatMinor:body.acceptedFiatMinor};}
-export const paymentStatusSchema={type:'object',required:['id','purpose','paymentStatus','fulfillmentStatus','fiatAmountMinor','currency','checkoutUrl','orderId','coinAmountMinor','steamLogin','amountRubMinor','refundStatus'],properties:{id:{type:'string'},purpose:{type:'string',enum:['wallet_topup','steam_refill']},paymentStatus:{type:'string'},fulfillmentStatus:{type:'string',enum:['not_applicable','not_started','pending','delivered','partial','failed','manual_review']},fiatAmountMinor:{type:'integer'},currency:{type:'string',enum:['RUB']},checkoutUrl:{type:'string',nullable:true},orderId:{type:'string',nullable:true},coinAmountMinor:{type:'integer',nullable:true},steamLogin:{type:'string',nullable:true},amountRubMinor:{type:'integer',nullable:true},refundStatus:{type:'string',nullable:true}}};
+export const paymentStatusSchema={type:'object',required:['id','purpose','paymentStatus','fulfillmentStatus','fiatAmountMinor','currency','checkoutUrl','orderId','coinAmountMinor','steamLogin','amountRubMinor','refundStatus','expiresAt','failureReason','canPay'],properties:{id:{type:'string'},purpose:{type:'string',enum:['wallet_topup','steam_refill']},paymentStatus:{type:'string'},fulfillmentStatus:{type:'string',enum:['not_applicable','not_started','pending','delivered','partial','failed','manual_review']},fiatAmountMinor:{type:'integer'},currency:{type:'string',enum:['RUB']},checkoutUrl:{type:'string',nullable:true},orderId:{type:'string',nullable:true},coinAmountMinor:{type:'integer',nullable:true},steamLogin:{type:'string',nullable:true},amountRubMinor:{type:'integer',nullable:true},refundStatus:{type:'string',nullable:true},expiresAt:{type:'string',format:'date-time',nullable:true},failureReason:{type:'string',enum:['expired'],nullable:true},canPay:{type:'boolean'}}};
 @ApiTags('Payments')
 @UseGuards(CustomerSessionGuard)
 @Controller('payments')
@@ -72,4 +72,7 @@ export class PaymentsController {
  @Get('sessions/:id')
  @ApiOkResponse({schema:paymentStatusSchema})
  get(@CurrentCustomerContext()customer:CurrentCustomer,@Param('id')id:string){return this.payments.getSession(customer.userId,id);}
+ @Post('sessions/:id/check') @HttpCode(200) @UseGuards(CsrfGuard)
+ @ApiOkResponse({schema:paymentStatusSchema})
+ check(@CurrentCustomerContext()customer:CurrentCustomer,@Param('id')id:string){return this.payments.checkSession(customer.userId,id);}
 }

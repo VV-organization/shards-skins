@@ -439,7 +439,7 @@ function isCapturedProviderStatus(status: string): boolean {
 }
 
 function isFailedProviderStatus(status: string): boolean {
-  return ["failed", "declined", "expired", "voided"].includes(status);
+  return ["failed", "declined", "charge_declined", "expired", "voided"].includes(status);
 }
 
 function isManualReviewProviderStatus(status: string): boolean {
@@ -1340,12 +1340,15 @@ export class PaymentsService {
     });
   }
 
-  async reconcilePendingTopUps(command: { limit?: number } = {}): Promise<PaymentReconciliationResultDto> {
+  async reconcilePendingTopUps(command: { limit?: number; paymentId?: string } = {}): Promise<PaymentReconciliationResultDto> {
     if (this.config.arcoPay.providerMode !== "real") {
       throw new ServiceUnavailableException("payment provider reconciliation requires real provider mode");
     }
     const limit = command.limit ?? 20;
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw new BadRequestException("Reconciliation limit must be between 1 and 100");
+    const paymentId = command.paymentId ?? null;
+    if (paymentId !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(paymentId)) throw new BadRequestException("Invalid payment ID");
+    let overdue = 0;
     // A create interrupted by process death has no provider OrderId to poll.
     // Never guess it from MerchantOrderId or replay create beyond provider deduplication.
     // Give an active HTTP request time to finish before marking it for review.
@@ -1353,8 +1356,18 @@ export class PaymentsService {
       await this.database.query(`UPDATE ${table}
         SET status='manual_review', metadata=metadata || '{"providerCreationAmbiguous":true}'::jsonb, updated_at=now()
         WHERE id IN (SELECT id FROM ${table} WHERE provider=$1 AND status='provider_creation_pending'
-          AND provider_session_id IS NULL AND created_at < now() - interval '1 minute' LIMIT $2)
-        AND status='provider_creation_pending' AND provider_session_id IS NULL`, [TOP_UP_PROVIDER, limit]);
+          AND provider_session_id IS NULL AND created_at < now() - interval '1 minute'
+          AND ($3::uuid IS NULL OR id=$3) ORDER BY created_at,id LIMIT $2)
+        AND status='provider_creation_pending' AND provider_session_id IS NULL`, [TOP_UP_PROVIDER, limit, paymentId]);
+      // Expiry is a checkout deadline, not evidence that money was never received.
+      // Keep these review cases in reconciliation until the provider resolves them.
+      const aged = await this.database.query(`UPDATE ${table}
+        SET status='manual_review', metadata=metadata || '{"paymentStatusUnresolved":true,"manualReviewReason":"payment_status_overdue"}'::jsonb, updated_at=now()
+        WHERE id IN (SELECT id FROM ${table} WHERE provider=$1 AND status='checkout_pending'
+          AND COALESCE(expires_at,created_at+interval '15 minutes') < now()-interval '5 minutes'
+          AND ($3::uuid IS NULL OR id=$3) ORDER BY created_at,id LIMIT $2)
+        AND status='checkout_pending'`, [TOP_UP_PROVIDER, limit, paymentId]);
+      overdue += aged.rowCount ?? 0;
     }
     // Share the batch across both products and rotate attempted orders, including
     // provider errors, so an older pending order cannot monopolize every cycle.
@@ -1365,13 +1378,15 @@ export class PaymentsService {
           FROM top_up_payments
           WHERE provider = $1 AND provider_session_id IS NOT NULL
             AND (status IN ('checkout_pending', 'provider_creation_pending')
-              OR (status = 'manual_review' AND metadata->>'providerCreationAmbiguous' = 'true'))
+              OR (status = 'manual_review' AND (metadata->>'providerCreationAmbiguous' = 'true' OR metadata->>'paymentStatusUnresolved' = 'true')))
+            AND ($3::uuid IS NULL OR id=$3)
           UNION ALL
           SELECT id, provider, created_at, 'steam_refill' AS kind
           FROM steam_refill_payments
           WHERE provider = $1 AND provider_session_id IS NOT NULL
             AND (status IN ('checkout_pending', 'provider_creation_pending')
-              OR (status = 'manual_review' AND metadata->>'providerCreationAmbiguous' = 'true'))
+              OR (status = 'manual_review' AND (metadata->>'providerCreationAmbiguous' = 'true' OR metadata->>'paymentStatusUnresolved' = 'true')))
+            AND ($3::uuid IS NULL OR id=$3)
         )
         SELECT candidate.id, candidate.kind
         FROM candidates candidate
@@ -1384,7 +1399,7 @@ export class PaymentsService {
           candidate.created_at ASC, candidate.id ASC, candidate.kind ASC
         LIMIT $2
       `,
-      [TOP_UP_PROVIDER, limit],
+      [TOP_UP_PROVIDER, limit, paymentId],
     );
     const topUpIds = candidates.rows.filter(candidate => candidate.kind === "top_up").map(candidate => candidate.id);
     const steamRefillIds = candidates.rows.filter(candidate => candidate.kind === "steam_refill").map(candidate => candidate.id);
@@ -1435,7 +1450,7 @@ export class PaymentsService {
       errors: 0,
       failed: 0,
       ignored: 0,
-      manualReview: 0,
+      manualReview: overdue,
       steamRefillsCreated: 0,
       unmatched: 0,
     };
@@ -1802,6 +1817,7 @@ export class PaymentsService {
       });
       return "failed";
     }
+    await client.query("UPDATE top_up_payments SET provider_status=$2,updated_at=now() WHERE id=$1 AND status IN ('checkout_pending','provider_creation_pending','manual_review')", [topUpPayment.id, providerStatus]);
     return "ignored";
   }
 
@@ -1979,6 +1995,7 @@ export class PaymentsService {
       return "failed";
     }
 
+    await client.query("UPDATE steam_refill_payments SET provider_status=$2,updated_at=now() WHERE id=$1 AND status IN ('checkout_pending','provider_creation_pending','manual_review')", [payment.id, providerStatus]);
     return "ignored";
   }
 

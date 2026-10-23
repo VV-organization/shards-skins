@@ -12,6 +12,9 @@ export class PaymentHistoryItemDto {
   @ApiProperty({ type: String, format: "uuid", nullable: true }) orderId!: string | null;
   @ApiProperty({ type: String, enum: fulfillmentStatuses, nullable: true }) fulfillmentStatus!: typeof fulfillmentStatuses[number] | null;
   @ApiProperty({ type: String, format: "date-time" }) createdAt!: string;
+  @ApiProperty({ type: String, format: "date-time", nullable: true }) expiresAt!: string | null;
+  @ApiProperty({ type: String, enum: ['expired'], nullable: true }) failureReason!: 'expired' | null;
+  @ApiProperty({ type: Boolean }) canPay!: boolean;
 }
 
 export class PaymentHistoryDto {

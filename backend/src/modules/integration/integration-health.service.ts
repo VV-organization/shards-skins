@@ -22,12 +22,16 @@ export class IntegrationHealthService {
   ) {}
 
   async operations(){
-    const result=await this.database.query<{orphan_holds:number;aged_unknown:number;stalled_outbox:number;catalog_age_seconds:number|null}>(`SELECT
+    const result=await this.database.query<{orphan_holds:number;aged_unknown:number;stalled_outbox:number;unresolved_payments:number;catalog_age_seconds:number|null}>(`SELECT
       (SELECT count(*)::integer FROM wallet_holds h WHERE h.status='active' AND EXISTS(SELECT 1 FROM order_lines l WHERE l.order_id=h.order_id) AND NOT EXISTS(SELECT 1 FROM order_lines l WHERE l.order_id=h.order_id AND l.status NOT IN ('supplier_finished','supplier_failed'))) AS orphan_holds,
       (SELECT count(*)::integer FROM fulfillment_commands WHERE status IN ('submitted','awaiting_confirmation','manual_review','processing','reconciling') AND created_at<clock_timestamp()-interval '24 hours') AS aged_unknown,
+      (SELECT count(*)::integer FROM (
+        SELECT status,expires_at,created_at FROM top_up_payments
+        UNION ALL SELECT status,expires_at,created_at FROM steam_refill_payments
+      ) p WHERE status='manual_review' OR (status IN ('checkout_pending','provider_creation_pending') AND COALESCE(expires_at,created_at+interval '15 minutes')<clock_timestamp()-interval '5 minutes')) AS unresolved_payments,
       ((SELECT count(*) FROM vv_admin_integration_outbox WHERE status<>'accepted' AND created_at<clock_timestamp()-interval '15 minutes')+(SELECT count(*) FROM notification_outbox WHERE status<>'accepted' AND created_at<clock_timestamp()-interval '15 minutes'))::integer AS stalled_outbox,
       (SELECT extract(epoch FROM clock_timestamp()-max(finished_at))::integer FROM catalog_sync_runs WHERE source='sih' AND game='cs2' AND status='promoted') AS catalog_age_seconds`);
-    const data=result.rows[0];return {status:data&&(data.orphan_holds+data.aged_unknown+data.stalled_outbox)===0?'ok':'degraded',...data};
+    const data=result.rows[0];return {status:data&&(data.orphan_holds+data.aged_unknown+data.stalled_outbox+data.unresolved_payments)===0?'ok':'degraded',...data};
   }
   async postgres(): Promise<IntegrationHealthResult> {
     try {

@@ -39,7 +39,7 @@ test('unknown payment creation survives reload with exact original command',asyn
  await settled(page.locator('form').getByRole('button',{name:'Пополнить баланс',exact:true}));await expect(page.getByText(/Результат запроса пока неизвестен/)).toBeVisible();
  await page.reload();state.failSession=false;await settled(page.getByRole('button',{name:'Проверить результат запроса',exact:true}));await expect(page).toHaveURL(/payments\/return/);
  expect(state.paymentCalls).toBe(2);expect(state.keys[0]).toBe(state.keys[1]);expect(state.bodies[0]).toEqual(state.bodies[1]);
- await page.goto('http://127.0.0.1:5198/account?tab=balance');await settled(page.getByRole('button',{name:'Открыть созданный платёж'}));await expect(page).toHaveURL(/payments\/return/);expect(state.paymentCalls).toBe(2);
+ await page.goto('http://127.0.0.1:5198/account?tab=balance');await settled(page.locator('form').getByRole('button',{name:'Пополнить баланс',exact:true}));await expect(page).toHaveURL(/payments\/return/);expect(state.paymentCalls).toBe(3);expect(state.keys[2]).not.toBe(state.keys[1]);
 });
 test('paid Steam is pending; callback query cannot declare delivery',async({page})=>{
  const state=await fixture(page);await page.goto(`http://127.0.0.1:5198/payments/return?session=${sessionId}&payment=success`);
@@ -67,6 +67,8 @@ test('guest Steam needs contact email, no sign-in or OTP; unknown creation survi
  await page.reload();fail=false;await expect(panel.getByLabel('Логин Steam')).toHaveValue('receiver-login');await expect(panel.getByLabel('Почта для чека')).toHaveValue('buyer@example.test');await settled(panel.getByRole('button',{name:'Проверить результат запроса'}));
  await expect(page).toHaveURL(/payments\/return/);await expect(page.getByRole('heading',{name:'Оплата получена. Пополнение Steam выполняется.'})).toBeVisible();
  expect(authCalls).toBe(0);expect(walletReads).toBe(0);expect(keys).toHaveLength(2);expect(keys[0]).toBe(keys[1]);expect(bodies[0]).toEqual(bodies[1]);
+ await page.goto('/#steam');await settled(page.locator('#steam').getByRole('button',{name:'Перейти к оплате'}));await expect(page).toHaveURL(/payments\/return/);
+ expect(keys).toHaveLength(3);expect(keys[2]).not.toBe(keys[1]);
 });
 test('Steam-only login and contact confirmation lives outside trade URL',async({page})=>{
  await fixture(page);await page.goto('/account');await expect(page.locator('.trade-panel').getByText('Подтвердить почту')).toHaveCount(0);await expect(page.locator('.contact-panel')).toContainText('owner@example.test');
@@ -129,7 +131,10 @@ for(const entry of ['create','resume'])test(`Arco hosted ${entry} posts return U
  const checkoutUrl='https://payment.paidlayer.com/provider-order';
  await page.route('**/api/payments/top-up/sessions',route=>route.fulfill({json:{id:sessionId,checkoutUrl}}));
  await page.route(`**/api/payments/sessions/${sessionId}`,route=>route.fulfill({json:{id:sessionId,purpose:'wallet_topup',paymentStatus:'checkout_pending',fulfillmentStatus:null,fiatAmountMinor:10000,checkoutUrl,refundStatus:null}}));
+ let checked=false;
+ await page.route(`**/api/payments/sessions/${sessionId}/check`,route=>{checked=true;expect(route.request().method()).toBe('POST');return route.fulfill({json:{id:sessionId,purpose:'wallet_topup',paymentStatus:'checkout_pending',fulfillmentStatus:'not_applicable',fiatAmountMinor:10000,checkoutUrl,canPay:true,expiresAt:new Date(Date.now()+60000).toISOString(),failureReason:null,refundStatus:null}});});
  await page.route('https://payment.paidlayer.com/**',async route=>{
+  if(entry==='resume')expect(checked).toBe(true);
   expect(route.request().method()).toBe('POST');
   const fields=new URLSearchParams(route.request().postData()??'');
   for(const key of ['successUrl','failUrl']){
@@ -142,10 +147,106 @@ for(const entry of ['create','resume'])test(`Arco hosted ${entry} posts return U
  });
  if(entry==='resume'){
   await page.goto(`/payments/return?session=${sessionId}`);
-  await page.getByRole('button',{name:'Продолжить оплату'}).click();
+  await page.getByRole('button',{name:'Оплатить',exact:true}).click();
  }else{
   await page.goto('/#balance');
   await settled(page.getByRole('button',{name:/Пополнить баланс/}));
  }
  await expect(page.getByRole('heading',{name:'Payment provider fixture'})).toBeVisible();
+});
+
+for(const width of [1440,390])test(`new top-up ignores saved payment and uses current amount ${width}`,async({page})=>{
+ await page.setViewportSize({width,height:900});const state=await fixture(page);
+ await page.goto('/account?tab=balance');
+ await settled(page.locator('form').getByRole('button',{name:'Пополнить баланс',exact:true}));await expect(page).toHaveURL(/payments\/return/);
+ await page.evaluate(id=>sessionStorage.setItem('shards:draft:payment-session:owner:top-up',id),sessionId);
+ await page.goto('/account?tab=balance');await page.getByLabel('Сколько Shards зачислить').fill('2000');
+ await settled(page.locator('form').getByRole('button',{name:'Пополнить баланс',exact:true}));await expect(page).toHaveURL(/payments\/return/);
+ expect(state.paymentCalls).toBe(2);expect(state.keys[0]).not.toBe(state.keys[1]);
+ expect(state.bodies[1]).toMatchObject({acceptedFiatMinor:125000});
+});
+
+for(const outcome of ['expired','paid','error'])test(`history payment checks ${outcome} before opening provider`,async({page})=>{
+ const width=outcome==='paid'?1440:390;
+ await page.setViewportSize({width,height:844});await page.emulateMedia({reducedMotion:'reduce'});
+ await fixture(page);let checks=0,providerPosts=0,checked=false;
+ const payment={id:sessionId,kind:'coins_top_up',status:'checkout_pending',amountMinor:10000,currency:'RUB',orderId:null,fulfillmentStatus:null,createdAt:new Date().toISOString(),expiresAt:new Date(Date.now()+60000).toISOString(),failureReason:null,canPay:true};
+ await page.route('**/api/payments/me/history',r=>r.fulfill({json:{payments:[{...payment,...(checked&&outcome!=='error'?{status:outcome==='expired'?'failed':'paid',failureReason:outcome==='expired'?'expired':null,canPay:false}:{})}]}}));
+ await page.route(`**/api/payments/sessions/${sessionId}/check`,r=>{
+  checks++;checked=true;
+  return r.fulfill(outcome==='error'?{status:503,json:{message:'Status unavailable'}}:{json:{id:sessionId,purpose:'wallet_topup',paymentStatus:outcome==='expired'?'failed':'paid',fulfillmentStatus:'not_applicable',fiatAmountMinor:10000,checkoutUrl:null,canPay:false,failureReason:outcome==='expired'?'expired':null,expiresAt:payment.expiresAt,refundStatus:null}});
+ });
+ await page.route('https://payment.paidlayer.com/**',r=>{providerPosts++;return r.abort();});
+ await page.goto('/account?tab=transactions');await expect(page.getByRole('button',{name:'Оплатить',exact:true})).toBeVisible();
+ mkdirSync('../.qa/payment-lifecycle',{recursive:true});
+ await page.locator('.account-tab-transactions').screenshot({path:`../.qa/payment-lifecycle/history-unpaid-${width}.png`});
+ await settled(page.getByRole('button',{name:'Оплатить',exact:true}));
+ await expect(page.getByText(outcome==='expired'?'Срок оплаты истёк':outcome==='paid'?'Баланс Shards пополнен':/Не удалось проверить платёж/).first()).toBeVisible();
+ expect(checks).toBe(1);expect(providerPosts).toBe(0);await expect(page).toHaveURL(/account/);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.locator('.account-tab-transactions').screenshot({path:`../.qa/payment-lifecycle/history-${outcome}-${width}.png`});
+});
+
+test('guest continuation after reload uses existing guest CSRF and never creates a context',async({page})=>{
+ await fixture(page);let contextCreates=0,checks=0;
+ await page.route('**/api/session/me',r=>r.fulfill({status:401,json:{}}));
+ await page.route('**/api/session/csrf',r=>r.fulfill({status:401,json:{}}));
+ await page.route(`**/api/payments/sessions/${sessionId}`,r=>r.fulfill({status:401,json:{}}));
+ const session={id:sessionId,purpose:'steam_refill',paymentStatus:'checkout_pending',fulfillmentStatus:'not_started',fiatAmountMinor:52500,checkoutUrl:'https://payment.paidlayer.com/guest-order',canPay:true,failureReason:null,expiresAt:new Date(Date.now()+60000).toISOString(),refundStatus:null};
+ const expired={...session,paymentStatus:'failed',failureReason:'expired',canPay:false,checkoutUrl:null};
+ await page.route(`**/api/payments/guest/steam-refill/sessions/${sessionId}`,r=>r.fulfill({json:checks?expired:session}));
+ await page.route('**/api/payments/guest/context',r=>{if(r.request().method()==='POST')contextCreates++;return r.fulfill({json:{id:'returning-guest',csrfToken:'restored-guest-csrf'}});});
+ await page.route(`**/api/payments/guest/steam-refill/sessions/${sessionId}/check`,r=>{
+  checks++;expect(r.request().headers()['x-csrf-token']).toBe('restored-guest-csrf');
+  return r.fulfill({json:expired});
+ });
+ await page.goto(`/payments/return?session=${sessionId}`);await page.reload();
+ await page.getByRole('button',{name:'Оплатить',exact:true}).click();
+ await expect(page.getByText('Срок оплаты истёк').first()).toBeVisible();
+ expect(checks).toBe(1);expect(contextCreates).toBe(0);
+});
+
+test('a retained top-up form replaces its consumed quote before another payment',async({page})=>{
+ await fixture(page);
+ // Retain the mounted form as BFCache does; intercept only external navigation.
+ await page.addInitScript(()=>{HTMLFormElement.prototype.submit=function(){};});
+ const usedQuotes=new Set<string>();const keys:string[]=[];let attempts=0;
+ await page.route('**/api/payments/top-up/sessions',r=>{
+  attempts++;const {quoteId}=r.request().postDataJSON();
+  if(usedQuotes.has(quoteId))return r.fulfill({status:409,json:{message:'QUOTE_ALREADY_CONSUMED'}});
+  usedQuotes.add(quoteId);keys.push(r.request().headers()['idempotency-key']);
+  return r.fulfill({json:{id:sessionId,checkoutUrl:'https://payment.paidlayer.com/retained-form'}});
+ });
+ await page.goto('/account?tab=balance');const button=page.locator('form').getByRole('button',{name:'Пополнить баланс',exact:true});
+ await settled(button);await expect.poll(()=>attempts).toBe(1);await expect(button).toBeEnabled();
+ await settled(button);await expect.poll(()=>attempts).toBe(2);
+ expect(usedQuotes.size).toBe(2);expect(new Set(keys).size).toBe(2);
+});
+
+for(const surface of ['status','history'])test(`${surface} polling does not cancel a slow verification before checkout`,async({page})=>{
+ await fixture(page);await page.emulateMedia({reducedMotion:'reduce'});await page.clock.install();
+ const session={id:sessionId,purpose:'wallet_topup',paymentStatus:'checkout_pending',fulfillmentStatus:'not_applicable',fiatAmountMinor:10000,checkoutUrl:'https://payment.paidlayer.com/slow-check',canPay:true,failureReason:null,expiresAt:new Date(Date.now()+60000).toISOString(),refundStatus:null};
+ let reads=0;
+ await page.route(`**/api/payments/sessions/${sessionId}`,r=>{reads++;return r.fulfill({json:session});});
+ await page.route('**/api/payments/me/history',r=>{reads++;return r.fulfill({json:{payments:[{id:sessionId,kind:'coins_top_up',status:'checkout_pending',amountMinor:10000,currency:'RUB',createdAt:new Date().toISOString(),expiresAt:session.expiresAt,canPay:true}]}});});
+ let started=false;let finish!:()=>void;const pending=new Promise<void>(resolve=>{finish=resolve;});
+ await page.route(`**/api/payments/sessions/${sessionId}/check`,async r=>{started=true;await pending;await r.fulfill({json:session}).catch(()=>undefined);});
+ await page.route('https://payment.paidlayer.com/**',r=>r.fulfill({contentType:'text/html',body:'<h1>Verified checkout</h1>'}));
+ await page.goto(surface==='status'?`/payments/return?session=${sessionId}`:'/account?tab=transactions');await page.getByRole('button',{name:'Оплатить',exact:true}).click();
+ await expect.poll(()=>started).toBe(true);const initialReads=reads;
+ await page.clock.fastForward(surface==='status'?2500:30500);await expect.poll(()=>reads).toBeGreaterThan(initialReads);finish();
+ await expect(page.getByRole('heading',{name:'Verified checkout'})).toBeVisible();
+});
+
+test('changing the session resets an aborted status action',async({page})=>{
+ await fixture(page);const other='22222222-2222-4222-8222-222222222222';let started=false;
+ const session={purpose:'wallet_topup',paymentStatus:'checkout_pending',fulfillmentStatus:'not_applicable',fiatAmountMinor:10000,checkoutUrl:null,canPay:false,refundStatus:null};
+ for(const id of [sessionId,other])await page.route(`**/api/payments/sessions/${id}`,r=>r.fulfill({json:{...session,id}}));
+ let finish!:()=>void;const pending=new Promise<void>(resolve=>{finish=resolve;});
+ await page.route(`**/api/payments/sessions/${sessionId}/check`,async r=>{started=true;await pending;await r.fulfill({json:{...session,id:sessionId}}).catch(()=>undefined);});
+ await page.goto(`/payments/return?session=${sessionId}`);await page.getByRole('button',{name:'Обновить статус',exact:true}).click();
+ await expect.poll(()=>started).toBe(true);
+ // Next's native History API updates search params without remounting the page.
+ await page.evaluate(id=>window.history.pushState(null,'',`/payments/return?session=${id}`),other);
+ await expect(page.getByRole('button',{name:'Обновить статус',exact:true})).toBeEnabled();finish();
 });

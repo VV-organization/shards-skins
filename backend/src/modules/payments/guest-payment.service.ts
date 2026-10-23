@@ -29,4 +29,8 @@ export class GuestPaymentService {
   await this.db.transaction(async c=>{await c.query('INSERT INTO users(id) VALUES($1)',[userId]);await c.query("INSERT INTO guest_payment_contexts(id,user_id,token_digest,expires_at) VALUES($1,$2,$3,now()+interval '30 days')",[id,userId,digestToken(token)]);});
   res.setHeader('Set-Cookie',secureCookie(GUEST_COOKIE,token,age));return {id,csrfToken:createCsrfToken(token,this.secret)};
  }
+ async currentContext(req:Request){
+  const existing=await this.authenticate(req);
+  return {id:existing.id,csrfToken:createCsrfToken(existing.token,this.secret)};
+ }
 }

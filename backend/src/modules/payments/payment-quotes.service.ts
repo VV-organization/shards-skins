@@ -1,4 +1,4 @@
-import {BadRequestException,ConflictException,Inject,Injectable,NotFoundException} from '@nestjs/common';
+import {BadRequestException,ConflictException,Inject,Injectable,NotFoundException,ServiceUnavailableException} from '@nestjs/common';
 import {DatabaseService} from '../../common/database/database.service';
 import {topUpFiatMinor} from '../../common/money/shards';
 import {APP_CONFIG} from '../../config/app-config.module';
@@ -7,6 +7,7 @@ import {QuotesService} from '../quotes/quotes.service';
 import {UsersService} from '../users/users.service';
 import {SihClient} from '../providers/sih/sih.client';
 import {PaymentsService} from './payments.service';
+import {paymentAvailability} from './payment-availability';
 import {WALLET_TERMS_VERSION,STEAM_TERMS_VERSION,type PaymentTerms,type PaymentPurpose,type PaymentQuoteDto} from './payment-quote.types';
 @Injectable()
 export class PaymentQuotesService {
@@ -36,11 +37,23 @@ export class PaymentQuotesService {
  }
  async getSession(userId:string,id:string){
   if(!/^[0-9a-f-]{36}$/i.test(id))throw new NotFoundException();
-  const rows=await this.database.query<{id:string;purpose:PaymentPurpose;payment_status:string;fiat_amount_minor:number;checkout_url:string|null;order_id:string|null;order_status:string|null;coin_amount_minor:number|null;steam_login:string|null;amount_rub_minor:number|null;refund_status:string|null}>(`
-    SELECT id,'wallet_topup' AS purpose,status AS payment_status,fiat_amount_minor,provider_checkout_url AS checkout_url,NULL::uuid AS order_id,NULL::text AS order_status,coin_amount_minor,NULL::text AS steam_login,NULL::integer AS amount_rub_minor,NULL::text AS refund_status FROM top_up_payments WHERE id=$1 AND user_id=$2
-    UNION ALL SELECT p.id,'steam_refill',p.status,p.fiat_amount_minor,p.provider_checkout_url,p.order_id,o.status,NULL,p.steam_login,p.amount_rub_minor,p.metadata->>'refundStatus' FROM steam_refill_payments p LEFT JOIN orders o ON o.id=p.order_id WHERE p.id=$1 AND (p.user_id=$2 OR EXISTS(SELECT 1 FROM steam_refill_claims c WHERE c.payment_id=p.id AND c.user_id=$2))`,[id,userId]);
+  const rows=await this.database.query<{id:string;purpose:PaymentPurpose;payment_status:string;fiat_amount_minor:number;checkout_url:string|null;order_id:string|null;order_status:string|null;coin_amount_minor:number|null;steam_login:string|null;amount_rub_minor:number|null;refund_status:string|null;provider_status:string|null;expires_at:Date|null}>(`
+    SELECT id,'wallet_topup' AS purpose,status AS payment_status,fiat_amount_minor,provider_checkout_url AS checkout_url,NULL::uuid AS order_id,NULL::text AS order_status,coin_amount_minor,NULL::text AS steam_login,NULL::integer AS amount_rub_minor,NULL::text AS refund_status,provider_status,expires_at FROM top_up_payments WHERE id=$1 AND user_id=$2
+    UNION ALL SELECT p.id,'steam_refill',p.status,p.fiat_amount_minor,p.provider_checkout_url,p.order_id,o.status,NULL,p.steam_login,p.amount_rub_minor,p.metadata->>'refundStatus',p.provider_status,p.expires_at FROM steam_refill_payments p LEFT JOIN orders o ON o.id=p.order_id WHERE p.id=$1 AND (p.user_id=$2 OR EXISTS(SELECT 1 FROM steam_refill_claims c WHERE c.payment_id=p.id AND c.user_id=$2))`,[id,userId]);
   const row=rows.rows[0];if(!row)throw new NotFoundException();
   const fulfillmentStatus=row.purpose==='wallet_topup'?'not_applicable':!row.order_id?'not_started':row.order_status==='fulfilled'?'delivered':row.order_status==='failed'?'failed':row.order_status==='partially_fulfilled'?'partial':row.order_status==='manual_review'?'manual_review':'pending';
-  return {id:row.id,purpose:row.purpose,paymentStatus:row.payment_status,fulfillmentStatus,fiatAmountMinor:row.fiat_amount_minor,currency:'RUB' as const,checkoutUrl:row.checkout_url,orderId:row.order_id,coinAmountMinor:row.coin_amount_minor,steamLogin:row.steam_login,amountRubMinor:row.amount_rub_minor,refundStatus:row.refund_status};
+  const availability=paymentAvailability(row.payment_status,row.provider_status,row.expires_at,row.checkout_url);
+  return {id:row.id,purpose:row.purpose,paymentStatus:row.payment_status,fulfillmentStatus,fiatAmountMinor:row.fiat_amount_minor,currency:'RUB' as const,checkoutUrl:availability.canPay?row.checkout_url:null,orderId:row.order_id,coinAmountMinor:row.coin_amount_minor,steamLogin:row.steam_login,amountRubMinor:row.amount_rub_minor,refundStatus:row.refund_status,...availability};
+ }
+ async checkSession(userId:string,id:string){
+  // Ownership is resolved before rate limiting or making any provider request.
+  const session=await this.getSession(userId,id);
+  if(!['checkout_pending','provider_creation_pending','manual_review'].includes(session.paymentStatus))return session;
+  await this.quotes.limit(`payment-check:${userId}`);
+  const result=await this.payments.reconcilePendingTopUps({paymentId:id,limit:1});
+  if(result.errors||result.unmatched)throw new ServiceUnavailableException('Не удалось проверить платёж. Повторите проверку позже.');
+  const latest=await this.getSession(userId,id);
+  if(latest.canPay&&result.checked!==1)throw new ServiceUnavailableException('Не удалось проверить платёж. Повторите проверку позже.');
+  return latest;
  }
 }

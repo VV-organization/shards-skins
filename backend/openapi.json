@@ -4159,6 +4159,37 @@
         "tags": [
           "Guest payments"
         ]
+      },
+      "get": {
+        "operationId": "GuestPaymentsController_currentContext",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "csrfToken"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "csrfToken": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Guest payments"
+        ]
       }
     },
     "/payments/guest/steam-refill/quotes": {
@@ -4405,7 +4436,10 @@
                     "coinAmountMinor",
                     "steamLogin",
                     "amountRubMinor",
-                    "refundStatus"
+                    "refundStatus",
+                    "expiresAt",
+                    "failureReason",
+                    "canPay"
                   ],
                   "properties": {
                     "id": {
@@ -4465,6 +4499,134 @@
                     "refundStatus": {
                       "type": "string",
                       "nullable": true
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "failureReason": {
+                      "type": "string",
+                      "enum": [
+                        "expired"
+                      ],
+                      "nullable": true
+                    },
+                    "canPay": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Guest payments"
+        ]
+      }
+    },
+    "/payments/guest/steam-refill/sessions/{id}/check": {
+      "post": {
+        "operationId": "GuestPaymentsController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "purpose",
+                    "paymentStatus",
+                    "fulfillmentStatus",
+                    "fiatAmountMinor",
+                    "currency",
+                    "checkoutUrl",
+                    "orderId",
+                    "coinAmountMinor",
+                    "steamLogin",
+                    "amountRubMinor",
+                    "refundStatus",
+                    "expiresAt",
+                    "failureReason",
+                    "canPay"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "enum": [
+                        "wallet_topup",
+                        "steam_refill"
+                      ]
+                    },
+                    "paymentStatus": {
+                      "type": "string"
+                    },
+                    "fulfillmentStatus": {
+                      "type": "string",
+                      "enum": [
+                        "not_applicable",
+                        "not_started",
+                        "pending",
+                        "delivered",
+                        "partial",
+                        "failed",
+                        "manual_review"
+                      ]
+                    },
+                    "fiatAmountMinor": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "enum": [
+                        "RUB"
+                      ]
+                    },
+                    "checkoutUrl": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "orderId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "coinAmountMinor": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "steamLogin": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "amountRubMinor": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "refundStatus": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "failureReason": {
+                      "type": "string",
+                      "enum": [
+                        "expired"
+                      ],
+                      "nullable": true
+                    },
+                    "canPay": {
+                      "type": "boolean"
                     }
                   }
                 }
@@ -4943,7 +5105,10 @@
                     "coinAmountMinor",
                     "steamLogin",
                     "amountRubMinor",
-                    "refundStatus"
+                    "refundStatus",
+                    "expiresAt",
+                    "failureReason",
+                    "canPay"
                   ],
                   "properties": {
                     "id": {
@@ -5003,6 +5168,134 @@
                     "refundStatus": {
                       "type": "string",
                       "nullable": true
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "failureReason": {
+                      "type": "string",
+                      "enum": [
+                        "expired"
+                      ],
+                      "nullable": true
+                    },
+                    "canPay": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/payments/sessions/{id}/check": {
+      "post": {
+        "operationId": "PaymentsController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "purpose",
+                    "paymentStatus",
+                    "fulfillmentStatus",
+                    "fiatAmountMinor",
+                    "currency",
+                    "checkoutUrl",
+                    "orderId",
+                    "coinAmountMinor",
+                    "steamLogin",
+                    "amountRubMinor",
+                    "refundStatus",
+                    "expiresAt",
+                    "failureReason",
+                    "canPay"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "enum": [
+                        "wallet_topup",
+                        "steam_refill"
+                      ]
+                    },
+                    "paymentStatus": {
+                      "type": "string"
+                    },
+                    "fulfillmentStatus": {
+                      "type": "string",
+                      "enum": [
+                        "not_applicable",
+                        "not_started",
+                        "pending",
+                        "delivered",
+                        "partial",
+                        "failed",
+                        "manual_review"
+                      ]
+                    },
+                    "fiatAmountMinor": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "enum": [
+                        "RUB"
+                      ]
+                    },
+                    "checkoutUrl": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "orderId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "coinAmountMinor": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "steamLogin": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "amountRubMinor": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "refundStatus": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "failureReason": {
+                      "type": "string",
+                      "enum": [
+                        "expired"
+                      ],
+                      "nullable": true
+                    },
+                    "canPay": {
+                      "type": "boolean"
                     }
                   }
                 }
@@ -6123,6 +6416,21 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "failureReason": {
+            "type": "string",
+            "enum": [
+              "expired"
+            ],
+            "nullable": true
+          },
+          "canPay": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -6133,7 +6441,10 @@
           "currency",
           "orderId",
           "fulfillmentStatus",
-          "createdAt"
+          "createdAt",
+          "expiresAt",
+          "failureReason",
+          "canPay"
         ]
       },
       "PaymentHistoryDto": {

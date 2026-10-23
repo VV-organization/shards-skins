@@ -46,6 +46,18 @@ describe.skipIf(!url)('VV163 guest Steam and automatic history',()=>{
   const post=()=>request(server).post('/payments/guest/steam-refill/sessions').set('Cookie',g.cookie).set('x-csrf-token',g.csrf).set('Idempotency-Key',key).send(body);
   const p=await post().expect(200);return {p:p.body as Payment,post,quote};
  }
+ it('restores existing guest CSRF without creating a context and protects payment checks',async()=>{
+  const a=await guest(),b=await guest();const {p}=await purchase(a,'resume@example.test','guest-resume');
+  const before=(await pool.query('SELECT id FROM guest_payment_contexts')).rowCount;
+  await request(server).get('/payments/guest/context').expect(401);
+  const context=await request(server).get('/payments/guest/context').set('Cookie',a.cookie).expect(200);
+  expect(context.body).toEqual({id:a.id,csrfToken:a.csrf});
+  expect((await pool.query('SELECT id FROM guest_payment_contexts')).rowCount).toBe(before);
+  const path=`/payments/guest/steam-refill/sessions/${p.id}/check`;
+  await request(server).post(path).set('Cookie',a.cookie).send({}).expect(403);
+  await request(server).post(path).set('Cookie',b.cookie).set('x-csrf-token',b.csrf).send({}).expect(404);
+  await request(server).post(path).set('Cookie',a.cookie).set('x-csrf-token',a.csrf).send({}).expect(200);
+ });
  it('needs neither customer login nor OTP; preserves retry and isolates guest access from wallet',async()=>{
   const a=await guest(),b=await guest();const {p,post}=await purchase(a,' Guest@Example.test ','guest-one');
   expect(((await post().expect(200)).body as Payment).id).toBe(p.id);

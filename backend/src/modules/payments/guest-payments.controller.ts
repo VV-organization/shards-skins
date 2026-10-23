@@ -12,6 +12,9 @@ export class GuestPaymentsController {
  @Post('context')
  @ApiCreatedResponse({schema:{type:'object',required:['id','csrfToken'],properties:{id:{type:'string'},csrfToken:{type:'string'}}}})
  async context(@Req()req:Request,@Res({passthrough:true})res:Response){await this.quotes.limit(`guest-context:${req.ip}`);res.setHeader('Cache-Control','no-store');return this.guests.context(req,res);}
+ @Get('context') @Header('Cache-Control','private, no-store')
+ @ApiOkResponse({schema:{type:'object',required:['id','csrfToken'],properties:{id:{type:'string'},csrfToken:{type:'string'}}}})
+ currentContext(@Req()req:Request){return this.guests.currentContext(req);}
  @Post('steam-refill/quotes') @HttpCode(200)
  @ApiBody({schema:{type:'object',additionalProperties:false,required:['amountRub','steamLogin','email'],properties:{amountRub:{type:'integer',minimum:50,maximum:9433},steamLogin:{type:'string'},email:{type:'string',format:'email'}}}})
  @ApiOkResponse({schema:quoteSchema})
@@ -30,4 +33,7 @@ export class GuestPaymentsController {
  @Header('Cache-Control','private, no-store')
  @Get('steam-refill/sessions/:id') @ApiOkResponse({schema:paymentStatusSchema})
  async get(@Req()req:Request,@Param('id')id:string){const g=await this.guests.authenticate(req);return this.payments.getSession(g.user_id,id);}
+ @Post('steam-refill/sessions/:id/check') @HttpCode(200) @Header('Cache-Control','private, no-store')
+ @ApiOkResponse({schema:paymentStatusSchema})
+ async check(@Req()req:Request,@Param('id')id:string){const g=await this.guests.authenticate(req,true);return this.payments.checkSession(g.user_id,id);}
 }

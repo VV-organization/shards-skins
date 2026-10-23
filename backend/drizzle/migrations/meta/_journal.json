@@ -281,6 +281,13 @@
       "when": 1792620000000,
       "tag": "0039_remove_fx_verification",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1792756800000,
+      "tag": "0040_payment_expiry",
+      "breakpoints": true
     }
   ]
 }

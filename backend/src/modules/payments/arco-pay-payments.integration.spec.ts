@@ -11,6 +11,11 @@ import { AppModule } from "../../app.module";
 import { UsersService } from "../users/users.service";
 import { WalletService } from "../wallet/wallet.service";
 import { PaymentsService } from "./payments.service";
+import { PaymentQuotesService } from "./payment-quotes.service";
+import { PaymentHistoryService } from "./payment-history.service";
+import { SessionsService } from "../sessions/sessions.service";
+import { CUSTOMER_SESSION_COOKIE } from "../sessions/session-cookies";
+import { IntegrationHealthService } from '../integration/integration-health.service';
 
 const databaseUrl = process.env.SHARDS_TEST_DATABASE_URL;
 type Kind = "coins" | "steam";
@@ -213,6 +218,101 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
     const sessions = await Promise.all(Array.from({length: 6}, () => createPayment(kind, key)));
     expect(new Set(sessions.map(session => session.id)).size).toBe(1);
     expect(creationRequests).toBe(1);
+    await expectUnsettled();
+  });
+
+  it.each(kinds)("creates independent %s payments while an earlier one is unpaid", async kind => {
+    const one = await create(kind), two = await create(kind);
+    expect(two.session.id).not.toBe(one.session.id);
+    expect(two.order.OrderId).not.toBe(one.order.OrderId);
+    expect(creationRequests).toBe(2);
+    const rows = await pool.query<{ lifetime: number; status: string }>(`SELECT extract(epoch FROM expires_at-created_at)::int lifetime,status FROM ${tableFor(kind)} WHERE user_id=$1`, [userId]);
+    expect(rows.rows).toEqual([{ lifetime: 900, status: "checkout_pending" }, { lifetime: 900, status: "checkout_pending" }]);
+  });
+
+  async function check(id: string, owner = userId, csrf = true) {
+    const sessions = app.get(SessionsService);
+    const session = await sessions.createSession(owner, null);
+    const req = request(app.getHttpServer() as Parameters<typeof request>[0])
+      .post(`/payments/sessions/${id}/check`).set("Cookie", `${CUSTOMER_SESSION_COOKIE}=${session.token}`);
+    if (csrf) req.set("x-csrf-token", sessions.createCsrfToken(session.token));
+    return req.send({});
+  }
+
+  it.each(kinds)("checks only the selected %s payment before allowing checkout", async kind => {
+    const one = await create(kind), two = await create(kind);
+    const res = await check(one.session.id);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({id:one.session.id,paymentStatus:"checkout_pending",canPay:true,checkoutUrl:one.session.checkoutUrl,failureReason:null});
+    expect(statusRequests).toEqual([one.order.OrderId]);
+    expect(creationRequests).toBe(2);
+    expect((await app.get(PaymentQuotesService).getSession(userId,two.session.id)).paymentStatus).toBe("checkout_pending");
+  });
+
+  it.each(kinds)("checks %s ownership and CSRF before contacting the provider", async kind => {
+    const {session} = await create(kind);
+    const other = (await app.get(UsersService).upsertEmailUser(`${randomUUID()}@example.test`)).id;
+    expect((await check(session.id, other)).status).toBe(404);
+    expect((await check(session.id, userId, false)).status).toBe(403);
+    expect(statusRequests).toEqual([]);
+  });
+
+  it.each(kinds)("rechecks an expired %s payment and exposes the reason in its history", async kind => {
+    const {session,order} = await create(kind);order.Status="EXPIRED";
+    const res = await check(session.id);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({paymentStatus:"failed",failureReason:"expired",canPay:false,checkoutUrl:null});
+    expect((await app.get(PaymentHistoryService).listForUser(userId)).payments[0]).toMatchObject({id:session.id,status:"failed",failureReason:"expired",canPay:false});
+    await expectUnsettled();
+  });
+
+  it.each(kinds)("settles an already charged %s payment on check without reopening checkout", async kind => {
+    const {session,order} = await create(kind);order.Status="CHARGED";
+    for (let i=0;i<2;i++) expect((await check(session.id)).body).toMatchObject({paymentStatus:"paid",canPay:false,checkoutUrl:null});
+    await notify(order);await expectSettledExactlyOnce(kind);
+    expect(creationRequests).toBe(1);
+  });
+
+  it.each(kinds)("never offers a %s checkout when provider verification fails", async kind => {
+    const {session,order} = await create(kind);statusFailures.add(order.OrderId);
+    const res = await check(session.id);
+    expect(res.status).toBe(503);
+    expect(res.body).not.toHaveProperty("checkoutUrl");
+    expect((await paymentRow(kind)).status).toBe("checkout_pending");
+    await expectUnsettled();
+  });
+
+  it.each(kinds)("moves overdue %s to review and recovers a late charge exactly once", async kind => {
+    const {session,order} = await create(kind);
+    await pool.query(`UPDATE ${tableFor(kind)} SET expires_at=now()-interval '6 minutes' WHERE id=$1`,[session.id]);
+    statusFailures.add(order.OrderId);
+    await payments.reconcilePendingTopUps({limit:100});
+    expect(await paymentRow(kind)).toMatchObject({status:"manual_review",metadata:{paymentStatusUnresolved:true}});
+    expect(await app.get(IntegrationHealthService).operations()).toMatchObject({status:'degraded',unresolved_payments:1});
+    await expectUnsettled();
+    statusFailures.clear();order.Status="CHARGED";
+    await payments.reconcilePendingTopUps({limit:100});await notify(order);
+    await expectSettledExactlyOnce(kind);
+    expect(await app.get(IntegrationHealthService).operations()).toMatchObject({unresolved_payments:0});
+  });
+
+  it.each(kinds)("does not offer %s checkout while a charge is already in progress", async kind => {
+    const {session,order}=await create(kind);order.Status='CHARGE_IN_PROGRESS';
+    expect((await check(session.id)).body).toMatchObject({paymentStatus:'checkout_pending',canPay:false,checkoutUrl:null});
+    await expectUnsettled();
+  });
+
+  it.each(kinds)("does not reopen %s after local expiry even if provider still reports CREATED", async kind => {
+    const {session} = await create(kind);
+    await pool.query(`UPDATE ${tableFor(kind)} SET expires_at=now()-interval '1 second' WHERE id=$1`,[session.id]);
+    expect((await check(session.id)).body).toMatchObject({paymentStatus:"checkout_pending",canPay:false,checkoutUrl:null});
+    await expectUnsettled();
+  });
+
+  it.each(kinds)("handles CHARGE_DECLINED for %s instead of leaving it pending", async kind => {
+    const {order} = await create(kind);order.Status="CHARGE_DECLINED";
+    await payments.reconcilePendingTopUps({limit:100});
+    expect((await paymentRow(kind)).status).toBe("failed");
     await expectUnsettled();
   });
 
