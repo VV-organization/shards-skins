@@ -31,8 +31,8 @@ for(const width of [1440,390])test(`available balance shortfall and explicit pur
  await expect(page.getByRole('radio')).toHaveCount(0);await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow','39');
  await settled(page.getByRole('link',{name:'Пополнить баланс',exact:true}));await expect(page).toHaveURL(/amount=151/);
  await expect(page.getByLabel('Сколько Shards зачислить')).toHaveValue('151');expect(state.checkoutCalls).toBe(0);
- state.available=30000;await settled(page.getByRole('link',{name:'Продолжить покупку',exact:true}));await expect(page.getByRole('button',{name:'Купить скины',exact:true})).toBeEnabled();expect(state.checkoutCalls).toBe(0);
- await settled(page.getByRole('button',{name:'Купить скины',exact:true}));await expect(page).toHaveURL(/tab=orders/);expect(state.checkoutCalls).toBe(1);
+ state.available=30000;await settled(page.getByRole('link',{name:'Продолжить покупку',exact:true}));await expect(page.getByRole('button',{name:'Купить',exact:true})).toBeEnabled();expect(state.checkoutCalls).toBe(0);
+ await settled(page.getByRole('button',{name:'Купить',exact:true}));await expect(page).toHaveURL(/tab=orders/);expect(state.checkoutCalls).toBe(1);
 });
 test('unknown payment creation survives reload with exact original command',async({page})=>{
  const state=await fixture(page);state.failSession=true;await page.goto('http://127.0.0.1:5198/account?tab=balance&amount=151');
@@ -80,10 +80,10 @@ test('wrong payment owner gets no details and cannot create another session from
 
 test('committed checkout with lost response recovers from empty cart and clears old command',async({page})=>{
  const state=await fixture(page);state.available=30000;state.failCheckout=true;
- await page.goto('http://127.0.0.1:5198/cart');await settled(page.getByRole('button',{name:'Купить скины',exact:true}));await expect(page.getByText(/Не удалось получить результат покупки/)).toBeVisible();
+ await page.goto('http://127.0.0.1:5198/cart');await settled(page.getByRole('button',{name:'Купить',exact:true}));await expect(page.getByText(/Не удалось получить результат покупки/)).toBeVisible();
  await page.reload();state.failCheckout=false;await settled(page.getByRole('button',{name:'Проверить результат покупки',exact:true}));await expect(page).toHaveURL(/tab=orders/);
  expect(state.checkoutKeys[0]).toBe(state.checkoutKeys[1]);expect(state.checkoutBodies[0]).toEqual(state.checkoutBodies[1]);
- state.present=true;await page.goto('http://127.0.0.1:5198/cart');await settled(page.getByRole('button',{name:'Купить скины',exact:true}));await expect(page).toHaveURL(/tab=orders/);expect(state.checkoutKeys[2]).not.toBe(state.checkoutKeys[0]);
+ state.present=true;await page.goto('http://127.0.0.1:5198/cart');await settled(page.getByRole('button',{name:'Купить',exact:true}));await expect(page).toHaveURL(/tab=orders/);expect(state.checkoutKeys[2]).not.toBe(state.checkoutKeys[0]);
 });
 test('unreadable successful payment response survives reload with original command',async({page})=>{
  const state=await fixture(page);state.brokenSession=true;await page.goto('http://127.0.0.1:5198/account?tab=balance&amount=151');
@@ -98,6 +98,9 @@ test('same Steam owner linking email refreshes csrf before immediate Steam quote
  await page.route('**/api/auth/email/challenges/link/verify',route=>{expect(route.request().headers()['x-csrf-token']).toBe('original');verified=true;return route.fulfill({json:{userId:'owner'},headers:{'Set-Cookie':'shards_session=rotated; Path=/; HttpOnly; SameSite=Lax'}});});
  await page.route('**/api/payments/steam-refill/quotes',route=>{expect(route.request().headers()['x-csrf-token']).toBe('rotated');quotes++;return route.fulfill({json:{quoteId:'steam',expiresAt:new Date(Date.now()+60000).toISOString(),fiatAmountMinor:52500,feeRubMinor:2500,steamLogin:'player'}});});
  await page.goto('/account');await settled(page.locator('.contact-panel').getByRole('button',{name:'Подтвердить почту'}));
+ mkdirSync('../.qa/ui-polish',{recursive:true});await page.emulateMedia({reducedMotion:'reduce'});
+ for(const width of [1440,390,320]){await page.setViewportSize({width,height:1000});await page.getByRole('dialog').screenshot({path:`../.qa/ui-polish/email-${width}.png`});}
+ await page.setViewportSize({width:1280,height:720});
  const dialog=page.getByRole('dialog');await dialog.getByLabel('Электронная почта').fill('buyer@example.test');await dialog.getByRole('button',{name:'Получить код',exact:true}).click();await dialog.getByLabel('Код из письма').fill('123456');await dialog.getByRole('button',{name:'Подтвердить',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(page.locator('.contact-panel')).toContainText('buyer@example.test');await settled(page.locator('header .wordmark'));const panel=page.locator('#steam');await panel.getByLabel('Логин Steam').fill('player');await panel.getByLabel('На баланс Steam').fill('500');await expect(panel.getByRole('button',{name:'Перейти к оплате'})).toBeEnabled();expect(quotes).toBeGreaterThan(0);
 });
 
@@ -107,12 +110,13 @@ for(const width of [1440,768,390,320])test(`VV162 cart wallet states at ${width}
  for(const [name,available,percent] of [['empty',0,0],['short',10000,39],['exact',25001,100],['surplus',30000,100]] as const){
   state.available=available;await page.goto('/cart');
   await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow',String(percent));
-  await expect(page.getByRole('button',{name:'Купить скины',exact:true})).toBeVisible();
-  if(available>=25001)await expect(page.getByRole('button',{name:'Купить скины',exact:true})).toBeEnabled();
-  else await expect(page.getByRole('button',{name:'Купить скины',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Купить',exact:true})).toBeVisible();
+  if(available>=25001)await expect(page.getByRole('button',{name:'Купить',exact:true})).toBeEnabled();
+  else await expect(page.getByRole('button',{name:'Купить',exact:true})).toBeDisabled();
   await page.evaluate(()=>document.fonts.ready);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.locator('.vv162-summary').screenshot({path:`../.qa/vv162/cart-${name}-${width}.png`});
+  if(name==='empty'){mkdirSync('../.qa/ui-polish',{recursive:true});await page.locator('.cart-page .page-heading').screenshot({path:`../.qa/ui-polish/cart-heading-${width}.png`});}
  }
 });
 
@@ -121,6 +125,8 @@ for(const width of [1440,768,390,320])test(`VV163 account, company and legal lay
  await page.goto('/account');const contact=page.locator('.contact-panel');await expect(contact).toContainText('owner@example.test');await contact.scrollIntoViewIfNeeded();await page.screenshot({path:`../.qa/vv163/account-${width}.png`,fullPage:true});
  await settled(page.getByRole('button',{name:'Пополнить баланс',exact:true}));const topup=page.locator('.account-topup');await expect(topup).toBeVisible();const css=await topup.evaluate(el=>({padding:parseFloat(getComputedStyle(el).paddingLeft),radius:parseFloat(getComputedStyle(el).borderRadius)}));expect(css.padding).toBeGreaterThanOrEqual(20);expect(css.radius).toBeGreaterThan(0);await topup.screenshot({path:`../.qa/vv163/balance-${width}.png`});
  await page.goto('/terms');await expect(page.locator('main')).toContainText('1 российский рубль = 1,6 Shards');await expect(page.locator('.legal-document h2')).toHaveCount(12);await page.screenshot({path:`../.qa/vv163/terms-${width}.png`});
+ mkdirSync('../.qa/ui-polish',{recursive:true});
+ for(const document of ['terms','privacy']){await page.goto('/'+document);await page.locator('.legal-document ol').first().screenshot({path:`../.qa/ui-polish/${document}-list-${width}.png`});}
  await page.locator('footer').scrollIntoViewIfNeeded();await page.locator('footer').screenshot({path:`../.qa/vv163/footer-${width}.png`});await expect(page.locator('footer')).toContainText('260740037730');await expect(page.locator('.footer-payment-logos img')).toHaveCount(2);await expect(page.locator('footer').getByRole('img',{name:'МИР',exact:true})).toBeVisible();await expect(page.locator('footer').getByRole('img',{name:'СБП',exact:true})).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  const faq=page.locator('footer').getByRole('link',{name:'Вопросы и ответы'});await faq.scrollIntoViewIfNeeded();expect(await faq.evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})).toBe(true);await settled(faq);await expect(page).toHaveURL(/\/#faq$/);await expect(page.locator('#faq')).toBeInViewport();
