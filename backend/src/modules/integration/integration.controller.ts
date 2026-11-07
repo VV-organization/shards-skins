@@ -60,6 +60,11 @@ export class IntegrationController {
   @Get("admin/integration/health/operations")
   operations(){return this.integrationHealth.operations();}
 
+  @Get("admin/integration/health/postgres")
+  async postgresHealth(@Res({ passthrough: true }) response: Response): Promise<IntegrationHealthResult> {
+    return respondHealth(response, await this.integrationHealth.postgres());
+  }
+
   @Get("admin/integration/health/redis")
   async redisHealth(@Res({ passthrough: true }) response: Response): Promise<IntegrationHealthResult> {
     return respondHealth(response, await this.integrationHealth.redis());

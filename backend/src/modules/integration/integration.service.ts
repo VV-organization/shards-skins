@@ -13,7 +13,7 @@ type IntegrationManifest = {
     readonly adminAllowedHosts: readonly string[];
   };
   readonly commerceEvents: {
-    readonly schemaVersion: 1;
+    readonly schemaVersion: 2;
     readonly delivery: "site_to_vv_admin_webhook";
   };
   readonly healthChecks: readonly {
@@ -27,6 +27,7 @@ type IntegrationManifest = {
     readonly expect?: Record<string, unknown>;
   }[];
   readonly syntheticScenarios: readonly {
+    readonly execution: "worker";
     readonly key: string;
     readonly label: string;
     readonly kind: "synthetic_transaction";
@@ -37,19 +38,8 @@ type IntegrationManifest = {
     readonly intervalSeconds: number;
     readonly run: { readonly method: "POST"; readonly url: string };
   }[];
-  readonly actions: readonly {
-    readonly key: string;
-    readonly label: string;
-    readonly category:
-      | "payments.reconcile"
-      | "fulfillment.reconcile"
-      | "manual_fulfillment.list"
-      | "manual_fulfillment.complete";
-    readonly method: "GET" | "POST";
-    readonly url: string;
-    readonly effect: "read_only" | "recovery";
-    readonly requiresIdempotencyKey: boolean;
-  }[];
+  readonly browserScenarios: { readonly enabled: false };
+  readonly actions: readonly [];
 };
 
 type IntegrationReadiness = {
@@ -80,7 +70,7 @@ export class IntegrationService {
         adminAllowedHosts: [new URL(adminOrigin).hostname],
       },
       commerceEvents: {
-        schemaVersion: 1,
+        schemaVersion: 2,
         delivery: "site_to_vv_admin_webhook",
       },
       healthChecks: [
@@ -107,7 +97,7 @@ export class IntegrationService {
           label: "База данных",
           kind: "http_status",
           method: "GET",
-          url: `${adminOrigin}/health/ready`,
+          url: `${adminOrigin}/admin/integration/health/postgres`,
           timeoutMs: 5000,
           intervalSeconds: 21600,
         },
@@ -179,12 +169,13 @@ export class IntegrationService {
       ],
       syntheticScenarios: [
         {
+          execution: "worker",
           key: "checkout_payment_reached",
           label: "Проверить выход на оплату",
           kind: "synthetic_transaction",
           productionSafe: true,
           effect: "creates_synthetic_entities",
-          requiresCleanup: true,
+          requiresCleanup: false,
           timeoutMs: 60000,
           intervalSeconds: 21600,
           run: {
@@ -193,36 +184,8 @@ export class IntegrationService {
           },
         },
       ],
-      actions: [
-        {
-          key: "payments_reconcile",
-          label: "Reconcile payment provider top-ups",
-          category: "payments.reconcile",
-          method: "POST",
-          url: `${adminOrigin}/admin/operations/payments/reconcile`,
-          effect: "recovery",
-          requiresIdempotencyKey: true,
-        },
-        {
-          key: "fulfillment_reconcile",
-          label: "Reconcile submitted SIH fulfillment",
-          category: "fulfillment.reconcile",
-          method: "POST",
-          url: `${adminOrigin}/admin/operations/fulfillment/reconcile`,
-          effect: "recovery",
-          requiresIdempotencyKey: true,
-        },
-        {
-          key: "operations_overview",
-          label: "Read Shards admin operations overview",
-          category: "manual_fulfillment.list",
-          method: "GET",
-          url: `${adminOrigin}/admin/operations/overview`,
-          effect: "read_only",
-          requiresIdempotencyKey: false,
-        },
-
-      ],
+      browserScenarios: { enabled: false },
+      actions: [],
     };
   }
 

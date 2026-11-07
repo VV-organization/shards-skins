@@ -1,131 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-import { IntegrationSyntheticScenarioService } from "./integration-synthetic-scenario.service";
-import type { PaymentsService, TopUpSessionDto } from "../payments/payments.service";
-
-describe("IntegrationSyntheticScenarioService", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-08-13T12:00:00.000Z"));
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("passes only when the synthetic top-up reaches a hosted payment URL and is cleaned up", async () => {
-    const payments: Pick<PaymentsService, "createTopUpSession" | "expireSyntheticTopUpSession"> = {
-      createTopUpSession: vi.fn().mockResolvedValue(
-        createTopUp({
-          id: "top-up-1",
-          status: "checkout_pending",
-          checkoutUrl: "https://pay.example/checkout/session-1",
-        }),
-      ),
-      expireSyntheticTopUpSession: vi.fn().mockResolvedValue(undefined),
-    };
-    const service = new IntegrationSyntheticScenarioService(payments);
-
-    await expect(
-      service.runCheckoutPaymentReached({ runId: "run-1" }),
-    ).resolves.toMatchObject({
-      status: "healthy",
-      summary: "Платежная страница Arc Pay получена",
-      payment: { reached: true },
-      syntheticEntities: [
-        {
-          type: "top_up_payment",
-          externalId: "top-up-1",
-          cleanupStatus: "expired",
-        },
-      ],
-      artifacts: [
-        {
-          kind: "payment_redirect_origin",
-          value: "https://pay.example",
-        },
-      ],
-    });
-    expect(payments.createTopUpSession).toHaveBeenCalledWith({
-      userId: "synthetic:vv-admin",
-      idempotencyKey: "vv-admin-synthetic-run-1",
-      coinAmountMinor: 10_000,
-    });
-    expect(payments.expireSyntheticTopUpSession).toHaveBeenCalledWith({
-      topUpPaymentId: "top-up-1",
-      userId: "synthetic:vv-admin",
-    });
-  });
-
-  it("fails when the top-up session does not reach payment", async () => {
-    const service = new IntegrationSyntheticScenarioService(
-      {
-        createTopUpSession: vi.fn().mockResolvedValue(
-          createTopUp({
-            id: "top-up-1",
-            status: "provider_configuration_required",
-            checkoutUrl: null,
-          }),
-        ),
-        expireSyntheticTopUpSession: vi.fn(),
-      },
-    );
-
-    await expect(
-      service.runCheckoutPaymentReached({ runId: "run-2" }),
-    ).resolves.toMatchObject({
-      status: "down",
-      payment: { reached: false },
-      summary: "Платежная страница Arc Pay не получена",
-    });
-  });
-
-  it("fails when the hosted payment is reached but cleanup fails", async () => {
-    const service = new IntegrationSyntheticScenarioService(
-      {
-        createTopUpSession: vi.fn().mockResolvedValue(
-          createTopUp({
-            id: "top-up-1",
-            status: "checkout_pending",
-            checkoutUrl: "https://pay.example/checkout/session-1",
-          }),
-        ),
-        expireSyntheticTopUpSession: vi.fn().mockRejectedValue(new Error("DB_DOWN")),
-      },
-    );
-
-    await expect(
-      service.runCheckoutPaymentReached({ runId: "run-3" }),
-    ).resolves.toMatchObject({
-      status: "down",
-      summary: "Платежная страница Arc Pay получена, но synthetic top-up не очищен",
-      error: "DB_DOWN",
-      syntheticEntities: [
-        {
-          type: "top_up_payment",
-          externalId: "top-up-1",
-          cleanupStatus: "failed",
-        },
-      ],
-    });
-  });
+import {describe,expect,it,vi} from "vitest";
+import {IntegrationSyntheticScenarioService} from "./integration-synthetic-scenario.service";
+import type {AppConfig} from "../../config/app-config";
+const config={commerce:{paymentsEnabled:true},arcoPay:{providerMode:"real",paymentOrigin:"https://payment.paidlayer.com"},integration:{publicOrigin:"https://shards.example"}} as AppConfig;
+const topUp={id:"00000000-0000-4000-8000-000000000001",userId:"synthetic:vv-admin",status:"checkout_pending",checkoutUrl:"https://payment.paidlayer.com/provider-id",coinAmountMinor:10000};
+function setup(value:unknown=topUp,cfg=config){const payments={createTopUpSession:vi.fn().mockResolvedValue(value),expireSyntheticTopUpSession:vi.fn()};return {payments,service:new IntegrationSyntheticScenarioService(payments,cfg)};}
+describe("safe integration synthetic checkout",()=>{
+ it("requires actual browser evidence and retains the unsettled payment",async()=>{const {service,payments}=setup();const result=await service.runCheckoutPaymentReached({runId:"run-1"});expect(result).toMatchObject({status:"down",error:"BROWSER_PAYMENT_REQUIRED",payment:{reached:false},syntheticEntities:[{type:"top_up",externalId:topUp.id,cleanupStatus:"retained"}],browserPayment:{method:"POST",topUpId:topUp.id,action:topUp.checkoutUrl,successUrl:`https://shards.example/payments/return?session=${topUp.id}&payment=success`,failUrl:`https://shards.example/payments/return?session=${topUp.id}&payment=failed`}});expect(payments.expireSyntheticTopUpSession).not.toHaveBeenCalled();expect(result.metadata).not.toHaveProperty("checkoutUrl");});
+ it.each(["https://evil.example/id","https://payment.paidlayer.com/","https://payment.paidlayer.com/id?secret=1","https://payment.paidlayer.com/a/b"])("rejects unexpected checkout URL %s",async checkoutUrl=>{const {service}=setup({...topUp,checkoutUrl});expect(await service.runCheckoutPaymentReached({runId:"run-1"})).toMatchObject({status:"down",payment:{reached:false},error:"SCENARIO_PAYMENT_HANDOFF_INVALID"});});
+ it("does not create invoices while real payments are disabled",async()=>{const {service,payments}=setup(topUp,{...config,commerce:{paymentsEnabled:false}} as AppConfig);expect(await service.runCheckoutPaymentReached({runId:"run-1"})).toMatchObject({status:"down",error:"SCENARIO_PAYMENTS_DISABLED"});expect(payments.createTopUpSession).not.toHaveBeenCalled();});
+ it("refuses fake provider success",async()=>{const {service,payments}=setup(topUp,{...config,arcoPay:{...config.arcoPay,providerMode:"fake"}});expect(await service.runCheckoutPaymentReached({runId:"run-1"})).toMatchObject({status:"down",error:"SCENARIO_PAYMENTS_DISABLED"});expect(payments.createTopUpSession).not.toHaveBeenCalled();});
+ it("preserves a bounded outstanding-attempt refusal",async()=>{const {service,payments}=setup();payments.createTopUpSession.mockRejectedValue(new Error("SCENARIO_ATTEMPT_REQUIRES_REVIEW"));expect(await service.runCheckoutPaymentReached({runId:"run-2"})).toMatchObject({status:"down",error:"SCENARIO_ATTEMPT_REQUIRES_REVIEW",syntheticEntities:[]});});
+ it("sanitizes unexpected failures",async()=>{const {service,payments}=setup();payments.createTopUpSession.mockRejectedValue(new Error("secret provider response"));const r=await service.runCheckoutPaymentReached({runId:"run-2"});expect(r.error).toBe("SCENARIO_PAYMENT_CREATE_FAILED");expect(JSON.stringify(r)).not.toContain("secret provider");});
+ it("cannot treat a settled or missing redirect as payment reachability",async()=>{const {service}=setup({...topUp,status:"paid"});expect(await service.runCheckoutPaymentReached({runId:"run-1"})).toMatchObject({status:"down",error:"SCENARIO_PAYMENT_NOT_PENDING"});});
 });
-
-function createTopUp(
-  input: Pick<TopUpSessionDto, "id" | "status" | "checkoutUrl">,
-): TopUpSessionDto {
-  return {
-    id: input.id,
-    userId: "synthetic:vv-admin",
-    status: input.status,
-    provider: "arco_pay",
-    coinAmountMinor: 10_000,
-    fiatAmountMinor: 6_667,
-    fiatCurrency: "RUB",
-    rate: {
-      fiatMinor: 100,
-      coinMinor: 150,
-    },
-    checkoutUrl: input.checkoutUrl,
-  };
-}

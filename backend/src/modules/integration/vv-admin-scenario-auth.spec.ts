@@ -54,7 +54,7 @@ describe("VvAdminScenarioAuthVerifier", () => {
     writeFileSync(secretFile, "shared-secret\n", "utf8");
     const verifier = new VvAdminScenarioAuthVerifier(createConfig(secretFile));
     const body = JSON.stringify({ runId: "run-1" });
-    const timestamp = "2026-08-13T12:00:00.000Z";
+    const timestamp = new Date().toISOString();
 
     expect(
       verifier.verify({
@@ -81,4 +81,16 @@ describe("VvAdminScenarioAuthVerifier", () => {
       }),
     ).toBe(false);
   });
+  it("binds the signature to the public /api prefix and rejects stale timestamps",()=>{
+    const secretFile=join(mkdtempSync(join(tmpdir(),"vv-auth-")),"secret");writeFileSync(secretFile,"shared-secret");
+    const config=createConfig(secretFile);config.integration.adminOrigin="https://shards.example/api";
+    const verifier=new VvAdminScenarioAuthVerifier(config);
+    const body="{}",path="/admin/integration/scenarios/checkout-payment-reached/run",timestamp=new Date().toISOString();
+    const signature=sign({secret:"shared-secret",body,path:"/api"+path,timestamp});
+    expect(verifier.verify({body,path,timestamp,signature})).toBe(true);
+    expect(verifier.verify({body:path,path,timestamp,signature})).toBe(false);
+    expect(verifier.verify({body,path,timestamp,signature:sign({secret:"shared-secret",body,path,timestamp})})).toBe(false);
+    for(const t of [new Date(Date.now()-301000).toISOString(),new Date(Date.now()+301000).toISOString(),"invalid", "2026-02-30T00:00:00.000Z"]){expect(verifier.verify({body,path,timestamp:t,signature:sign({secret:"shared-secret",body,path:"/api"+path,timestamp:t})})).toBe(false);}
+  });
+
 });

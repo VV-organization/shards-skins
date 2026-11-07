@@ -1,3 +1,4 @@
+import { assertSyntheticPaymentCreationAllowed, paymentEventSource } from "./synthetic-payment";
 import {QuotesService} from "../quotes/quotes.service";
 import {WALLET_TERMS_VERSION,STEAM_TERMS_VERSION,type PaymentTerms,type PaymentPurpose,type PaymentQuoteBinding} from "./payment-quote.types";
 import { topUpFiatMinor } from "../../common/money/shards";
@@ -508,6 +509,7 @@ export class PaymentsService {
         return toDto(existing);
       }
 
+      await assertSyntheticPaymentCreationAllowed(client, this.config, command.userId);
       const bound = await this.requirePaymentQuote(client, command, "wallet_topup");
       const fiatAmountMinor = fiatMinorForCoinMinor(command.coinAmountMinor);
       const inserted = await client.query<{ id: string }>(
@@ -886,6 +888,7 @@ export class PaymentsService {
         return {session:toDto(existing),ownsCreation:false};
       }
 
+      await assertSyntheticPaymentCreationAllowed(client, this.config, command.userId);
       const bound = await this.requirePaymentQuote(client, command, "wallet_topup");
       const fiatAmountMinor = fiatMinorForCoinMinor(command.coinAmountMinor);
       const inserted = await client.query<{ id: string }>(
@@ -2132,7 +2135,7 @@ export class PaymentsService {
       schemaVersion: 2,
       eventId,
       eventType: input.eventType,
-      source: "customer",
+      source: paymentEventSource(topUp.user_id),
       occurredAt: topUp.updated_at.toISOString(),
       site: { domain: new URL(this.config.integration.publicOrigin).hostname },
       subject: { type: "top_up", externalId: topUp.id },

@@ -6,6 +6,51 @@ import { describe, expect, it } from "vitest";
 import { isArcoPayConfigured, loadAppConfig } from "./app-config";
 
 describe("loadAppConfig", () => {
+  it("uses the deployed public frontend and API base for integration discovery", () => {
+    const config = loadAppConfig({
+      PUBLIC_FRONTEND_ORIGIN: "https://shardsmarket.com/",
+      PUBLIC_BASE_URL: "https://shardsmarket.com/api/",
+    });
+    expect(config.integration).toMatchObject({
+      publicOrigin: "https://shardsmarket.com",
+      adminOrigin: "https://shardsmarket.com/api",
+    });
+  });
+
+  it("keeps explicit integration endpoints ahead of deployment defaults", () => {
+    const config = loadAppConfig({
+      PUBLIC_FRONTEND_ORIGIN: "https://old.example",
+      PUBLIC_BASE_URL: "https://old.example/api",
+      VV_ADMIN_PUBLIC_ORIGIN: "https://shardsmarket.com",
+      VV_ADMIN_API_ORIGIN: "https://api.shardsmarket.com/v1",
+    });
+    expect(config.integration).toMatchObject({
+      publicOrigin: "https://shardsmarket.com",
+      adminOrigin: "https://api.shardsmarket.com/v1",
+    });
+  });
+
+  it("rejects unsafe discovery defaults and admin hosts outside the public site", () => {
+    expect(() => loadAppConfig({ NODE_ENV: "production", PUBLIC_FRONTEND_ORIGIN: "http://shardsmarket.com" })).toThrow("PUBLIC_FRONTEND_ORIGIN");
+    expect(() => loadAppConfig({ PUBLIC_BASE_URL: "https://user:password@shardsmarket.com/api" })).toThrow("PUBLIC_BASE_URL");
+    expect(() => loadAppConfig({
+      PUBLIC_FRONTEND_ORIGIN: "https://shardsmarket.com",
+      PUBLIC_BASE_URL: "https://foreign.example/api",
+    })).toThrow("Integration API host must match the public site or one of its subdomains.");
+  });
+
+  it("preserves local HTTP deployment defaults outside production", () => {
+    expect(loadAppConfig({
+      NODE_ENV: "development",
+      PUBLIC_FRONTEND_ORIGIN: "http://localhost:3000",
+      PUBLIC_BASE_URL: "http://localhost:5199/api",
+    }).integration).toMatchObject({
+      publicOrigin: "http://localhost:3000",
+      adminOrigin: "http://localhost:5199/api",
+    });
+    expect(() => loadAppConfig({ PUBLIC_BASE_URL: "http://localhost:5199/api?secret=1" })).toThrow("PUBLIC_BASE_URL");
+  });
+
   it("parses runtime urls, secret-file paths, and CORS origins without exposing secret values", () => {
     expect(loadAppConfig({
       NODE_ENV: "test",

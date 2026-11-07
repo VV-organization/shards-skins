@@ -47,6 +47,14 @@ describe("IntegrationController synthetic scenario endpoint", () => {
       controller.runCheckoutPaymentReached({ runId: "run-1" }, {}),
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
+  it("reports PostgreSQL dependency failure as HTTP 503", async()=>{
+    const result={status:"down" as const,reasons:["POSTGRES_UNAVAILABLE"]};
+    const controller=new IntegrationController({} as never,{} as never,{} as never,{postgres:()=>Promise.resolve(result)} as never);
+    const response={status:vi.fn()};
+    expect(await controller.postgresHealth(response as never)).toEqual(result);
+    expect(response.status).toHaveBeenCalledWith(503);
+  });
+
 });
 
 function createController(input: { scenario: unknown; verifier: unknown }): IntegrationController {

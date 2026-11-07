@@ -162,6 +162,15 @@ function parseCorsOrigins(value: string | undefined): string[] {
     .filter((origin) => origin.length > 0);
 }
 
+function parseIntegrationDeploymentUrl(name: string, value: string | undefined, nodeEnv: AppNodeEnv): string | undefined {
+  if (nodeEnv === "production") return parseHttpsPublicBaseUrl(name, value);
+  const normalized = parseHttpOrHttpsBaseUrl(name, value);
+  if (normalized !== undefined && new URL(normalized).search !== "") {
+    throw new Error(`${name} must be a valid HTTP(S) base URL.`);
+  }
+  return normalized;
+}
+
 function parseBoolean(name: string, value: string | undefined, defaultValue: boolean): boolean {
   const normalized = optionalString(value);
   if (normalized === undefined) return defaultValue;
@@ -203,10 +212,17 @@ export function loadAppConfig(env: NodeJS.ProcessEnv): AppConfig {
   const slackOrdersWebhookUrlFile = optionalString(env.SLACK_ORDERS_WEBHOOK_URL_FILE);
   const integrationPublicOrigin =
     parseHttpsPublicBaseUrl("VV_ADMIN_PUBLIC_ORIGIN", env.VV_ADMIN_PUBLIC_ORIGIN) ??
+    parseIntegrationDeploymentUrl("PUBLIC_FRONTEND_ORIGIN", env.PUBLIC_FRONTEND_ORIGIN, nodeEnv) ??
     "https://shards.example";
   const integrationAdminOrigin =
     parseHttpsPublicBaseUrl("VV_ADMIN_API_ORIGIN", env.VV_ADMIN_API_ORIGIN) ??
+    parseIntegrationDeploymentUrl("PUBLIC_BASE_URL", env.PUBLIC_BASE_URL, nodeEnv) ??
     integrationPublicOrigin;
+  const integrationPublicHost = new URL(integrationPublicOrigin).hostname;
+  const integrationAdminHost = new URL(integrationAdminOrigin).hostname;
+  if (integrationAdminHost !== integrationPublicHost && !integrationAdminHost.endsWith(`.${integrationPublicHost}`)) {
+    throw new Error("Integration API host must match the public site or one of its subdomains.");
+  }
   const vvAdminWebhookUrl = parseHttpsPublicBaseUrl(
     "VV_ADMIN_WEBHOOK_URL",
     env.VV_ADMIN_WEBHOOK_URL,

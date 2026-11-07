@@ -46,7 +46,7 @@ describe("AppModule", () => {
       .get("/.well-known/vv-admin/manifest.json")
       .expect(200)
       .expect(({body}) => {
-        expect(body).toMatchObject({site:{key:"shards"},commerceEvents:{schemaVersion:1}});
+        expect(body).toMatchObject({site:{key:"shards"},commerceEvents:{schemaVersion:2},browserScenarios:{enabled:false}});
         expect(body).not.toHaveProperty("catalog");
         expect(body).not.toHaveProperty("storeOrders");
       });

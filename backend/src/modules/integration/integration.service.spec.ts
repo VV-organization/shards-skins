@@ -55,7 +55,7 @@ describe("IntegrationService", () => {
         adminAllowedHosts: ["api.shards.example"],
       },
       commerceEvents: {
-        schemaVersion: 1,
+        schemaVersion: 2,
         delivery: "site_to_vv_admin_webhook",
       },
     });
@@ -77,11 +77,12 @@ describe("IntegrationService", () => {
     expect(manifest.syntheticScenarios).toEqual([
       expect.objectContaining({
         key: "checkout_payment_reached",
+        execution: "worker",
         label: "Проверить выход на оплату",
         kind: "synthetic_transaction",
         productionSafe: true,
         effect: "creates_synthetic_entities",
-        requiresCleanup: true,
+        requiresCleanup: false,
         run: {
           method: "POST",
           url: "https://api.shards.example/admin/integration/scenarios/checkout-payment-reached/run",
@@ -89,6 +90,24 @@ describe("IntegrationService", () => {
       }),
     ]);
     expect(JSON.stringify(manifest)).not.toMatch(/secret|token|password/i);
+  });
+
+  it("disables incompatible legacy browser runners", () => {
+    const manifest = new IntegrationService(config).manifest();
+    expect(manifest).toHaveProperty("browserScenarios", { enabled: false });
+  });
+
+  it("does not advertise actions that require an unsupported admin-token transport", () => {
+    expect(new IntegrationService(config).manifest().actions).toEqual([]);
+  });
+
+  it("publishes a database probe that returns a failing HTTP status on outage", () => {
+    const manifest = new IntegrationService(config).manifest();
+    expect(manifest.healthChecks.find((check) => check.key === "postgres")).toMatchObject({
+      kind: "http_status",
+      method: "GET",
+      url: "https://api.shards.example/admin/integration/health/postgres",
+    });
   });
 
   it("reports readiness from configured dependencies", () => {

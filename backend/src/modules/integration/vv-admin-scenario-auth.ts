@@ -16,13 +16,19 @@ export class VvAdminScenarioAuthVerifier {
     readonly signature: string;
     readonly timestamp: string;
   }): boolean {
+    const milliseconds = Date.parse(input.timestamp);
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(input.timestamp) ||
+      !Number.isFinite(milliseconds) || new Date(milliseconds).toISOString() !== input.timestamp ||
+      Math.abs(Date.now() - milliseconds) > 300_000) return false;
+    const prefix = new URL(this.config.integration.adminOrigin).pathname.replace(/\/$/, "");
+    const publicPath = `${prefix}${input.path}`;
     const secret = optionalStringFromFile(
       this.config.integration.protocolAuthSecretFile,
     );
     if (!secret) return false;
     const bodyHash = createHash("sha256").update(input.body).digest("hex");
     const expected = createHmac("sha256", secret)
-      .update(["POST", input.path, input.timestamp, bodyHash].join("\n"))
+      .update(["POST", publicPath, input.timestamp, bodyHash].join("\n"))
       .digest("hex");
     return safeEqual(expected, input.signature);
   }

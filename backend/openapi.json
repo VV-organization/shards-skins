@@ -5994,6 +5994,20 @@
         ]
       }
     },
+    "/admin/integration/health/postgres": {
+      "get": {
+        "operationId": "IntegrationController_postgresHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Integration"
+        ]
+      }
+    },
     "/admin/integration/health/redis": {
       "get": {
         "operationId": "IntegrationController_redisHealth",
