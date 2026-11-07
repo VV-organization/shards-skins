@@ -362,6 +362,22 @@ export class CatalogService {
     return (await this.loadProducts({categoryId:slot,sort:'price_asc',limit:61,availableOnly:true,...(after?{after}: {})})).map(productDto);
   }
 
+  /** Same public visibility and Shards price, without repeated storefront facets/count scans. */
+  async listPublicProductsPage(input: { afterId?: string; limit: number }): Promise<{
+    items: CatalogProductDto[];
+    nextId: string | null;
+  }> {
+    if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 200) {
+      throw new BadRequestException("Catalog page limit is invalid");
+    }
+    const rows = await this.loadProducts({ limit: input.limit + 1, publicationAfterId: input.afterId ?? null });
+    const selected = rows.slice(0, input.limit);
+    return {
+      items: selected.map(productDto),
+      nextId: rows.length > input.limit ? selected.at(-1)?.id ?? null : null,
+    };
+  }
+
   private async loadProducts(command: {
     categoryId?: string; stattrak?: string; weapon?: string;
     after?: {price:number;id:string}; availableOnly?: boolean;
@@ -372,12 +388,17 @@ export class CatalogService {
     maxPriceCoinMinor?: number;
     minPriceCoinMinor?: number;
     offset?: number;
+    publicationAfterId?: string | null;
     search?: string;
     slug?: string; slugs?: string[];
     sort?: CatalogSort;
     types?: string[];
   } = {}, client: Pick<DatabaseService,"query"> = this.database): Promise<LoadedCatalogProduct[]> {
     const { params, where } = this.catalogWhere(command);
+    if (command.publicationAfterId != null) {
+      params.push(command.publicationAfterId);
+      where.push(`catalog_products.id > $${params.length}`);
+    }
     if (command.minPriceCoinMinor !== undefined) {
       params.push(command.minPriceCoinMinor);
       where.push(`${effectivePriceCoinMinorSql} >= $${params.length}`);
@@ -397,7 +418,13 @@ export class CatalogService {
     const offset = Math.max(0, command.offset ?? 0);
     params.push(offset);
     const offsetParam = params.length;
+    const publicationPage = command.publicationAfterId !== undefined;
+    // Publication eligibility is decided before LIMIT; the joins only enrich eligible rows.
+    const sourceTable = publicationPage
+      ? `(SELECT * FROM catalog_products WHERE ${where.join(" AND ")} ORDER BY catalog_products.id ASC LIMIT $${limitParam}) AS catalog_products`
+      : "catalog_products";
     const orderBy = (() => {
+      if (publicationPage) return "catalog_products.id ASC";
       if (command.sort === "price_asc") {
         return `${effectivePriceCoinMinorSql} ASC, catalog_products.id ASC`;
       }
@@ -461,14 +488,14 @@ export class CatalogService {
           catalog_products.keywords,
           catalog_products.details,
           supplier_listings.price_microusd::text AS supplier_price_microusd
-        FROM catalog_products
+        FROM ${sourceTable}
         LEFT JOIN supplier_listings
           ON catalog_products.supplier_provider = 'sih'
           AND supplier_listings.supplier = 'sih'
           AND supplier_listings.game = lower(catalog_products.game)
           AND supplier_listings.market_hash_name = catalog_products.supplier_item_id
 ${supplierPricingJoin}
-        WHERE ${where.join("\n          AND ")}
+        WHERE ${publicationPage ? "TRUE" : where.join("\n          AND ")}
         ORDER BY ${orderBy}
         LIMIT $${limitParam}
         OFFSET $${offsetParam}

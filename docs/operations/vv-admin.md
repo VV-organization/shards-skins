@@ -2,8 +2,9 @@
 
 The storefront is authoritative for catalog, checkout, wallet and fulfillment.
 VV Admin receives signed commerce projections, monitors declared dependencies and
-runs the controlled payment-page scenario. The manifest does not expose catalog
-editing or standard-store order mutation: Shards has no such Admin API.
+runs the controlled payment-page scenario. The manifest exposes a signed read-only product/offer source for invoices. It
+does not expose catalog editing or standard-store order mutation: Shards has no
+such Admin API.
 
 ## Configuration and discovery
 
@@ -84,3 +85,35 @@ webhook acceptance/deduplication, real projection exclusion and delivery attempt
 separately. Healthy monitoring, delivered Slack recovery and settled payment are
 different claims. No charge or supplier fulfillment is required for connection
 acceptance; any real payment/refund/fulfillment needs its own explicit scope.
+
+## Invoice catalog
+
+The catalog capability uses `managementEnabled=false`; it is an invoice source,
+not editable supplier inventory. VV Admin requires its separate invoice profile
+before the site appears in invoice creation. Its native invoice currency is
+`COINS` (Shards); the approved storefront rate is 1 RUB = 1.6 Shards. This adapter
+does not convert currencies: DTO scale `2` means decimal precision, while catalog
+protocol scale `100` is the divisor of the unchanged integer `amountMinor`.
+
+`GET /api/admin/integration/catalog/products` and `/offers` reuse the existing
+integration secret. The catalog HMAC canonical string is
+`vv-admin.timestamp.requestId.METHOD.relativePath.sha256(body)` (dot-separated),
+where the relative path includes the exact query, such as `/offers?limit=200`.
+The public `/api/admin/integration/catalog` prefix is not signed. Catalog auth is
+distinct from scenario auth; missing, stale, wrong-site or altered signatures
+return 401. Mutation routes do not exist.
+
+Each response contains `items` and `nextCursor`; the default/maximum page size is
+200. ID keyset pagination applies public CS2 skin eligibility before the page
+limit, then reads the same supplier prices and availability as the storefront.
+It never persists quotes, orders, payments or fulfillment. Hidden but formerly
+published detail records are excluded. Do not use storefront offset pagination
+with repeated facet/count scans for whole-catalog invoice imports.
+
+After deployment, refresh the manifest in VV Admin, validate both resource
+schemas, enumerate all pages and compare live offer prices with public product
+details. Verify unsigned access fails, writes remain absent, the site stays out
+of catalog management, and a clearly labelled test invoice reaches PDF download.
+Health or deployment success alone does not prove invoice acceptance. Retain
+explicitly created test invoices as product evidence; do not recover historical
+PDFs or import local files.

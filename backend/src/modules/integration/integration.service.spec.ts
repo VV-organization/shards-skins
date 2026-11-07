@@ -72,7 +72,16 @@ describe("IntegrationService", () => {
       "visible_catalog",
       "catalog_cs2",
     ]);
-    expect(manifest).not.toHaveProperty("catalog");
+    expect(manifest.catalog).toMatchObject({
+      managementEnabled: false,
+      baseUrl: "https://api.shards.example/admin/integration/catalog",
+      auth: { scheme: "vv_hmac" },
+      pagination: { pageSize: 200 },
+      resources: {
+        products: { enabled: true, write: { version: 1, create: false, update: false, delete: false }, schema: { required: ["publicUrl", "game"] } },
+        offers: { enabled: true, write: { version: 1, create: false, update: false, delete: false }, schema: { type: "object", additionalProperties: false, properties: {} } },
+      },
+    });
     expect(manifest).not.toHaveProperty("storeOrders");
     expect(manifest.syntheticScenarios).toEqual([
       expect.objectContaining({

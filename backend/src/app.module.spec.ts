@@ -47,14 +47,15 @@ describe("AppModule", () => {
       .expect(200)
       .expect(({body}) => {
         expect(body).toMatchObject({site:{key:"shards"},commerceEvents:{schemaVersion:2},browserScenarios:{enabled:false}});
-        expect(body).not.toHaveProperty("catalog");
+        expect(body).toHaveProperty("catalog.managementEnabled", false);
         expect(body).not.toHaveProperty("storeOrders");
       });
   });
 
   it("does not mount excluded customer or admin APIs", async () => {
-    for (const path of ["/digital-goods/me", "/admin/integration/catalog/products", "/admin/integration/health/apple-gift-cards"])
+    for (const path of ["/digital-goods/me", "/admin/integration/health/apple-gift-cards"])
       await request(httpServer).get(path).expect(404);
+    await request(httpServer).get("/admin/integration/catalog/products").expect(401);
     await request(httpServer).patch("/admin/integration/store-orders/orders/1/processing").send({isProcessed:true}).expect(404);
   });
 });

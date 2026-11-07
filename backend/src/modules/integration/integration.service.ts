@@ -4,7 +4,10 @@ import type { AppConfig } from "../../config/app-config";
 import { isArcoPayConfigured } from "../../config/app-config";
 import { APP_CONFIG } from "../../config/app-config.module";
 
+import { invoiceCatalogCapability } from "./integration-catalog.manifest";
+
 type IntegrationManifest = {
+  readonly catalog: ReturnType<typeof invoiceCatalogCapability>;
   readonly site: {
     readonly key: string;
     readonly displayName: "Shards";
@@ -62,6 +65,7 @@ export class IntegrationService {
     const adminOrigin = this.config.integration.adminOrigin;
     const siteKey = this.config.integration.vvAdminSiteKey ?? "shards";
     return {
+      catalog: invoiceCatalogCapability(adminOrigin),
       site: {
         key: siteKey,
         displayName: "Shards",
