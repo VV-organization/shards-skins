@@ -10,6 +10,7 @@ createServer(async(req,res)=>{const url=new URL(req.url,'http://127.0.0.1:5199')
  if(url.pathname==='/storefront/config')return send(config);
  if(url.pathname==='/session/me')return send({message:'Guest'},401);
  if(url.pathname==='/catalog/lookup')return send({items:items.filter(p=>body.slugs.includes(p.slug))});
+ if(url.pathname==='/catalog/preview')return send({items:items.slice(0,Math.min(Number(url.searchParams.get('limit')??120),240))});
  if(url.pathname==='/catalog'){
   const query=url.searchParams;
   const wearCodes={'Прямо с завода':'FN','Немного поношенное':'MW','После полевых испытаний':'FT','Поношенное':'WW','Закалённое в боях':'BS','Закаленное в боях':'BS'};

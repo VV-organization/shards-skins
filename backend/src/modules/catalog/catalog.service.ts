@@ -260,6 +260,12 @@ export class CatalogService {
     @Inject(DatabaseService) private readonly database: DatabaseService,
   ) {}
 
+  /** Cards for the storefront shell; facets and totals belong to the catalog page. */
+  async preview(limit?: string): Promise<{ items: CatalogProductDto[] }> {
+    const products = await this.loadProducts({ previewPage: true, limit: limitQuery(limit) });
+    return { items: products.map(productDto) };
+  }
+
   async list(query: CatalogListQuery): Promise<CatalogListDto> {
     const category = allowedKinds.has(query.category as CatalogProductKind) ? query.category as CatalogProductKind : undefined;
     const types = arrayQuery(query.type).map(normalize);
@@ -379,6 +385,7 @@ export class CatalogService {
   }
 
   private async loadProducts(command: {
+    previewPage?: boolean;
     categoryId?: string; stattrak?: string; weapon?: string;
     after?: {price:number;id:string}; availableOnly?: boolean;
     category?: CatalogProductKind;
@@ -419,10 +426,6 @@ export class CatalogService {
     params.push(offset);
     const offsetParam = params.length;
     const publicationPage = command.publicationAfterId !== undefined;
-    // Publication eligibility is decided before LIMIT; the joins only enrich eligible rows.
-    const sourceTable = publicationPage
-      ? `(SELECT * FROM catalog_products WHERE ${where.join(" AND ")} ORDER BY catalog_products.id ASC LIMIT $${limitParam}) AS catalog_products`
-      : "catalog_products";
     const orderBy = (() => {
       if (publicationPage) return "catalog_products.id ASC";
       if (command.sort === "price_asc") {
@@ -442,6 +445,12 @@ export class CatalogService {
       }
       return "catalog_products.popularity DESC, catalog_products.created_at DESC, catalog_products.id ASC";
     })();
+    // These selections use only product fields. Enrich the selected cards, not the entire catalog.
+    // Price/stock-filtered queries must keep their joins before pagination.
+    const boundedPage = publicationPage || command.previewPage;
+    const sourceTable = boundedPage
+      ? `(SELECT * FROM catalog_products WHERE ${where.join(" AND ")} ORDER BY ${orderBy} LIMIT $${limitParam}) AS catalog_products`
+      : "catalog_products";
     const result = await client.query<{
       id: string;
       slug: string;
@@ -495,7 +504,7 @@ export class CatalogService {
           AND supplier_listings.game = lower(catalog_products.game)
           AND supplier_listings.market_hash_name = catalog_products.supplier_item_id
 ${supplierPricingJoin}
-        WHERE ${publicationPage ? "TRUE" : where.join("\n          AND ")}
+        WHERE ${boundedPage ? "TRUE" : where.join("\n          AND ")}
         ORDER BY ${orderBy}
         LIMIT $${limitParam}
         OFFSET $${offsetParam}

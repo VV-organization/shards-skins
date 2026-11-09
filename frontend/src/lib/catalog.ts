@@ -1,6 +1,6 @@
 import {cache} from "react";
 import type { Catalog, Product } from './types';
-import {mapProduct,type CatalogPage,type CatalogApiProduct} from './catalog-adapter';
+import {mapProduct,type CatalogApiProduct} from './catalog-adapter';
 import {categories,presentationSlugs,presentationProducts} from './presentation';
 const origin=()=>process.env.SHARDS_BACKEND_ORIGIN??'http://127.0.0.1:5199';
 async function backend<T>(path:string,body?:unknown):Promise<T>{
@@ -9,7 +9,7 @@ async function backend<T>(path:string,body?:unknown):Promise<T>{
 }
 export const getCatalog=cache(async ():Promise<Catalog>=>{
  try {
-  const [page,curated]=await Promise.all([backend<CatalogPage>('/catalog?limit=60'),backend<{items:CatalogApiProduct[]}>('/catalog/lookup',{slugs:presentationSlugs.slice(0,50)})]);
+  const [page,curated]=await Promise.all([backend<{items:CatalogApiProduct[]}>('/catalog/preview?limit=60'),backend<{items:CatalogApiProduct[]}>('/catalog/lookup',{slugs:presentationSlugs.slice(0,50)})]);
   const products=[...new Map([...page.items,...curated.items].map(dto=>[dto.slug,mapProduct(dto)])).values()];
   return {mode:'live',products,categories,capturedAt:new Date().toISOString()};
  }catch{return {mode:'unavailable',products:[],categories,capturedAt:''};}

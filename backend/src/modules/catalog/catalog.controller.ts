@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, Post, Get, Inject, Param, Query } from "@nestjs/common";
-import { ApiBody, ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { ApiBody, ApiOkResponse, ApiQuery, ApiTags } from "@nestjs/swagger";
 
 import { CatalogService } from "./catalog.service";
 import type { CatalogListDto, CatalogListQuery, CatalogProductDto } from "./catalog.types";
@@ -65,6 +65,11 @@ export const productSchema = {
 @Controller("catalog")
 export class CatalogController {
   constructor(@Inject(CatalogService) private readonly catalog: CatalogService) {}
+
+  @Get("preview")
+  @ApiQuery({ name: "limit", required: false, type: Number })
+  @ApiOkResponse({schema:{type:"object",required:["items"],properties:{items:{type:"array",items:productSchema}}}})
+  preview(@Query("limit") limit?: string) { return this.catalog.preview(limit); }
 
   @Post("lookup")
   @HttpCode(200)
