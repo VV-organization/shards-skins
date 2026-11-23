@@ -29,7 +29,7 @@ describe("ArcoPayClient", () => {
     expect(calls).toBe(0);
   });
 
-  it("creates only a CARD hosted payment and returns a Paidlayer form URL", async () => {
+  it("creates only an IPS hosted payment and returns a Paidlayer form URL", async () => {
     const requests: Array<{ url: string; init?: RequestInit }> = [];
     const client = new ArcoPayClient({ ...options, fetch: (url, init) => { requests.push({ url, ...(init ? { init } : {}) }); return response(payload()); } });
     await expect(client.createHostedCheckout(command)).resolves.toEqual({ providerSessionId: id, checkoutUrl: `https://payment.paidlayer.com/${id}` });
@@ -37,7 +37,7 @@ describe("ArcoPayClient", () => {
     expect(requests[0]?.url).toBe("https://api.clickit.team/api/v1/payments/create");
     expect(requests[0]?.init).toMatchObject({ method: "POST", redirect: "error", headers: { authorization: "Bearer fixture-bearer-token", "x-api-key": "fixture-api-key", "x-req-id": id } });
     expect(requests[0]?.init?.signal).toBeInstanceOf(AbortSignal);
-    expect(JSON.parse(requests[0]?.init?.body as string)).toEqual({ MerchantOrderId: "topup-1", Amount: 10000, Currency: "RUB", Type: "PayIn", PaymentTypes: ["CARD"], IsForm: true, LifeTime: 900, Description: "Пополнение", CallbackUrl: options.callbackUrl, RedirectUrl: { SuccessUrl: command.successUrl, FailUrl: command.failUrl }, Buyer: { Email: "buyer@example.test" } });
+    expect(JSON.parse(requests[0]?.init?.body as string)).toEqual({ MerchantOrderId: "topup-1", Amount: 10000, Currency: "RUB", Type: "PayIn", PaymentTypes: ["IPS"], IsForm: true, LifeTime: 900, Description: "Пополнение", CallbackUrl: options.callbackUrl, RedirectUrl: { SuccessUrl: command.successUrl, FailUrl: command.failUrl }, Buyer: { Email: "buyer@example.test" } });
   });
 
   it.each([{ Amount: 9999 }, { MerchantOrderId: "other" }, { Currency: "USD" }, { ShopId: 9999 }])("rejects a mismatched create response %j", async patch => {

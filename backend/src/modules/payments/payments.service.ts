@@ -921,7 +921,7 @@ export class PaymentsService {
           JSON.stringify({
             ...(bound?{...bound,quoteId:command.quoteBinding?.quoteId}:{}),
             arcoPayConfigured: true,
-            providerPaymentMethod: "card",
+            providerPaymentMethod: "sbp",
             environment: this.config.arcoPay.environment,
           }),
         ],
@@ -1135,7 +1135,7 @@ export class PaymentsService {
           JSON.stringify({
             ...(bound?{...bound,quoteId:command.quoteBinding?.quoteId}:{}),
             arcoPayConfigured: true,
-            providerPaymentMethod: "card",
+            providerPaymentMethod: "sbp",
             environment: this.config.arcoPay.environment,
             purpose: bound?.purpose ?? "steam_refill_payment",
           }),

@@ -47,7 +47,7 @@ export function BalanceForm({initialAmount='1 000'}:{initialAmount?:string}){
  return <form className="ym-hide-content" onSubmit={e=>{e.preventDefault();void payment.submit();}}>
   <div className="topup-form-body"><label className="field-label" htmlFor={id}>Сколько Shards зачислить</label><div className="money-input"><input id={id} value={amount} inputMode="decimal" maxLength={12} onChange={e=>setAmount(e.target.value)} required/><span>Shards</span></div>
   <div className="amount-presets">{[500,1000,2500,5000].map(n=><button type="button" key={n} className={minor===n*100?"selected":""} onClick={()=>setAmount(String(n))}>{n.toLocaleString('ru-RU')}</button>)}</div>
-  <p className="fine-print ym-hide-content">Способ оплаты: СБП или картой</p>
+  <p className="fine-print ym-hide-content">Оплата через СБП</p>
   </div><div className="topup-total"><span>К оплате{!payment.pricing.quote?' ≈':''}</span><strong>{minor===null?'—':formatMinor(payment.pricing.quote?.fiatAmountMinor??shardsToRub(minor))} ₽</strong></div>
   <div className="topup-form-action"><button className="button primary full" disabled={payment.busy||(!payment.pending&&payment.authorized&&(!payment.enabled||!valid||payment.pricing.loading))} type="submit">{payment.busy?'Создаём платёж…':payment.pending?'Проверить результат запроса':!payment.authorized?'Войти через Steam':!payment.pricing.quote||payment.pricing.expired?'Обновить расчёт':'Пополнить баланс'} <Icon name="arrow"/></button>{(!valid||!payment.enabled||payment.message)&&<p className="form-message" role="status">{payment.message||(!valid?'Введите от 100 до 100 000 целых Shards.':'Пополнение временно недоступно.')}</p>}</div>
  </form>;

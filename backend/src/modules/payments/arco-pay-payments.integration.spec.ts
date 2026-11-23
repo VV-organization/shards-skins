@@ -31,7 +31,7 @@ type ProviderOrder = {
 const kinds = ["coins", "steam"] as const;
 const tableFor = (kind: Kind) => kind === "coins" ? "top_up_payments" : "steam_refill_payments";
 
-describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlement", () => {
+describe.skipIf(!databaseUrl)("ArcoPay IPS hosted checkout and Shards settlement", () => {
   let app: INestApplication;
   let pool: Pool;
   let directory: string;
@@ -79,7 +79,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
       if (endpoint.pathname === "/api/v1/payments/create") {
         creationRequests++;
         if (rejectCreation) return Response.json({ Response: { Success: false, Error: "Fixture rejection" } });
-        expect(payload.PaymentTypes).toEqual(["CARD"]);
+        expect(payload.PaymentTypes).toEqual(["IPS"]);
         expect(payload.IsForm).toBe(true);
         expect(payload.Currency).toBe("RUB");
         expect(payload.Type).toBe("PayIn");
@@ -96,7 +96,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
           Amount: Number(payload.Amount),
           Currency: "RUB",
           Status: "CREATED",
-          PaymentType: "CARD",
+          PaymentType: "IPS",
         };
         orders.set(order.OrderId, order);
         await beforeCreateResponse?.(order);
@@ -200,7 +200,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
   it.each(kinds)("settles %s exactly once across callback, duplicate receipt and reconciliation", async kind => {
     const { order } = await create(kind);
     await expectUnsettled();
-    order.Status = "CHARGED";
+    order.Status = "IPS_ACCEPTED";
     if (kind === "coins") expect((await notify(order)).status).toBe(200);
     await payments.reconcilePendingTopUps({ limit: 100 });
     expect((await notify(order)).status).toBe(200);
@@ -267,7 +267,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
   });
 
   it.each(kinds)("settles an already charged %s payment on check without reopening checkout", async kind => {
-    const {session,order} = await create(kind);order.Status="CHARGED";
+    const {session,order} = await create(kind);order.Status="IPS_ACCEPTED";
     for (let i=0;i<2;i++) expect((await check(session.id)).body).toMatchObject({paymentStatus:"paid",canPay:false,checkoutUrl:null});
     await notify(order);await expectSettledExactlyOnce(kind);
     expect(creationRequests).toBe(1);
@@ -290,7 +290,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
     expect(await paymentRow(kind)).toMatchObject({status:"manual_review",metadata:{paymentStatusUnresolved:true}});
     expect(await app.get(IntegrationHealthService).operations()).toMatchObject({status:'degraded',unresolved_payments:1});
     await expectUnsettled();
-    statusFailures.clear();order.Status="CHARGED";
+    statusFailures.clear();order.Status="IPS_ACCEPTED";
     await payments.reconcilePendingTopUps({limit:100});await notify(order);
     await expectSettledExactlyOnce(kind);
     expect(await app.get(IntegrationHealthService).operations()).toMatchObject({unresolved_payments:0});
@@ -319,7 +319,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
   it("ignores a valid callback belonging to another site in the same shop", async () => {
     const foreign: ProviderOrder = {
       OrderId: randomUUID(), MerchantOrderId: randomUUID(), ShopId: 1581,
-      Amount: 100000, Currency: "RUB", Status: "CHARGED", PaymentType: "CARD",
+      Amount: 100000, Currency: "RUB", Status: "IPS_ACCEPTED", PaymentType: "IPS",
     };
     orders.set(foreign.OrderId, foreign);
     expect((await notify(foreign)).body).toEqual({status:"unmatched"});
@@ -328,7 +328,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
 
   it.each(kinds)("ignores another provider order for an already bound %s payment", async kind => {
     const { order } = await create(kind);
-    const other = { ...order, OrderId: randomUUID(), Status: "CHARGED" };
+    const other = { ...order, OrderId: randomUUID(), Status: "IPS_ACCEPTED" };
     orders.set(other.OrderId, other);
     expect((await notify(other)).body).toEqual({ status: "rejected" });
     await expectUnsettled();
@@ -340,7 +340,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
   it.each(kinds)("preserves the first %s order binding when create returns a different id", async kind => {
     let boundId = "";
     beforeCreateResponse = async order => {
-      const other = { ...order, OrderId: randomUUID(), Status: "CHARGED" };
+      const other = { ...order, OrderId: randomUUID(), Status: "IPS_ACCEPTED" };
       boundId = other.OrderId;
       orders.set(other.OrderId, other);
       expect((await notify(other)).body).toEqual({ status: "processed" });
@@ -351,29 +351,29 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
     await expectSettledExactlyOnce(kind);
   });
 
-  it.each(kinds)("still settles existing %s IPS orders after switching new checkouts to cards", async kind => {
+  it.each(kinds)("still settles existing %s card orders in the configured shop", async kind => {
     const { order } = await create(kind);
-    await pool.query(`UPDATE ${tableFor(kind)} SET metadata=metadata - 'providerPaymentMethod' WHERE user_id=$1`, [userId]);
-    order.PaymentType = "IPS";
-    order.Status = "IPS_ACCEPTED";
+    await pool.query(`UPDATE ${tableFor(kind)} SET metadata=metadata || jsonb_build_object('providerPaymentMethod', 'card'::text) WHERE user_id=$1`, [userId]);
+    order.PaymentType = "CARD";
+    order.Status = "CHARGED";
     expect((await notify(order)).body).toEqual({ status: "processed" });
     await expectSettledExactlyOnce(kind);
   });
 
-  it("reports the card method in newly created and paid top-up events", async () => {
+  it("reports the SBP method in newly created and paid top-up events", async () => {
     const { session, order } = await create("coins");
-    order.Status = "CHARGED";
+    order.Status = "IPS_ACCEPTED";
     await notify(order);
     const events = await pool.query<{ payload: { data: { paymentMethod: { type: string } } } }>(
       "SELECT payload FROM vv_admin_integration_outbox WHERE subject_external_id=$1 ORDER BY event_type", [session.id],
     );
     expect(events.rows).toHaveLength(2);
-    expect(events.rows.every(row => row.payload.data.paymentMethod.type === "card")).toBe(true);
+    expect(events.rows.every(row => row.payload.data.paymentMethod.type === "sbp")).toBe(true);
   });
 
   it.each(kinds)("rejects invalid signatures and any change to signed raw %s callback bytes", async kind => {
     const { order } = await create(kind);
-    order.Status = "CHARGED";
+    order.Status = "IPS_ACCEPTED";
     expect((await notify(order, false)).status).toBe(401);
     expect((await notify(order, true, true)).status).toBe(401);
     expect(statusRequests).toHaveLength(0);
@@ -383,17 +383,17 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
 
   it.each(kinds)("does not credit %s when a signed success callback disagrees with provider status", async kind => {
     const { order } = await create(kind);
-    expect((await notify({ ...order, Status: "CHARGED" })).status).toBe(503);
+    expect((await notify({ ...order, Status: "IPS_ACCEPTED" })).status).toBe(503);
     await expectUnsettled();
     expect((await paymentRow(kind)).status).toBe("checkout_pending");
-    order.Status = "CHARGED";
+    order.Status = "IPS_ACCEPTED";
     expect((await notify(order)).status).toBe(200);
     await expectSettledExactlyOnce(kind);
   });
 
   it.each(kinds)("rejects wrong %s callback shop, amount, currency and external identity", async kind => {
     const { order } = await create(kind);
-    order.Status = "CHARGED";
+    order.Status = "IPS_ACCEPTED";
     for (const changed of [
       { ShopId: 1582 }, { Amount: order.Amount + 1 }, { Currency: "USD" }, { MerchantOrderId: randomUUID() },
     ]) {
@@ -405,7 +405,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
 
   it.each(kinds)("does not settle %s from authoritative amount that differs from the local payment", async kind => {
     const { order } = await create(kind);
-    order.Status = "CHARGED";
+    order.Status = "IPS_ACCEPTED";
     order.Amount += 1;
     await notify(order);
     await payments.reconcilePendingTopUps({ limit: 100 });
@@ -414,7 +414,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
   });
 
   for (const status of ["CREATED", "QRCDATA_CREATED", "AUTHORIZED", "CHARGE_IN_PROGRESS"]) {
-    it.each(kinds)(`never treats ${status} as a successful %s CARD payment`, async kind => {
+    it.each(kinds)(`never treats ${status} as a successful %s payment`, async kind => {
       const { order } = await create(kind);
       order.Status = status;
       expect((await notify(order)).status).toBe(200);
@@ -426,7 +426,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
 
   it.each(kinds)("preserves %s settlement when the callback arrives before create returns", async kind => {
     beforeCreateResponse = async order => {
-      order.Status = "CHARGED";
+      order.Status = "IPS_ACCEPTED";
       expect((await notify(order)).status).toBe(200);
     };
     const session = await createPayment(kind);
@@ -437,7 +437,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
   it.each(kinds)("preserves %s settlement when create times out after an early callback", async kind => {
     let callbackResult: {status:number; body:unknown} | undefined;
     beforeCreateResponse = async order => {
-      order.Status = "CHARGED";
+      order.Status = "IPS_ACCEPTED";
       callbackResult = await notify(order);
       throw new Error("Fixture connection lost after successful callback");
     };
@@ -463,7 +463,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
     await expectUnsettled();
     const order = [...orders.values()][0];
     if (!order) throw new Error("Expected provider order after lost response");
-    order.Status = "CHARGED";
+    order.Status = "IPS_ACCEPTED";
     expect((await notify(order)).status).toBe(200);
     expect((await paymentRow(kind)).provider_session_id).toBe(order.OrderId);
     expect((await notify(order)).body).toEqual({ status: "duplicate" });
@@ -498,7 +498,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
     expect(creationRequests).toBe(1);
   });
 
-  it.each(kinds)("binds a signed CREATED callback after lost %s creation and reconciles later card charge", async kind => {
+  it.each(kinds)("binds a signed CREATED callback after lost %s creation and reconciles later SBP acceptance", async kind => {
     beforeCreateResponse = () => Promise.reject(new Error("Fixture lost create response"));
     await expect(createPayment(kind)).rejects.toThrow("checkout creation failed");
     const order = [...orders.values()][0];
@@ -506,7 +506,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
     expect((await notify(order)).status).toBe(200);
     expect((await paymentRow(kind)).provider_session_id).toBe(order.OrderId);
     await expectUnsettled();
-    order.Status = "CHARGED";
+    order.Status = "IPS_ACCEPTED";
     await payments.reconcilePendingTopUps({ limit: 100 });
     await expectSettledExactlyOnce(kind);
     expect(statusRequests).toEqual([order.OrderId, order.OrderId]);
@@ -528,8 +528,8 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
     await pool.query("UPDATE steam_refill_payments SET created_at=now() - interval '2 minutes' WHERE id=$1", [steam.session.id]);
     await pool.query("UPDATE top_up_payments SET created_at=now() - interval '1 minute' WHERE id=$1", [newer.session.id]);
     if (oldestState === "error") statusFailures.add(oldest.order.OrderId);
-    steam.order.Status = "CHARGED";
-    newer.order.Status = "CHARGED";
+    steam.order.Status = "IPS_ACCEPTED";
+    newer.order.Status = "IPS_ACCEPTED";
 
     expect(await payments.reconcilePendingTopUps({ limit: 1 })).toMatchObject({
       checked: 1, errors: oldestState === "error" ? 1 : 0, credited: 0, steamRefillsCreated: 0,
@@ -551,7 +551,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
     expect(statusRequests).toEqual([oldest.order.OrderId, steam.order.OrderId, newer.order.OrderId]);
 
     statusFailures.clear();
-    oldest.order.Status = "CHARGED";
+    oldest.order.Status = "IPS_ACCEPTED";
     expect(await payments.reconcilePendingTopUps({ limit: 1 })).toMatchObject({ checked: 1, credited: 1 });
     expect((await wallet.getBalance(userId)).postedCoinMinor).toBe(320000);
     expect(creationRequests).toBe(3);
@@ -569,7 +569,7 @@ describe.skipIf(!databaseUrl)("ArcoPay CARD hosted checkout and Shards settlemen
         checked: 1, credited: 0, steamRefillsCreated: 0,
       });
     }
-    newer.order.Status = "CHARGED";
+    newer.order.Status = "IPS_ACCEPTED";
     for (let cycle = 0; cycle < 3; cycle++) {
       expect(await payments.reconcilePendingTopUps({ limit: 1 })).toMatchObject({
         checked: 1, credited: cycle === 2 ? 1 : 0, steamRefillsCreated: 0,

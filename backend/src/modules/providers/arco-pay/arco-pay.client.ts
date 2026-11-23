@@ -77,7 +77,7 @@ export class ArcoPayClient {
     [command.successUrl, command.failUrl, command.cancelUrl, this.options.callbackUrl].forEach(httpsUrl);
     const payment = await this.request("/payments/create", {
       MerchantOrderId: command.externalId, Amount: command.amountMinor, Currency: "RUB", Type: "PayIn",
-      PaymentTypes: ["CARD"], IsForm: true, LifeTime: 900, Description: command.description,
+      PaymentTypes: ["IPS"], IsForm: true, LifeTime: 900, Description: command.description,
       CallbackUrl: this.options.callbackUrl,
       RedirectUrl: { SuccessUrl: command.successUrl, FailUrl: command.failUrl },
       ...(command.buyerEmail ? { Buyer: { Email: command.buyerEmail } } : {}),

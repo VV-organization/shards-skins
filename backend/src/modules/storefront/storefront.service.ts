@@ -13,7 +13,7 @@ export class StorefrontService {
       walletTopUp: { minimumCoinMinor: 10000, maximumCoinMinor: 10000000, stepCoinMinor: 100 },
       steamRefill: { minimumRubMinor: 5000, maximumRubMinor: 943300, stepRubMinor: 100 },
       steamFeeBps: 500,
-      paymentMethods: paymentReady ? ['card', 'sbp'] : [],
+      paymentMethods: paymentReady ? ['sbp'] : [],
       capabilities: {
         guestSteamRefillEnabled: Boolean(paymentReady && this.config.commerce?.guestSteamRefillEnabled && this.config.commerce.fulfillmentEnabled && this.config.sih.steamRefillApiKeyFile),
         checkoutEnabled: Boolean(this.config.commerce?.checkoutEnabled && this.config.commerce.fulfillmentEnabled && this.config.databaseUrl && this.config.sih.apiKeyFile),
