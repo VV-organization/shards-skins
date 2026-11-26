@@ -13,7 +13,7 @@ export type IntegrationSyntheticScenarioResult = {
   readonly steps: readonly Record<string, unknown>[];
   readonly artifacts: null;
   readonly metadata: Record<string, unknown> | null;
-  readonly browserPayment?: { readonly method: "POST"; readonly topUpId: string; readonly action: string; readonly successUrl: string; readonly failUrl: string };
+  readonly browserPayment?: { readonly method: "POST"; readonly paymentMethod: "sbp"; readonly topUpId: string; readonly action: string; readonly successUrl: string; readonly failUrl: string };
 };
 
 @Injectable()
@@ -52,7 +52,7 @@ export class IntegrationSyntheticScenarioService {
       success.searchParams.set("payment","success"); fail.searchParams.set("payment","failed");
       // Transient only. VV Admin loads this native hosted form and persists sanitized evidence.
       // The invoice remains pending; local expiry cannot prove provider cancellation.
-      return {...result("BROWSER_PAYMENT_REQUIRED"),browserPayment:{method:"POST",topUpId:topUp.id,action:action.href,successUrl:success.href,failUrl:fail.href}};
+      return {...result("BROWSER_PAYMENT_REQUIRED"),browserPayment:{method:"POST",paymentMethod:"sbp",topUpId:topUp.id,action:action.href,successUrl:success.href,failUrl:fail.href}};
     } catch { return result("SCENARIO_PAYMENT_HANDOFF_INVALID"); }
   }
 }
